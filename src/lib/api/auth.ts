@@ -7,11 +7,12 @@ export async function login(username: string, password: string) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password }),
-    });
+        skipAuthRedirect: true,
+    } as any);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Identifiants invalides');
+        throw new Error(errorData.message || errorData['hydra:description'] || 'Identifiants invalides');
     }
 
     return response.json();

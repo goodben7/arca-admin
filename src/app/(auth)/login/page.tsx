@@ -38,9 +38,9 @@ export default function LoginPage() {
         try {
             const data = await login(formData.username, formData.password);
 
-            // Stockage du token dans un cookie pour le middleware
-            // On définit une expiration d'un jour pour la démo
-            document.cookie = `token=${data.token || 'simulated-token'}; path=/; max-age=86400; samesite=lax`;
+            // Stockage du token dans un cookie
+            const isSecure = window.location.protocol === 'https:';
+            document.cookie = `token=${data.token}; path=/; max-age=86400; samesite=lax${isSecure ? '; secure' : ''}`;
 
             router.push('/');
         } catch (err: any) {

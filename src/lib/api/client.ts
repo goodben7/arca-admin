@@ -16,10 +16,15 @@ function handleLogout() {
     window.location.href = '/login';
 }
 
-export async function request(path: string, options: RequestInit = {}) {
+interface RequestOptions extends RequestInit {
+    skipAuthRedirect?: boolean;
+}
+
+export async function request(path: string, options: RequestOptions = {}) {
+    const { skipAuthRedirect = false, ...fetchOptions } = options;
     const token = getToken();
 
-    const headers = new Headers(options.headers);
+    const headers = new Headers(fetchOptions.headers);
     if (token) {
         headers.set('Authorization', `Bearer ${token}`);
     }
@@ -30,11 +35,11 @@ export async function request(path: string, options: RequestInit = {}) {
     const url = path.startsWith('http') ? path : `${BASE_URL}${path}`;
 
     const response = await fetch(url, {
-        ...options,
+        ...fetchOptions,
         headers,
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 && !skipAuthRedirect) {
         handleLogout();
         throw new Error('Session expirée');
     }
