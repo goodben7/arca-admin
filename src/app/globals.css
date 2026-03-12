@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand Colors - MCBS Africa (Blue & Red) */
+  --color-primary-50: #eef3f9;
+  --color-primary-100: #dae5f2;
+  --color-primary-200: #bacce5;
+  --color-primary-300: #8ba9d3;
+  --color-primary-400: #5580bc;
+  --color-primary-500: #1a4f9c; /* Brand Blue from Logo */
+  --color-primary-600: #143e7b;
+  --color-primary-700: #0f2e5a;
+  --color-primary-800: #0a1f3d;
+  --color-primary-900: #05101f;
+  --color-primary-950: #020810;
+
+  /* Brand Red from Logo */
+  --color-accent-red-50: #fff1f1;
+  --color-accent-red-100: #ffdfe1;
+  --color-accent-red-200: #ffc5c8;
+  --color-accent-red-300: #ff9da2;
+  --color-accent-red-400: #ff656c;
+  --color-accent-red-500: #e62b2e; /* Brand Red from Logo */
+  --color-accent-red-600: #cd1518;
+  --color-accent-red-700: #b00e11;
+  --color-accent-red-800: #8f0b0d;
+  --color-accent-red-900: #760c0f;
+
+  --color-secondary-50: #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
+  --color-secondary-950: #020617;
+
+  /* UI Semantic Colors aligned with MCBS Blue */
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
+  --color-primary: #1a4f9c;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #64748b;
+  --color-secondary-foreground: #ffffff;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #1a4f9c;
+  --color-destructive: #e62b2e;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #1a4f9c;
+
+  /* Spacing & Radius */
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+.glass-card {
+  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm;
+}
+
+.sidebar-item-active {
+  @apply bg-primary-50 text-primary-600 border-r-4 border-primary-600;
+}
