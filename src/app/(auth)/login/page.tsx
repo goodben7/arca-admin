@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter as useNextRouter } from 'next/navigation';
 import {
     Lock,
     User,
@@ -10,7 +10,9 @@ import {
     AlertCircle,
     ArrowRight,
     ShieldCheck,
-    Loader2
+    Loader2,
+    CheckCircle2,
+    Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input, Label } from '@/components/ui/Input';
@@ -20,7 +22,7 @@ import { login } from '@/lib/api/auth';
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
-    const router = useRouter();
+    const router = useNextRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -51,91 +53,158 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen grid lg:grid-cols-2">
-            {/* Visual Side (Hidden on mobile) */}
-            <div className="hidden lg:flex bg-gradient-to-br from-primary-700 via-primary-900 to-black p-12 flex-col justify-between relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none">
-                    <div className="absolute top-[10%] right-[10%] w-64 h-64 border-4 border-white/20 rounded-full" />
-                    <div className="absolute bottom-[20%] left-[10%] w-96 h-96 border-2 border-white/10 rounded-full" />
+        <div className="min-h-screen grid lg:grid-cols-2 bg-white">
+            <style jsx global>{`
+                @keyframes float {
+                    0% { transform: translate(0, 0) scale(1); }
+                    33% { transform: translate(30px, -50px) scale(1.1); }
+                    66% { transform: translate(-20px, 20px) scale(0.9); }
+                    100% { transform: translate(0, 0) scale(1); }
+                }
+                .animate-float {
+                    animation: float 20s ease-in-out infinite;
+                }
+                .animate-float-delayed {
+                    animation: float 25s ease-in-out infinite reverse;
+                }
+                @keyframes progress {
+                    0% { transform: translateX(-100%); }
+                    50% { transform: translateX(0); }
+                    100% { transform: translateX(100%); }
+                }
+                .animate-progress {
+                    animation: progress 3s ease-in-out infinite;
+                }
+            `}</style>
+
+            {/* Visual Side (Left) */}
+            <div className="hidden lg:flex bg-[#004b61] p-16 flex-col justify-between relative overflow-hidden group">
+                {/* Background Decorations */}
+                <div className="absolute top-0 right-0 w-full h-full pointer-events-none">
+                    <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[100px] animate-float" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-accent-red-500/5 rounded-full blur-[100px] animate-float-delayed" />
+                    <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
                 </div>
 
-                <div className="relative z-10">
-                    <div className="flex items-center gap-4 mb-10">
-                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl p-2 border border-white/20">
-                            <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
+                <div className="relative z-10 space-y-12">
+                    {/* Brand Section */}
+                    <div className="flex items-center gap-6">
+                        <div className="relative p-1">
+                            <div className="absolute inset-0 bg-white/20 rounded-3xl blur-md group-hover:bg-white/30 transition-all" />
+                            <div className="relative w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-2xl p-3 border border-white/40">
+                                <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
+                            </div>
                         </div>
                         <div>
-                            <h1 className="leading-none tracking-tight text-3xl font-black">
-                                <span className="text-white">AR</span>
-                                <span className="text-accent-red-500">CA</span>
-                            </h1>
-                            <p className="text-[10px] text-primary-100 font-black uppercase tracking-[0.2em] mt-1.5 opacity-90 leading-tight">
-                                Autorité de Régulation<br />& de Contrôle des Assurances
+                            <div className="flex items-baseline gap-1">
+                                <h1 className="text-4xl font-black tracking-tighter text-white">AR<span className="text-accent-red-500">CA</span></h1>
+                                <div className="w-2 h-2 rounded-full bg-accent-yellow-400 mb-1 animate-pulse" />
+                            </div>
+                            <p className="text-[11px] text-white/60 font-black uppercase tracking-[0.25em] mt-2 leading-none">
+                                Autorité de Régulation
+                            </p>
+                            <p className="text-[11px] text-white/40 font-bold uppercase tracking-[0.15em] mt-1 leading-none">
+                                & de Contrôle des Assurances
                             </p>
                         </div>
                     </div>
 
-                    <div className="max-w-md space-y-6 mt-20">
-                        <h2 className="text-5xl font-extrabold text-white leading-tight tracking-tighter">
-                            Gérez votre capital humain avec excellence.
-                        </h2>
-                        <div className="flex gap-2">
-                            <div className="w-12 h-1.5 bg-primary-500 rounded-full" />
-                            <div className="w-4 h-1.5 bg-accent-red-500 rounded-full" />
-                            <div className="w-4 h-1.5 bg-accent-yellow-500 rounded-full" />
+                    {/* Main Content */}
+                    <div className="max-w-xl space-y-12 mt-12">
+                        <div className="space-y-6">
+                            <h2 className="text-7xl font-black text-white leading-[1] tracking-tighter">
+                                <span className="block mb-2">Gérez votre</span>
+                                <span className="bg-gradient-to-r from-white/60 to-white/20 bg-clip-text text-transparent">capital humain</span>
+                                <span className="block mt-2">
+                                    avec <span className="relative">
+                                        excellence
+                                        <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-accent-red-500 to-transparent rounded-full" />
+                                    </span>.
+                                </span>
+                            </h2>
                         </div>
-                        <p className="text-primary-50/70 text-lg font-medium leading-relaxed">
-                            Plateforme d'administration RH centralisée pour l'ARCA : gestion des talents, des contrats et du suivi de carrière.
+                        
+                        <div className="flex items-center gap-4">
+                            <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-primary-600 w-1/2 rounded-full animate-progress" />
+                            </div>
+                            <div className="flex gap-1.5">
+                                <div className="w-1.5 h-1.5 bg-white/20 rounded-full" />
+                                <div className="w-1.5 h-1.5 bg-white/10 rounded-full" />
+                                <div className="w-1.5 h-1.5 bg-white/5 rounded-full" />
+                            </div>
+                        </div>
+
+                        <p className="text-white/40 text-xl font-medium leading-relaxed max-w-md italic border-l-2 border-white/10 pl-6">
+                            "L'excellence au service de la régulation et du développement des compétences."
                         </p>
                     </div>
                 </div>
 
-                <div className="relative z-10 flex items-center gap-4">
-                    <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
-                        <ShieldCheck className="w-6 h-6 text-white" />
+                {/* Footer Security */}
+                <div className="relative z-10 flex items-center gap-6">
+                    <div className="group/shield relative">
+                        <div className="absolute inset-0 bg-primary-400/20 rounded-2xl blur-lg scale-150 opacity-0 group-hover/shield:opacity-100 transition-opacity" />
+                        <div className="relative p-4 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl">
+                            <ShieldCheck className="w-8 h-8 text-white" />
+                        </div>
                     </div>
                     <div>
-                        <p className="text-white font-bold tracking-tight">Portail Sécurisé ARCA</p>
+                        <p className="text-xs font-black text-white/30 uppercase tracking-[0.3em] mb-1">Infrastructure</p>
+                        <p className="text-white font-black tracking-tight text-lg">Portail Sécurisé </p>
                     </div>
                 </div>
             </div>
 
-            {/* Login Side */}
-            <div className="flex items-center justify-center p-6 sm:p-12 bg-secondary-50">
-                <div className="w-full max-w-[440px] space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
-                    <div className="text-center lg:text-left">
-                        <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
-                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg p-1.5 border border-secondary-100">
-                                <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
-                            </div>
-                            <h1 className="leading-none tracking-tight text-2xl font-black">
-                                <span className="text-primary-600">AR</span>
-                                <span className="text-accent-red-500">CA</span>
-                            </h1>
+            {/* Login Side (Right) */}
+            <div className="flex items-center justify-center p-8 sm:p-20 bg-secondary-50/30">
+                <div className="w-full max-w-[480px] space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                    {/* Mobile Header (Hidden on Desktop) */}
+                    <div className="flex lg:hidden flex-col items-center gap-6 mb-4">
+                        <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-2xl p-4 border border-secondary-100">
+                            <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
                         </div>
-                        <h3 className="text-3xl font-black text-secondary-900 mb-2 mt-4 tracking-tight">Bon retour !</h3>
-                        <p className="text-secondary-500 font-medium italic">Accédez à votre espace RH ARCA.</p>
+                        <div className="text-center">
+                            <h1 className="text-3xl font-black tracking-tighter">AR<span className="text-accent-red-500">CA</span></h1>
+                            <p className="text-[10px] text-secondary-400 font-black uppercase tracking-[0.2em] mt-2 italic">Portail RH Centralisé</p>
+                        </div>
                     </div>
 
-                    <Card className="border-none shadow-2xl shadow-secondary-200/50 overflow-hidden bg-white">
-                        <CardContent className="p-8 space-y-6">
+                    <div className="space-y-3">
+                        <h3 className="text-5xl font-black text-secondary-950 tracking-tighter text-center lg:text-left">
+                            Bon retour <span className="text-primary-600 italic font-medium truncate">!</span>
+                        </h3>
+                        <p className="text-secondary-500 text-lg font-medium text-center lg:text-left flex items-center justify-center lg:justify-start gap-2">
+                            Entrez vos identifiants pour continuer <ArrowRight className="w-4 h-4 text-secondary-300" />
+                        </p>
+                    </div>
+
+                    <Card className="border-none shadow-[0_40px_80px_-20px_rgba(0,0,0,0.06)] overflow-hidden bg-white/80 backdrop-blur-2xl rounded-[40px] border border-white">
+                        <CardContent className="p-10 space-y-8">
                             {error && (
-                                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-2xl flex items-start gap-4 animate-in fade-in zoom-in-95">
-                                    <AlertCircle className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
-                                    <p className="text-sm text-destructive font-bold">{error}</p>
+                                <div className="p-5 bg-rose-50 border border-rose-100 rounded-3xl flex items-start gap-4 animate-in shake-1 duration-500">
+                                    <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-black uppercase tracking-widest text-rose-600">Erreur d'accès</p>
+                                        <p className="text-sm text-rose-700 font-medium italic leading-tight">{error}</p>
+                                    </div>
                                 </div>
                             )}
 
-                            <form onSubmit={handleSubmit} className="space-y-5">
-                                <div className="space-y-2">
-                                    <Label htmlFor="username" className="text-xs uppercase tracking-widest text-secondary-500">Nom d'utilisateur</Label>
+                            <form onSubmit={handleSubmit} className="grid gap-8">
+                                <div className="space-y-3">
+                                    <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary-400 ml-1">
+                                        Nom d'utilisateur
+                                    </Label>
                                     <div className="relative group">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
+                                        <div className="absolute left-5 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
+                                            <User className="w-4 h-4 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
+                                        </div>
                                         <Input
                                             id="username"
                                             type="text"
-                                            placeholder="votre.nom"
-                                            className="pl-12 h-14 bg-secondary-50/50 border-secondary-200"
+                                            placeholder="nom.utilisateur"
+                                            className="pl-16 h-16 bg-white border-secondary-200 focus:border-primary-500 focus:ring-8 focus:ring-primary-500/5 rounded-2xl text-base font-bold transition-all shadow-sm"
                                             value={formData.username}
                                             onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                             required
@@ -143,17 +212,21 @@ export default function LoginPage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor="password" className="text-xs uppercase tracking-widest text-secondary-500">Mot de passe</Label>
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between ml-1">
+                                        <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary-400">
+                                            Mot de Passe
+                                        </Label>
                                     </div>
                                     <div className="relative group">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
+                                        <div className="absolute left-5 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
+                                            <Lock className="w-4 h-4 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
+                                        </div>
                                         <Input
                                             id="password"
                                             type={showPassword ? "text" : "password"}
-                                            placeholder="••••••••"
-                                            className="pl-12 pr-12 h-14 bg-secondary-50/50 border-secondary-200"
+                                            placeholder="••••••••••••"
+                                            className="pl-16 pr-14 h-16 bg-white border-secondary-200 focus:border-primary-500 focus:ring-8 focus:ring-primary-500/5 rounded-2xl text-base font-bold transition-all shadow-sm"
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                             required
@@ -161,23 +234,28 @@ export default function LoginPage() {
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary-400 hover:text-secondary-600"
+                                            className="absolute right-5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
                                         >
                                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
                                     </div>
                                 </div>
+
                                 <Button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full h-14 text-lg rounded-2xl bg-primary-600 hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all active:scale-[0.98] group"
+                                    className="w-full h-16 text-xs font-black uppercase tracking-[0.3em] rounded-2xl bg-primary-600 hover:bg-primary-700 shadow-[0_20px_40px_-10px_rgba(0,75,97,0.3)] hover:shadow-[0_25px_50px_-12px_rgba(0,75,97,0.4)] transition-all active:scale-[0.98] group relative overflow-hidden"
                                 >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                                     {isLoading ? (
-                                        <Loader2 className="w-6 h-6 animate-spin" />
+                                        <div className="flex items-center gap-3">
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            Authentification...
+                                        </div>
                                     ) : (
-                                        <div className="flex items-center justify-center gap-2">
-                                            <span className="font-bold">Se connecter</span>
-                                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                        <div className="flex items-center justify-center gap-3">
+                                            <span>Ouvrir la session</span>
+                                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
                                         </div>
                                     )}
                                 </Button>
@@ -185,9 +263,9 @@ export default function LoginPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="pt-8 text-center lg:text-left">
-                        <p className="text-[10px] font-black tracking-[0.2em] text-secondary-300 uppercase">
-                            Powered by <span className="bg-gradient-to-r from-[#8b31cc] to-[#ff6b3d] bg-clip-text text-transparent">Digis</span>
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4">
+                        <p className="text-[11px] font-bold tracking-[0.1em] text-secondary-300 uppercase">
+                            Power By <span className="bg-gradient-to-r from-[#8b31cc] via-[#d946ef] to-[#ff6b3d] bg-clip-text text-transparent font-black">DIGIS</span>
                         </p>
                     </div>
                 </div>
@@ -195,3 +273,4 @@ export default function LoginPage() {
         </div>
     );
 }
+
