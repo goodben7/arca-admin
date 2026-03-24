@@ -14,9 +14,10 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { cn } from '@/lib/utils';
 import { Position, POSITION_LEVEL_LABELS, POSITION_STATUS_LABELS } from '@/types/position';
-import { getAllPositions, createPosition } from '@/lib/api/position';
+import { getAllPositions, createPosition, openPosition, closePosition } from '@/lib/api/position';
 import { getDepartments } from '@/lib/api/employee';
 import { Department } from '@/types/employee';
+import { Power, PowerOff, ShieldCheck } from 'lucide-react';
 
 export default function PositionsPage() {
     const [positions, setPositions] = useState<Position[]>([]);
@@ -94,6 +95,24 @@ export default function PositionsPage() {
 
             showToast('Poste créé avec succès.', 'success');
             setIsModalOpen(false);
+            loadData();
+        } catch (e: any) {
+            showToast(e.message, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    async function handleToggleStatus(pos: Position) {
+        setIsSaving(true);
+        try {
+            if (pos.status === 'OPEN') {
+                await closePosition(pos.id);
+                showToast(`Le poste ${pos.title} a été fermé.`, 'success');
+            } else {
+                await openPosition(pos.id);
+                showToast(`Le poste ${pos.title} est désormais ouvert.`, 'success');
+            }
             loadData();
         } catch (e: any) {
             showToast(e.message, 'error');
@@ -187,6 +206,7 @@ export default function PositionsPage() {
                                     <TableHead className="text-center">Effectif Actuel</TableHead>
                                     <TableHead className="text-center">Ouvertures</TableHead>
                                     <TableHead className="text-center">Statut</TableHead>
+                                    <TableHead className="text-right pr-6">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -245,6 +265,31 @@ export default function PositionsPage() {
                                                     )}>
                                                         {POSITION_STATUS_LABELS[pos.status] || pos.status}
                                                     </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right pr-6">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {pos.status === 'OPEN' ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleToggleStatus(pos)}
+                                                                className="h-8 rounded-lg border-rose-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-rose-500 gap-1.5 px-3 font-bold text-[10px] uppercase transition-all"
+                                                            >
+                                                                <PowerOff className="w-3.5 h-3.5" />
+                                                                Fermer
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleToggleStatus(pos)}
+                                                                className="h-8 rounded-lg border-emerald-100 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 text-emerald-500 gap-1.5 px-3 font-bold text-[10px] uppercase transition-all"
+                                                            >
+                                                                <Power className="w-3.5 h-3.5" />
+                                                                Ouvrir
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
 
                                             </TableRow>

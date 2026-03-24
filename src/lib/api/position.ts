@@ -21,3 +21,25 @@ export async function createPosition(data: Partial<Position>): Promise<Position>
     }
     return res.json();
 }
+
+export async function openPosition(positionId: string): Promise<void> {
+    const res = await request('/api/positions/open', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ positionId }),
+    });
+    if (!res.ok) throw new Error('Erreur lors de l\'ouverture du poste.');
+}
+
+export async function closePosition(positionId: string): Promise<void> {
+    const res = await request('/api/positions/close', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ positionId }),
+    });
+    if (!res.ok) throw new Error('Erreur lors de la fermeture du poste.');
+}

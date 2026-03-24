@@ -14,7 +14,8 @@ import {
     AlertCircle,
     FileText,
     TrendingUp,
-    Shield
+    Shield,
+    Pencil
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -281,9 +282,11 @@ export default function DepartmentsPage() {
 
                                                     <TableCell className="text-right pr-8 px-6">
                                                         <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-all gap-1 translate-x-4 group-hover:translate-x-0 transform">
-                                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl">
-                                                                <ArrowUpRight className="w-4 h-4" />
-                                                            </Button>
+                                                            <Link href={`/departments/${dept.id}/edit`}>
+                                                                <Button variant="ghost" size="icon" className="h-9 w-9 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl" title="Modifier">
+                                                                    <Pencil className="w-4 h-4" />
+                                                                </Button>
+                                                            </Link>
                                                             <Button variant="ghost" size="icon" className="h-9 w-9 text-secondary-400 hover:text-secondary-900 hover:bg-secondary-100 rounded-xl">
                                                                 <MoreVertical className="w-4 h-4" />
                                                             </Button>

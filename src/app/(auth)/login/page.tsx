@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter as useNextRouter } from 'next/navigation';
 import {
     Lock,
@@ -21,16 +21,66 @@ import { Badge } from '@/components/ui/Badge';
 import { login } from '@/lib/api/auth';
 import { cn } from '@/lib/utils';
 
+const SLIDES = [
+    {
+        id: 'initial',
+        type: 'content',
+        title: "Gérez votre",
+        subtitle: "capital humain",
+        suffix: "avec",
+        accent: "excellence",
+        description: "Plateforme centralisée pour la gouvernance des talents de l'ARCA. Sécurisée, agile et axée sur la performance."
+    },
+    {
+        id: 'slide1',
+        type: 'image',
+        src: '/slide1.jpg',
+        title: "Rigueur &",
+        subtitle: "Déontologie",
+        suffix: "au",
+        accent: "quotidien",
+        description: "Un cadre de travail structuré pour accompagner l'évolution du marché des assurances."
+    },
+    {
+        id: 'slide2',
+        type: 'image',
+        src: '/slide2.jpg',
+        title: "Innovation &",
+        subtitle: "Collaboration",
+        suffix: "entre",
+        accent: "départements",
+        description: "Nos outils digitaux facilitent la synergie entre toutes les directions de l'ARCA."
+    },
+    {
+        id: 'slide3',
+        type: 'image',
+        src: '/slide3.jpg',
+        title: "Vision &",
+        subtitle: "Leadership",
+        suffix: "pour",
+        accent: "demain",
+        description: "Former et valoriser nos talents pour assurer l'excellence opérationnelle durable."
+    }
+];
+
 export default function LoginPage() {
     const router = useNextRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [currentSlide, setCurrentSlide] = useState(0);
 
     const [formData, setFormData] = useState({
         username: '',
         password: ''
     });
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+        }, 8000);
+        return () => clearInterval(timer);
+    }, []);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -39,11 +89,8 @@ export default function LoginPage() {
 
         try {
             const data = await login(formData.username, formData.password);
-
-            // Stockage du token dans un cookie
             const isSecure = window.location.protocol === 'https:';
             document.cookie = `token=${data.token}; path=/; max-age=86400; samesite=lax${isSecure ? '; secure' : ''}`;
-
             router.push('/');
         } catch (err: any) {
             setError(err.message || 'Une erreur est survenue lors de la connexion.');
@@ -53,7 +100,7 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen grid lg:grid-cols-2 bg-white">
+        <div className="min-h-screen grid lg:grid-cols-2 bg-white overflow-hidden">
             <style jsx global>{`
                 @keyframes float {
                     0% { transform: translate(0, 0) scale(1); }
@@ -73,18 +120,39 @@ export default function LoginPage() {
                     100% { transform: translateX(100%); }
                 }
                 .animate-progress {
-                    animation: progress 3s ease-in-out infinite;
+                    animation: progress 8s linear infinite;
                 }
             `}</style>
 
-            {/* Visual Side (Left) */}
-            <div className="hidden lg:flex bg-[#004b61] p-16 flex-col justify-between relative overflow-hidden group">
-                {/* Background Decorations */}
-                <div className="absolute top-0 right-0 w-full h-full pointer-events-none">
-                    <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[100px] animate-float" />
-                    <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-accent-red-500/5 rounded-full blur-[100px] animate-float-delayed" />
-                    <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
-                </div>
+            {/* Visual Side (Left) - SLIDER */}
+            <div className="hidden lg:flex p-16 flex-col justify-between relative overflow-hidden group border-r border-secondary-100">
+                {/* Background Slides */}
+                {SLIDES.map((slide, idx) => (
+                    <div
+                        key={slide.id}
+                        className={cn(
+                            "absolute inset-0 transition-all duration-[2000ms] ease-in-out",
+                            idx === currentSlide ? "opacity-100 scale-100 z-0" : "opacity-0 scale-110 z-[-1]"
+                        )}
+                    >
+                        {slide.type === 'content' ? (
+                            <div className="absolute inset-0 bg-[#004b61]">
+                                {/* Background Decorations */}
+                                <div className="absolute top-0 right-0 w-full h-full pointer-events-none">
+                                    <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[100px] animate-float" />
+                                    <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-accent-red-500/5 rounded-full blur-[100px] animate-float-delayed" />
+                                    <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="absolute inset-0 overflow-hidden">
+                                <img src={slide.src} alt="" className="w-full h-full object-cover transition-transform duration-[10s] ease-linear transform scale-110 group-hover:scale-100" />
+                                <div className="absolute inset-0 bg-[#004b61]/60 backdrop-blur-[1px]" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#004b61] via-[#004b61]/40 to-black/20" />
+                            </div>
+                        )}
+                    </div>
+                ))}
 
                 <div className="relative z-10 space-y-12">
                     {/* Brand Section */}
@@ -109,40 +177,61 @@ export default function LoginPage() {
                         </div>
                     </div>
 
-                    {/* Main Content */}
-                    <div className="max-w-xl space-y-12 mt-12">
-                        <div className="space-y-6">
-                            <h2 className="text-7xl font-black text-white leading-[1] tracking-tighter">
-                                <span className="block mb-2">Gérez votre</span>
-                                <span className="bg-gradient-to-r from-white/60 to-white/20 bg-clip-text text-transparent">capital humain</span>
-                                <span className="block mt-2">
-                                    avec <span className="relative">
-                                        excellence
-                                        <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-accent-red-500 to-transparent rounded-full" />
-                                    </span>.
-                                </span>
-                            </h2>
-                        </div>
-                        
-                        <div className="flex items-center gap-4">
-                            <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden relative">
-                                <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-primary-600 w-1/2 rounded-full animate-progress" />
+                    {/* Content Area - Changing per slide */}
+                    <div className="max-w-xl min-h-[400px] flex flex-col justify-center">
+                        {SLIDES.map((slide, idx) => (
+                            <div
+                                key={`text-${slide.id}`}
+                                className={cn(
+                                    "space-y-12 transition-all duration-1000 delay-300",
+                                    idx === currentSlide ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-12 absolute pointer-events-none"
+                                )}
+                            >
+                                <div className="space-y-6">
+                                    <h2 className="text-7xl font-black text-white leading-[1] tracking-tighter">
+                                        <span className="block mb-2">{slide.title}</span>
+                                        <span className="bg-gradient-to-r from-white/70 to-white/20 bg-clip-text text-transparent">{slide.subtitle}</span>
+                                        <span className="block mt-2">
+                                            {slide.suffix} <span className="relative">
+                                                {slide.accent}
+                                                <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-accent-red-500 to-transparent rounded-full" />
+                                            </span>.
+                                        </span>
+                                    </h2>
+                                </div>
+                                <p className="text-white/40 text-xl font-medium leading-relaxed max-w-md italic border-l-2 border-white/10 pl-6">
+                                    "{slide.description}"
+                                </p>
                             </div>
-                            <div className="flex gap-1.5">
-                                <div className="w-1.5 h-1.5 bg-white/20 rounded-full" />
-                                <div className="w-1.5 h-1.5 bg-white/10 rounded-full" />
-                                <div className="w-1.5 h-1.5 bg-white/5 rounded-full" />
-                            </div>
-                        </div>
+                        ))}
 
-                        <p className="text-white/40 text-xl font-medium leading-relaxed max-w-md italic border-l-2 border-white/10 pl-6">
-                            "L'excellence au service de la régulation et du développement des compétences."
-                        </p>
+                        {/* Pagination / Indicators */}
+                        <div className="flex items-center gap-6 mt-auto pt-10">
+                            <div className="flex gap-2">
+                                {SLIDES.map((_, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setCurrentSlide(idx)}
+                                        className={cn(
+                                            "transition-all duration-700 rounded-full h-1.5 relative overflow-hidden",
+                                            idx === currentSlide ? "w-12 bg-white/20" : "w-1.5 bg-white/10"
+                                        )}
+                                    >
+                                        {idx === currentSlide && (
+                                            <div className="absolute inset-0 bg-primary-400 animate-progress" />
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                            <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">
+                                0{currentSlide + 1} / 0{SLIDES.length}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 {/* Footer Security */}
-                <div className="relative z-10 flex items-center gap-6">
+                <div className="relative z-10 flex items-center gap-6 pt-12">
                     <div className="group/shield relative">
                         <div className="absolute inset-0 bg-primary-400/20 rounded-2xl blur-lg scale-150 opacity-0 group-hover/shield:opacity-100 transition-opacity" />
                         <div className="relative p-4 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl">
@@ -157,9 +246,9 @@ export default function LoginPage() {
             </div>
 
             {/* Login Side (Right) */}
-            <div className="flex items-center justify-center p-8 sm:p-20 bg-secondary-50/30">
+            <div className="flex items-center justify-center p-8 sm:p-20 bg-secondary-50/30 overflow-y-auto">
                 <div className="w-full max-w-[480px] space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                    {/* Mobile Header (Hidden on Desktop) */}
+                    {/* Mobile Header */}
                     <div className="flex lg:hidden flex-col items-center gap-6 mb-4">
                         <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-2xl p-4 border border-secondary-100">
                             <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
@@ -170,12 +259,12 @@ export default function LoginPage() {
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        <h3 className="text-5xl font-black text-secondary-950 tracking-tighter text-center lg:text-left">
+                    <div className="space-y-3 px-2 text-center lg:text-left">
+                        <h3 className="text-5xl font-black text-secondary-950 tracking-tighter">
                             Bon retour <span className="text-primary-600 italic font-medium truncate">!</span>
                         </h3>
-                        <p className="text-secondary-500 text-lg font-medium text-center lg:text-left flex items-center justify-center lg:justify-start gap-2">
-                            Entrez vos identifiants pour continuer <ArrowRight className="w-4 h-4 text-secondary-300" />
+                        <p className="text-secondary-500 text-lg font-medium flex items-center justify-center lg:justify-start gap-2">
+                            Accès sécurisé à votre espace <ArrowRight className="w-4 h-4 text-secondary-300" />
                         </p>
                     </div>
 
@@ -194,7 +283,7 @@ export default function LoginPage() {
                             <form onSubmit={handleSubmit} className="grid gap-8">
                                 <div className="space-y-3">
                                     <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary-400 ml-1">
-                                        Nom d'utilisateur
+                                        Identifiant
                                     </Label>
                                     <div className="relative group">
                                         <div className="absolute left-5 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
@@ -215,7 +304,7 @@ export default function LoginPage() {
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between ml-1">
                                         <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary-400">
-                                            Mot de Passe
+                                            Mot de passe
                                         </Label>
                                     </div>
                                     <div className="relative group">
@@ -246,7 +335,7 @@ export default function LoginPage() {
                                     disabled={isLoading}
                                     className="w-full h-16 text-xs font-black uppercase tracking-[0.3em] rounded-2xl bg-primary-600 hover:bg-primary-700 shadow-[0_20px_40px_-10px_rgba(0,75,97,0.3)] hover:shadow-[0_25px_50px_-12px_rgba(0,75,97,0.4)] transition-all active:scale-[0.98] group relative overflow-hidden"
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-[1.5s]" />
                                     {isLoading ? (
                                         <div className="flex items-center gap-3">
                                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -263,7 +352,7 @@ export default function LoginPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4">
+                    <div className="text-center">
                         <p className="text-[11px] font-bold tracking-[0.1em] text-secondary-300 uppercase">
                             Power By <span className="bg-gradient-to-r from-[#8b31cc] via-[#d946ef] to-[#ff6b3d] bg-clip-text text-transparent font-black">DIGIS</span>
                         </p>
@@ -273,4 +362,3 @@ export default function LoginPage() {
         </div>
     );
 }
-
