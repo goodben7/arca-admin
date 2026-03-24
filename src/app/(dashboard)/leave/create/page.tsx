@@ -20,6 +20,7 @@ import { getAllEmployees } from '@/lib/api/employee';
 import { createLeaveRequest } from '@/lib/api/leave';
 import { Employee } from '@/types/employee';
 import { LEAVE_TYPE, LEAVE_STATUS, LeaveType, LeaveStatus } from '@/types/leave';
+import { differenceInCalendarDays, isAfter, parseISO } from 'date-fns';
 
 export default function CreateLeaveRequestPage() {
     const router = useRouter();
@@ -60,6 +61,22 @@ export default function CreateLeaveRequestPage() {
         }
         fetchEmployees();
     }, []);
+
+    // Auto-calculate numberOfDays
+    useEffect(() => {
+        if (formData.startDate && formData.endDate) {
+            const start = new Date(formData.startDate);
+            const end = new Date(formData.endDate);
+            
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                const days = differenceInCalendarDays(end, start) + 1;
+                setFormData(prev => ({
+                    ...prev,
+                    numberOfDays: days > 0 ? days : 1
+                }));
+            }
+        }
+    }, [formData.startDate, formData.endDate]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;

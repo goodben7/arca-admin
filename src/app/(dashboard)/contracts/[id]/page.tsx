@@ -3,6 +3,22 @@
 import { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+    RotateCw,
+    Maximize2,
+    Eye,
+    Activity,
+    Power,
+    Ban,
+    Clock as ClockIcon,
+    CheckCircle2,
+    CheckCircle,
+    ChevronDown,
+    Play,
+    History,
+    FileText as FileIcon,
+    UserCircle2,
+    CalendarDays,
+    MoreVertical,
     ChevronLeft,
     FileText,
     Calendar,
@@ -19,20 +35,20 @@ import {
     FolderOpen,
     Image as ImageIcon,
     ZoomIn,
-    ZoomOut,
-    RotateCw,
-    Maximize2,
-    Eye
+    ZoomOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { TabsProvider, TabsList, TabsTrigger, TabsContent, TabsPanels } from '@/components/ui/Tabs';
 import { Input, Label } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { getContractById } from '@/lib/api/contract';
+import { getContractById, changeContractStatus } from '@/lib/api/contract';
 import { getEmployeeById } from '@/lib/api/employee';
+import { getAllUsers } from '@/lib/api/profile';
 import { uploadDocument, getDocumentsByHolder } from '@/lib/api/document';
-import { Contract } from '@/types/contract';
+import { AppUser } from '@/types/profile';
+import { Contract, CONTRACT_TYPE, CONTRACT_STATUS } from '@/types/contract';
 import { Employee } from '@/types/employee';
 import { DOCUMENT_TYPE, DocumentRecord, HOLDER_TYPE } from '@/types/document';
 import { format } from 'date-fns';
@@ -199,20 +215,106 @@ export default function ContractDetailsPage({ params }: PageProps) {
         file: null as File | null
     });
 
+    const [usersMap, setUsersMap] = useState<Record<string, { name?: string, email: string }>>({});
+    const [isChangingStatus, setIsChangingStatus] = useState<string | null>(null);
+    const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean,
+        title: string,
+        message: string,
+        action: string,
+        variant: 'danger' | 'warning' | 'info' | 'success'
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        action: '',
+        variant: 'info'
+    });
+
+    async function handleStatusChange(action: string) {
+        setIsStatusMenuOpen(false);
+
+        let title = "Confirmation";
+        let message = "Êtes-vous sûr de vouloir procéder à cette opération ?";
+        let variant: 'danger' | 'warning' | 'info' | 'success' = 'warning';
+
+        switch (action) {
+            case 'activations':
+                title = "Activer le contrat";
+                message = "Activer définitivement ce contrat ?";
+                variant = 'success';
+                break;
+            case 'endings':
+                title = "Mettre fin au contrat";
+                message = "Êtes-vous sûr de vouloir mettre fin à ce contrat ?";
+                variant = 'danger';
+                break;
+            case 'cancellations':
+                title = "Annuler le contrat";
+                message = "Annuler ce contrat (erreur / rétractation) ?";
+                variant = 'danger';
+                break;
+            case 'pendings':
+                title = "Remettre en attente";
+                message = "Souhaitez-vous repasser ce contrat en statut d'attente ?";
+                variant = 'warning';
+                break;
+        }
+
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            action,
+            variant
+        });
+    }
+
+    async function executeStatusChange() {
+        if (!contract) return;
+        const action = confirmModal.action;
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+
+        setIsChangingStatus(action);
+        try {
+            await changeContractStatus(action, contract.id);
+            await fetchData();
+        } catch (err: any) {
+            alert(err.message || 'Erreur lors du changement de statut');
+        } finally {
+            setIsChangingStatus(null);
+        }
+    }
+
     async function fetchData() {
         try {
             setIsLoading(true);
-            const contractData = await getContractById(id);
-            setContract(contractData);
-            const empId = contractData.employee.split('/').pop() || contractData.employee;
-            const [empData, docsData] = await Promise.all([
-                getEmployeeById(empId),
-                getDocumentsByHolder(HOLDER_TYPE.CONTRACT, id)
+            const [contractData, usersData] = await Promise.all([
+                getContractById(id),
+                getAllUsers().catch(() => ({ member: [] }))
             ]);
-            setEmployee(empData);
-            setDocuments(Array.isArray(docsData) ? docsData : docsData['hydra:member'] || []);
+            
+            setContract(contractData);
+
+            // Populate users map
+            const usersList = Array.isArray(usersData) ? usersData : (usersData as any).member || (usersData as any)['hydra:member'] || [];
+            const uMap: Record<string, { name?: string, email: string }> = {};
+            usersList.forEach((u: AppUser) => {
+                uMap[u.id] = { name: (u as any).displayName, email: u.email };
+                if (u['@id']) uMap[u['@id']] = { name: (u as any).displayName, email: u.email };
+            });
+            setUsersMap(uMap);
+
+            if (contractData.employee) {
+                const empId = contractData.employee.split('/').pop() || contractData.employee;
+                getEmployeeById(empId).then(setEmployee).catch(console.error);
+            }
+
+            const docsData = await getDocumentsByHolder(HOLDER_TYPE.CONTRACT, id);
+            setDocuments(Array.isArray(docsData) ? docsData : (docsData as any)['hydra:member'] || []);
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'Erreur lors du chargement des données.');
         } finally {
             setIsLoading(false);
         }
@@ -243,11 +345,23 @@ export default function ContractDetailsPage({ params }: PageProps) {
         }
     };
 
-    const getStatusVariant = (status: string) => {
+    const getStatusStyles = (status: string) => {
         switch (status.toUpperCase()) {
-            case 'CDI': return 'success'; case 'CDD': return 'warning';
-            case 'INTERNSHIP': return 'secondary'; case 'CONSULTANT': return 'outline';
-            default: return 'secondary';
+            case CONTRACT_STATUS.ACTIVE: return { label: 'Actif', bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' };
+            case CONTRACT_STATUS.PENDING: return { label: 'En attente', bg: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500' };
+            case CONTRACT_STATUS.ENDED: return { label: 'Terminé', bg: 'bg-slate-50 text-slate-600 border-slate-200', dot: 'bg-slate-400' };
+            case CONTRACT_STATUS.CANCELLED: return { label: 'Annulé', bg: 'bg-rose-50 text-rose-700 border-rose-100', dot: 'bg-rose-500' };
+            default: return { label: status, bg: 'bg-secondary-50 text-secondary-600 border-secondary-200', dot: 'bg-secondary-400' };
+        }
+    };
+
+    const getTypeStyles = (type: string) => {
+        switch (type.toUpperCase()) {
+            case CONTRACT_TYPE.CDI: return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+            case CONTRACT_TYPE.CDD: return 'bg-blue-50 text-blue-700 border-blue-100';
+            case CONTRACT_TYPE.INTERNSHIP: return 'bg-amber-50 text-amber-700 border-amber-100';
+            case CONTRACT_TYPE.CONSULTANT: return 'bg-purple-50 text-purple-700 border-purple-100';
+            default: return 'bg-secondary-50 text-secondary-700 border-secondary-100';
         }
     };
 
@@ -288,10 +402,14 @@ export default function ContractDetailsPage({ params }: PageProps) {
                         <ChevronLeft className="w-6 h-6 text-secondary-600" />
                     </Button>
                     <div>
-                        <div className="flex items-center gap-3 mb-1">
+                        <div className="flex flex-wrap items-center gap-3 mb-1">
                             <h1 className="text-3xl font-black text-secondary-900 uppercase tracking-tighter">Contrat #{contract.id.slice(0, 8)}</h1>
-                            <Badge variant={getStatusVariant(contract.status)} className="font-black px-4 py-1 rounded-full uppercase tracking-widest text-[10px]">
-                                {contract.status}
+                            <div className={cn("px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest flex items-center gap-2", getStatusStyles(contract.status).bg)}>
+                                <div className={cn("w-1.5 h-1.5 rounded-full", contract.status === CONTRACT_STATUS.ACTIVE ? "animate-pulse" : "", getStatusStyles(contract.status).dot)} />
+                                {getStatusStyles(contract.status).label}
+                            </div>
+                            <Badge variant="outline" className={cn("font-black border px-3 py-1.5 rounded-xl tracking-widest uppercase text-[10px]", getTypeStyles(contract.type))}>
+                                {contract.type === CONTRACT_TYPE.INTERNSHIP ? 'STAGE' : contract.type}
                             </Badge>
                         </div>
                         <p className="text-secondary-500 font-bold italic flex items-center gap-2">
@@ -301,6 +419,80 @@ export default function ContractDetailsPage({ params }: PageProps) {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <Button
+                            onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
+                            className={cn(
+                                "flex items-center gap-2 border shadow-sm transition-all rounded-2xl h-12 px-5 font-black uppercase text-[10px] tracking-widest",
+                                isStatusMenuOpen ? "bg-secondary-50 border-secondary-200 text-secondary-900" : "bg-white border-secondary-100 text-secondary-600 hover:bg-secondary-50"
+                            )}
+                        >
+                            <Activity className="w-4 h-4 text-secondary-400" />
+                            Actions Statut
+                            <ChevronDown className={cn("w-4 h-4 transition-transform", isStatusMenuOpen && "rotate-180")} />
+                        </Button>
+
+                        {isStatusMenuOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsStatusMenuOpen(false)} />
+                                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-3xl shadow-xl border border-secondary-100 p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="px-3 py-2 text-[10px] font-black tracking-widest uppercase text-secondary-400 border-b border-secondary-100 mb-2">
+                                        Transitions disponibles
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        {(contract.status === CONTRACT_STATUS.PENDING || contract.status === CONTRACT_STATUS.ENDED || contract.status === CONTRACT_STATUS.CANCELLED) && (
+                                            <button
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                                onClick={() => handleStatusChange('activations')}
+                                            >
+                                                {isChangingStatus === 'activations' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                                                Activer le Contrat
+                                            </button>
+                                        )}
+
+                                        {contract.status === CONTRACT_STATUS.ACTIVE && (
+                                            <>
+                                                <button
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+                                                    onClick={() => handleStatusChange('endings')}
+                                                >
+                                                    {isChangingStatus === 'endings' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
+                                                    Terminer le Contrat
+                                                </button>
+                                                
+                                                <button
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-amber-600 hover:bg-amber-50 transition-colors"
+                                                    onClick={() => handleStatusChange('pendings')}
+                                                >
+                                                    {isChangingStatus === 'pendings' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClockIcon className="w-4 h-4" />}
+                                                    Mettre en Attente
+                                                </button>
+
+                                                <button
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+                                                    onClick={() => handleStatusChange('cancellations')}
+                                                >
+                                                    {isChangingStatus === 'cancellations' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                                                    Annuler le Contrat
+                                                </button>
+                                            </>
+                                        )}
+                                        
+                                        {contract.status === CONTRACT_STATUS.PENDING && (
+                                            <button
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+                                                onClick={() => handleStatusChange('cancellations')}
+                                            >
+                                                {isChangingStatus === 'cancellations' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                                                Annuler le Contrat
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <div className="w-px h-8 bg-secondary-200" />
                     <Button variant="outline" className="gap-2 border-none bg-white shadow-xl shadow-secondary-100 rounded-2xl font-bold uppercase tracking-widest text-[10px] py-6 px-6">
                         <Download className="w-4 h-4" /> Générer PDF
                     </Button>
@@ -317,12 +509,17 @@ export default function ContractDetailsPage({ params }: PageProps) {
                 {/* Sidebar */}
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[32px] overflow-hidden">
-                        <div className="h-3 bg-primary-600 w-full" />
+                        <div className={cn("h-3 w-full",
+                            contract.status === CONTRACT_STATUS.ACTIVE ? "bg-emerald-500" :
+                            contract.status === CONTRACT_STATUS.PENDING ? "bg-amber-400" :
+                            contract.status === CONTRACT_STATUS.CANCELLED ? "bg-rose-500" :
+                            "bg-slate-400"
+                        )} />
                         <CardContent className="p-8 space-y-6">
                             <div className="space-y-1">
                                 <Label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Rémunération Mensuelle</Label>
                                 <p className="text-3xl font-black text-emerald-700 tabular-nums">
-                                    {contract.salary} <span className="text-xs font-bold text-secondary-400 ml-1">CDF</span>
+                                    {parseInt(contract.salary || '0').toLocaleString()} <span className="text-xs font-bold text-secondary-400 ml-1">CDF</span>
                                 </p>
                             </div>
                             <div className="pt-6 border-t border-secondary-50 grid grid-cols-1 gap-6">
@@ -333,145 +530,227 @@ export default function ContractDetailsPage({ params }: PageProps) {
                                 <InfoItem icon={Clock} label="Créé le"
                                     value={format(new Date(contract.createdAt), 'dd/MM/yyyy')} />
                             </div>
-                            <div className="pt-6 border-t border-secondary-50">
-                                <Card className="bg-secondary-900 text-white rounded-2xl p-5 border-none">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <Shield className="w-5 h-5 text-emerald-400" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Conformité</span>
-                                    </div>
-                                    <p className="text-lg font-black uppercase italic">Validé RH</p>
-                                    <p className="text-[10px] font-bold text-emerald-400 uppercase mt-1">Dossier Complet</p>
-                                </Card>
-                            </div>
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Documents Table */}
+                {/* Main Content Area with Tabs */}
                 <div className="lg:col-span-3">
-                    <Card className="border-none shadow-2xl shadow-secondary-200/30 bg-white rounded-[32px] overflow-hidden">
-                        <CardHeader className="p-8 border-b border-secondary-50">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-secondary-100 border border-secondary-100">
-                                    <FolderOpen className="w-6 h-6 text-primary-600" />
+                    <TabsProvider defaultValue="documents">
+                        <TabsList className="bg-transparent border-none gap-6 mb-8 p-0">
+                            <TabsTrigger value="documents" className="px-0 py-2 border-b-2 border-transparent data-[state=active]:border-primary-600 data-[state=active]:bg-transparent rounded-none shadow-none h-auto gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-secondary-100 flex items-center justify-center group-data-[state=active]:border-primary-100">
+                                    <FileIcon className="w-4 h-4 text-secondary-400 group-data-[state=active]:text-primary-600" />
                                 </div>
-                                <div>
-                                    <CardTitle className="text-lg font-black text-secondary-900 uppercase tracking-tight">Pièces Jointes</CardTitle>
-                                    <CardDescription className="text-sm font-medium">Cliquez sur un document pour l'apercevoir</CardDescription>
+                                <span className="font-black text-[10px] uppercase tracking-widest text-secondary-400 data-[state=active]:text-secondary-900">Documents</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="history" className="px-0 py-2 border-b-2 border-transparent data-[state=active]:border-primary-600 data-[state=active]:bg-transparent rounded-none shadow-none h-auto gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-secondary-100 flex items-center justify-center group-data-[state=active]:border-primary-100">
+                                    <History className="w-4 h-4 text-secondary-400 group-data-[state=active]:text-primary-600" />
                                 </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead className="bg-secondary-50/50 border-b border-secondary-100">
-                                        <tr>
-                                            <th className="px-8 py-5 text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">Type / Référence</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">Titre</th>
-                                            <th className="px-8 py-5 text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">Ajouté le</th>
-                                            <th className="px-8 py-5 text-right text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-secondary-50 text-sm">
-                                        {documents.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={4} className="px-8 py-16 text-center">
-                                                    <FileText className="w-12 h-12 text-secondary-100 mx-auto mb-4" />
-                                                    <p className="text-secondary-400 font-bold italic uppercase text-xs">Aucun document archivé</p>
-                                                    <button
-                                                        onClick={() => setIsUploadOpen(true)}
-                                                        className="mt-3 text-xs font-bold text-primary-600 hover:underline"
-                                                    >
-                                                        + Ajouter le premier document
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            documents.map((doc) => {
-                                                const kind = getFileKind(doc);
-                                                const canPreview = !!doc.contentUrl;
-                                                const contentUrl = doc.contentUrl ? `${BASE_URL}${doc.contentUrl}` : null;
+                                <span className="font-black text-[10px] uppercase tracking-widest text-secondary-400 data-[state=active]:text-secondary-900">Historique</span>
+                            </TabsTrigger>
+                        </TabsList>
 
-                                                return (
-                                                    <tr
-                                                        key={doc.id}
-                                                        onClick={() => canPreview && setPreviewDoc(doc)}
-                                                        className={cn(
-                                                            "group transition-colors",
-                                                            canPreview ? "cursor-pointer hover:bg-primary-50/40" : "hover:bg-secondary-50/50"
-                                                        )}
-                                                    >
-                                                        <td className="px-8 py-5">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={cn(
-                                                                    "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all",
-                                                                    kind === 'pdf' ? "bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white" :
-                                                                        kind === 'image' ? "bg-indigo-50 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white" :
-                                                                            "bg-secondary-100 text-secondary-400"
-                                                                )}>
-                                                                    {kind === 'image' ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-                                                                </div>
-                                                                <div>
-                                                                    <span className="font-black text-secondary-900 uppercase text-xs block">
-                                                                        {DOC_TYPE_LABELS[doc.type] || doc.type}
-                                                                    </span>
-                                                                    <span className="text-[10px] font-bold text-secondary-400 uppercase">
-                                                                        {doc.documentRefNumber || 'N/A'}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-8 py-5">
-                                                            <span className="font-bold text-secondary-600 uppercase italic">
-                                                                {doc.title || 'Sans titre'}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-8 py-5 font-bold text-secondary-400 tabular-nums text-xs">
-                                                            {formatDocDate(doc)}
-                                                        </td>
-                                                        <td className="px-8 py-5 text-right">
-                                                            <div
-                                                                className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                onClick={e => e.stopPropagation()}
-                                                            >
-                                                                {canPreview && (
-                                                                    <Button
-                                                                        variant="outline" size="icon"
-                                                                        onClick={() => setPreviewDoc(doc)}
-                                                                        className="h-9 w-9 border-none bg-white shadow-sm hover:scale-110 active:scale-90 transition-all"
-                                                                        title="Aperçu"
-                                                                    >
-                                                                        <Eye className="w-4 h-4 text-indigo-600" />
-                                                                    </Button>
-                                                                )}
-                                                                {contentUrl && (
-                                                                    <Button
-                                                                        variant="outline" size="icon"
-                                                                        onClick={() => window.open(contentUrl, '_blank')}
-                                                                        className="h-9 w-9 border-none bg-white shadow-sm hover:scale-110 active:scale-90 transition-all"
-                                                                        title="Télécharger"
-                                                                    >
-                                                                        <Download className="w-4 h-4 text-primary-600" />
-                                                                    </Button>
-                                                                )}
-                                                                <Button
-                                                                    variant="outline" size="icon"
-                                                                    className="h-9 w-9 border-none bg-white shadow-sm hover:scale-110 active:scale-90 transition-all text-destructive"
-                                                                    title="Supprimer"
-                                                                >
-                                                                    <X className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
-                                                        </td>
+                        <TabsPanels>
+                            <TabsContent>
+                                <Card className="border-none shadow-2xl shadow-secondary-200/30 bg-white rounded-[32px] overflow-hidden">
+                                    <CardHeader className="p-8 border-b border-secondary-50">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-secondary-100 border border-secondary-100">
+                                                <FolderOpen className="w-6 h-6 text-primary-600" />
+                                            </div>
+                                            <div>
+                                                <CardTitle className="text-lg font-black text-secondary-900 uppercase tracking-tight">Pièces Jointes</CardTitle>
+                                                <CardDescription className="text-sm font-medium">Cliquez sur un document pour l'apercevoir</CardDescription>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="p-0">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-secondary-50/50 border-b border-secondary-100">
+                                                    <tr>
+                                                        <th className="px-8 py-5 text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">Type / Référence</th>
+                                                        <th className="px-8 py-5 text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">Titre</th>
+                                                        <th className="px-8 py-5 text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">Ajouté le</th>
+                                                        <th className="px-8 py-5 text-right text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">Actions</th>
                                                     </tr>
-                                                );
-                                            })
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </CardContent>
-                    </Card>
+                                                </thead>
+                                                <tbody className="divide-y divide-secondary-50 text-sm">
+                                                    {documents.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={4} className="px-8 py-16 text-center">
+                                                                <FileText className="w-12 h-12 text-secondary-100 mx-auto mb-4" />
+                                                                <p className="text-secondary-400 font-bold italic uppercase text-xs">Aucun document archivé</p>
+                                                                <button
+                                                                    onClick={() => setIsUploadOpen(true)}
+                                                                    className="mt-3 text-xs font-bold text-primary-600 hover:underline"
+                                                                >
+                                                                    + Ajouter le premier document
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        documents.map((doc) => {
+                                                            const kind = getFileKind(doc);
+                                                            const canPreview = !!doc.contentUrl;
+                                                            const contentUrl = doc.contentUrl ? `${BASE_URL}${doc.contentUrl}` : null;
+
+                                                            return (
+                                                                <tr
+                                                                    key={doc.id}
+                                                                    onClick={() => canPreview && setPreviewDoc(doc)}
+                                                                    className={cn(
+                                                                        "group transition-colors",
+                                                                        canPreview ? "cursor-pointer hover:bg-primary-50/40" : "hover:bg-secondary-50/50"
+                                                                    )}
+                                                                >
+                                                                    <td className="px-8 py-5">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className={cn(
+                                                                                "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                                                                                kind === 'pdf' ? "bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white" :
+                                                                                    kind === 'image' ? "bg-indigo-50 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white" :
+                                                                                        "bg-secondary-100 text-secondary-400"
+                                                                            )}>
+                                                                                {kind === 'image' ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="font-black text-secondary-900 uppercase text-xs block">
+                                                                                    {DOC_TYPE_LABELS[doc.type] || doc.type}
+                                                                                </span>
+                                                                                <span className="text-[10px] font-bold text-secondary-400 uppercase">
+                                                                                    {doc.documentRefNumber || 'N/A'}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-8 py-5">
+                                                                        <span className="font-bold text-secondary-600 uppercase italic">
+                                                                            {doc.title || 'Sans titre'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-8 py-5 font-bold text-secondary-400 tabular-nums text-xs">
+                                                                        {formatDocDate(doc)}
+                                                                    </td>
+                                                                    <td className="px-8 py-5 text-right">
+                                                                        <div
+                                                                            className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                            onClick={e => e.stopPropagation()}
+                                                                        >
+                                                                            {canPreview && (
+                                                                                <Button
+                                                                                    variant="outline" size="icon"
+                                                                                    onClick={() => setPreviewDoc(doc)}
+                                                                                    className="h-9 w-9 border-none bg-white shadow-sm hover:scale-110 active:scale-90 transition-all"
+                                                                                    title="Aperçu"
+                                                                                >
+                                                                                    <Eye className="w-4 h-4 text-indigo-600" />
+                                                                                </Button>
+                                                                            )}
+                                                                            {contentUrl && (
+                                                                                <Button
+                                                                                    variant="outline" size="icon"
+                                                                                    onClick={() => window.open(contentUrl, '_blank')}
+                                                                                    className="h-9 w-9 border-none bg-white shadow-sm hover:scale-110 active:scale-90 transition-all"
+                                                                                    title="Télécharger"
+                                                                                >
+                                                                                    <Download className="w-4 h-4 text-primary-600" />
+                                                                                </Button>
+                                                                            )}
+                                                                            <Button
+                                                                                variant="outline" size="icon"
+                                                                                className="h-9 w-9 border-none bg-white shadow-sm hover:scale-110 active:scale-90 transition-all text-destructive"
+                                                                                title="Supprimer"
+                                                                            >
+                                                                                <X className="w-4 h-4" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent>
+                                <Card className="border-none shadow-2xl shadow-secondary-200/30 bg-white rounded-[40px] overflow-hidden">
+                                    <CardHeader className="p-8 border-b border-secondary-50">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-secondary-100 border border-secondary-100">
+                                                <History className="w-6 h-6 text-primary-600" />
+                                            </div>
+                                            <div>
+                                                <CardTitle className="text-lg font-black text-secondary-900 uppercase tracking-tight">Historique du Contrat</CardTitle>
+                                                <CardDescription className="text-sm font-medium">Trace des événements et changements de statut</CardDescription>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="p-8 relative">
+                                        <div className="absolute left-[54px] top-12 bottom-12 w-px bg-secondary-100 hidden md:block" />
+
+                                        <div className="space-y-4">
+                                            {[
+                                                { date: contract.createdAt, by: null, label: "Contrat Créé", type: "Création", icon: Plus, bg: "from-secondary-400 to-secondary-600", lightBg: "bg-secondary-50" },
+                                                { date: contract.activatedAt, by: contract.activatedBy, label: "Contrat Activé", type: "Activation", icon: CheckCircle, bg: "from-emerald-400 to-emerald-600", lightBg: "bg-emerald-50" },
+                                                { date: contract.pendingAt, by: contract.pendingBy, label: "Contrat Mis en Attente", type: "Statut", icon: ClockIcon, bg: "from-amber-400 to-amber-600", lightBg: "bg-amber-50" },
+                                                { date: contract.endedAt, by: contract.endedBy, label: "Contrat Terminé", type: "Clôture", icon: Ban, bg: "from-slate-400 to-slate-600", lightBg: "bg-slate-50" },
+                                                { date: contract.cancelledAt, by: contract.cancelledBy, label: "Contrat Annulé", type: "Annulation", icon: Ban, bg: "from-rose-400 to-rose-600", lightBg: "bg-rose-50" },
+                                            ].filter(ev => ev.date).sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime()).map((ev, idx) => (
+                                                <div key={idx} className="flex gap-6 pb-8 relative group">
+                                                    <div className="relative z-10 shrink-0">
+                                                        <div className={cn("w-11 h-11 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-110", ev.bg)}>
+                                                            <ev.icon className="w-5 h-5 text-white" />
+                                                        </div>
+                                                    </div>
+                                                    <div className={cn("flex-1 p-5 rounded-3xl border shadow-sm group-hover:shadow-md transition-all duration-300 bg-gradient-to-br from-white to-white", ev.lightBg.replace('bg-', 'from-'))}>
+                                                        <div className="flex items-start justify-between gap-4 mb-3">
+                                                            <div>
+                                                                <p className="text-xs font-black text-secondary-900 uppercase tracking-widest">{ev.label}</p>
+                                                                <p className="text-sm font-medium text-secondary-500 mt-1">
+                                                                    Action effectuée par <span className="font-black text-secondary-800">
+                                                                        {ev.by ? (usersMap[ev.by]?.name || usersMap[ev.by]?.email || ev.by) : 'Système'}
+                                                                    </span>
+                                                                </p>
+                                                            </div>
+                                                            <span className={cn("shrink-0 px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border", ev.lightBg.replace('bg-', 'bg-').replace('50', '100'), ev.lightBg.replace('bg-', 'text-').replace('50', '700'))}>
+                                                                {ev.type}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 pt-3 border-t border-secondary-100">
+                                                            <CalendarDays className="w-3.5 h-3.5 text-secondary-400" />
+                                                            <p className="text-[10px] font-black text-secondary-500 uppercase tracking-wider">
+                                                                {format(new Date(ev.date!), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            <div className="flex gap-6 relative">
+                                                <div className="relative z-10 shrink-0">
+                                                    <div className="w-11 h-11 rounded-2xl bg-secondary-100 border-2 border-dashed border-secondary-200 flex items-center justify-center">
+                                                        <MoreVertical className="w-4 h-4 text-secondary-300" />
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 py-3">
+                                                    <p className="text-[10px] font-black text-secondary-300 uppercase tracking-widest italic">
+                                                        Fin de l'historique
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </TabsPanels>
+                    </TabsProvider>
                 </div>
             </div>
 
@@ -544,6 +823,53 @@ export default function ContractDetailsPage({ params }: PageProps) {
                                     }
                                 </Button>
                             </form>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {/* Custom Confirmation Modal */}
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <Card className="w-full max-w-sm border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] rounded-[32px] overflow-hidden bg-white animate-in zoom-in-95 duration-300">
+                        <CardContent className="p-8 text-center space-y-6">
+                            <div className={cn(
+                                "w-20 h-20 rounded-3xl flex items-center justify-center mx-auto shadow-sm",
+                                confirmModal.variant === 'danger' ? "bg-rose-50 text-rose-500" :
+                                confirmModal.variant === 'warning' ? "bg-amber-50 text-amber-500" :
+                                confirmModal.variant === 'success' ? "bg-emerald-50 text-emerald-500" :
+                                "bg-blue-50 text-blue-500"
+                            )}>
+                                {confirmModal.variant === 'danger' ? <AlertCircle className="w-10 h-10" /> :
+                                 confirmModal.variant === 'success' ? <CheckCircle2 className="w-10 h-10" /> :
+                                 <Activity className="w-10 h-10" />}
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-black text-secondary-900 uppercase tracking-tight">{confirmModal.title}</h3>
+                                <p className="text-sm font-medium text-secondary-500 leading-relaxed px-4">{confirmModal.message}</p>
+                            </div>
+
+                            <div className="flex flex-col gap-3 pt-2">
+                                <Button
+                                    onClick={executeStatusChange}
+                                    className={cn(
+                                        "h-12 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-xl transition-all active:scale-95",
+                                        confirmModal.variant === 'danger' ? "bg-rose-600 hover:bg-rose-700 shadow-rose-200/50" :
+                                        confirmModal.variant === 'success' ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200/50" :
+                                        "bg-secondary-900 hover:bg-black shadow-secondary-200/50"
+                                    )}
+                                >
+                                    Confirmer l'opération
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                                    className="h-12 rounded-2xl text-secondary-400 font-bold uppercase text-[10px] tracking-widest hover:bg-secondary-50 transition-all"
+                                >
+                                    Annuler
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

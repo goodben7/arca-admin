@@ -341,7 +341,7 @@ export default function CreateEmployeePage() {
                                     <Label htmlFor="email" className="text-[11px] font-black text-secondary-400 uppercase tracking-widest ml-1">Email Pro</Label>
                                     <div className="relative group">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
-                                        <Input id="email" type="email" value={formData.email} onChange={handleChange} placeholder="j.dupont@mcbs-africa.com" required
+                                        <Input id="email" type="email" value={formData.email} onChange={handleChange} placeholder="j.dupont@arca.cd" required
                                             className="h-14 pl-12 bg-secondary-50/50 border-secondary-100 rounded-2xl focus:bg-white transition-all font-bold" />
                                     </div>
                                 </div>
@@ -426,7 +426,7 @@ export default function CreateEmployeePage() {
                                     <Label htmlFor="employeeNumber" className="text-[11px] font-black text-secondary-400 uppercase tracking-widest ml-1">Matricule</Label>
                                     <div className="relative group">
                                         <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400 group-focus-within:text-emerald-600 transition-colors" />
-                                        <Input id="employeeNumber" value={formData.employeeNumber} onChange={handleChange} placeholder="ex: MCBS-001"
+                                        <Input id="employeeNumber" value={formData.employeeNumber} onChange={handleChange} placeholder="ex: ARCA-001"
                                             className="h-14 pl-12 bg-secondary-50/50 border-secondary-100 rounded-2xl focus:bg-white transition-all font-bold" />
                                     </div>
                                 </div>
@@ -595,7 +595,7 @@ export default function CreateEmployeePage() {
                                                         exp.isInternal ? "left-5" : "left-1"
                                                     )} />
                                                 </div>
-                                                <Label className="cursor-pointer text-xs font-bold text-secondary-600">Expérience interne MCBS</Label>
+                                                <Label className="cursor-pointer text-xs font-bold text-secondary-600">Expérience interne ARCA</Label>
                                             </div>
                                         </CardContent>
                                     </Card>

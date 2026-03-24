@@ -187,13 +187,12 @@ export default function PositionsPage() {
                                     <TableHead className="text-center">Effectif Actuel</TableHead>
                                     <TableHead className="text-center">Ouvertures</TableHead>
                                     <TableHead className="text-center">Statut</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filtered.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-48 text-center text-secondary-400 font-medium italic">
+                                        <TableCell colSpan={6} className="h-48 text-center text-secondary-400 font-medium italic">
                                             Aucun poste ne correspond à votre recherche.
                                         </TableCell>
                                     </TableRow>
@@ -247,11 +246,7 @@ export default function PositionsPage() {
                                                         {POSITION_STATUS_LABELS[pos.status] || pos.status}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="ghost" size="icon" className="text-primary-600 hover:bg-primary-50 rounded-xl h-9 w-9 opacity-0 group-hover:opacity-100 transition-all">
-                                                        <ChevronRight className="w-5 h-5" />
-                                                    </Button>
-                                                </TableCell>
+
                                             </TableRow>
                                         );
                                     })

@@ -14,7 +14,11 @@ export const MARITAL = {
 export const STATUS = {
     ACTIVE: 'ACTIVE',
     INACTIVE: 'INACTIVE',
-    ON_LEAVE: 'ON_LEAVE'
+    ON_LEAVE: 'ON_LEAVE',
+    SUSPENDED: 'SUSPENDED',
+    TERMINATED: 'TERMINATED',
+    PROBATION: 'PROBATION',
+    RETIRED: 'RETIRED'
 } as const;
 
 export const SKILL_LEVEL = {
@@ -50,6 +54,22 @@ export interface Employee {
     createdBy: string;
     createdAt: string;
     updatedAt: string;
+    activatedAt?: string;
+    activatedBy?: string;
+    deactivatedAt?: string;
+    deactivatedBy?: string;
+    onLeaveAt?: string;
+    onLeaveBy?: string;
+    suspendedAt?: string;
+    suspendedBy?: string;
+    terminatedAt?: string;
+    terminatedBy?: string;
+    retiredAt?: string;
+    retiredBy?: string;
+    probationAt?: string;
+    probationBy?: string;
+    managerAssignedAt?: string;
+    managerAssignedBy?: string;
     "@id"?: string;
 }
 

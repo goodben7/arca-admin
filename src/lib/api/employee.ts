@@ -146,3 +146,38 @@ export async function updateEmployee(id: string, data: Partial<Employee>): Promi
 
     return response.json();
 }
+
+export async function assignManager(employeeId: string, managerId: string) {
+    const response = await request('/api/employees/assign-manager', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ employeeId, managerId }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || 'Erreur lors de l\'assignation du manager.');
+    }
+
+    return response.json();
+}
+
+export async function changeEmployeeStatus(action: string, employeeId: string) {
+    const response = await request(`/api/employees/${action}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ employeeId }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || 'Erreur lors du changement de statut.');
+    }
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : {};
+}

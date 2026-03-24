@@ -36,7 +36,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { getAllContracts } from '@/lib/api/contract';
 import { getAllEmployees } from '@/lib/api/employee';
-import { Contract } from '@/types/contract';
+import { Contract, CONTRACT_TYPE, CONTRACT_STATUS } from '@/types/contract';
 import { Employee } from '@/types/employee';
 
 export default function ContractsPage() {
@@ -92,20 +92,20 @@ export default function ContractsPage() {
 
     const getTypeStyles = (type: string) => {
         switch (type.toUpperCase()) {
-            case 'CDI': return 'bg-primary-50 text-primary-700 border-primary-100';
-            case 'CDD': return 'bg-amber-50 text-amber-700 border-amber-100';
-            case 'INTERNSHIP': return 'bg-purple-50 text-purple-700 border-purple-100';
-            case 'CONSULTANT': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+            case CONTRACT_TYPE.CDI: return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+            case CONTRACT_TYPE.CDD: return 'bg-blue-50 text-blue-700 border-blue-100';
+            case CONTRACT_TYPE.INTERNSHIP: return 'bg-amber-50 text-amber-700 border-amber-100';
+            case CONTRACT_TYPE.CONSULTANT: return 'bg-purple-50 text-purple-700 border-purple-100';
             default: return 'bg-secondary-50 text-secondary-700 border-secondary-100';
         }
     };
 
     const getStatusStyles = (status: string) => {
         switch (status.toUpperCase()) {
-            case 'ACTIVE': return { label: 'Actif', bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500' };
-            case 'PENDING': return { label: 'En attente', bg: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500' };
-            case 'ENDED': return { label: 'Terminé', bg: 'bg-secondary-50 text-secondary-600 border-secondary-200', dot: 'bg-secondary-400' };
-            case 'CANCELLED': return { label: 'Annulé', bg: 'bg-rose-50 text-rose-700 border-rose-100', dot: 'bg-rose-500' };
+            case CONTRACT_STATUS.ACTIVE: return { label: 'Actif', bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' };
+            case CONTRACT_STATUS.PENDING: return { label: 'En attente', bg: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500' };
+            case CONTRACT_STATUS.ENDED: return { label: 'Terminé', bg: 'bg-slate-50 text-slate-600 border-slate-200', dot: 'bg-slate-400' };
+            case CONTRACT_STATUS.CANCELLED: return { label: 'Annulé', bg: 'bg-rose-50 text-rose-700 border-rose-100', dot: 'bg-rose-500' };
             default: return { label: status, bg: 'bg-secondary-50 text-secondary-600 border-secondary-200', dot: 'bg-secondary-400' };
         }
     };
@@ -145,8 +145,8 @@ export default function ContractsPage() {
                 <Card className="p-6 border-none shadow-xl shadow-secondary-200/40 relative overflow-hidden group hover:scale-[1.02] transition-all bg-white rounded-[32px]">
                     <div className="relative z-10">
                         <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1">CDI Actifs</p>
-                        <h3 className="text-3xl font-black text-primary-600 tabular-nums">
-                            {isLoading ? <Loader2 className="w-6 h-6 animate-spin text-secondary-100" /> : contracts.filter(c => c.type === 'CDI' && c.status === 'ACTIVE').length}
+                        <h3 className="text-3xl font-black text-emerald-600 tabular-nums">
+                            {isLoading ? <Loader2 className="w-6 h-6 animate-spin text-secondary-100" /> : contracts.filter(c => c.type === CONTRACT_TYPE.CDI && c.status === CONTRACT_STATUS.ACTIVE).length}
                         </h3>
                     </div>
                 </Card>
@@ -154,7 +154,7 @@ export default function ContractsPage() {
                     <div className="relative z-10">
                         <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1">En attente</p>
                         <h3 className="text-3xl font-black text-amber-600 tabular-nums">
-                            {isLoading ? <Loader2 className="w-6 h-6 animate-spin text-secondary-100" /> : contracts.filter(c => c.status === 'PENDING').length}
+                            {isLoading ? <Loader2 className="w-6 h-6 animate-spin text-secondary-100" /> : contracts.filter(c => c.status === CONTRACT_STATUS.PENDING).length}
                         </h3>
                     </div>
                 </Card>
@@ -162,8 +162,8 @@ export default function ContractsPage() {
                     <div className="relative z-10">
                         <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1">Masse Salariale</p>
                         <div className="flex items-baseline gap-1">
-                            <h3 className="text-2xl font-black text-emerald-600 tabular-nums">
-                                {isLoading ? '...' : contracts.filter(c => c.status === 'ACTIVE').reduce((acc, c) => acc + parseInt(c.salary || '0'), 0).toLocaleString()}
+                            <h3 className="text-2xl font-black text-secondary-900 tabular-nums">
+                                {isLoading ? '...' : contracts.filter(c => c.status === CONTRACT_STATUS.ACTIVE).reduce((acc, c) => acc + parseInt(c.salary || '0'), 0).toLocaleString()}
                             </h3>
                             <span className="text-[10px] font-bold text-secondary-400">CDF</span>
                         </div>
@@ -193,16 +193,16 @@ export default function ContractsPage() {
                                 <>
                                     <div className="fixed inset-0 z-10" onClick={() => setIsTypeDropdownOpen(false)} />
                                     <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-secondary-100 p-2 z-20 animate-in fade-in zoom-in-95 duration-200">
-                                        {['', 'CDI', 'CDD', 'INTERNSHIP', 'CONSULTANT'].map((t) => (
+                                        {['', CONTRACT_TYPE.CDI, CONTRACT_TYPE.CDD, CONTRACT_TYPE.INTERNSHIP, CONTRACT_TYPE.CONSULTANT].map((t) => (
                                             <button
-                                                key={t}
+                                                key={t === '' ? 'ALL' : t}
                                                 onClick={() => { setTypeFilter(t); setIsTypeDropdownOpen(false); }}
                                                 className={cn(
                                                     "w-full flex items-center justify-between px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all",
                                                     typeFilter === t ? "bg-primary-50 text-primary-700" : "hover:bg-secondary-50 text-secondary-500"
                                                 )}
                                             >
-                                                {t || "Tous les types"}
+                                                {t === CONTRACT_TYPE.INTERNSHIP ? 'Stage' : t || "Tous les types"}
                                                 {typeFilter === t && <Check className="w-3 h-3" />}
                                             </button>
                                         ))}
@@ -230,9 +230,9 @@ export default function ContractsPage() {
                                 <>
                                     <div className="fixed inset-0 z-10" onClick={() => setIsStatusDropdownOpen(false)} />
                                     <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-secondary-100 p-2 z-20 animate-in fade-in zoom-in-95 duration-200">
-                                        {['', 'PENDING', 'ACTIVE', 'ENDED', 'CANCELLED'].map((s) => (
+                                        {['', CONTRACT_STATUS.PENDING, CONTRACT_STATUS.ACTIVE, CONTRACT_STATUS.ENDED, CONTRACT_STATUS.CANCELLED].map((s) => (
                                             <button
-                                                key={s}
+                                                key={s === '' ? 'ALL' : s}
                                                 onClick={() => { setStatusFilter(s); setIsStatusDropdownOpen(false); }}
                                                 className={cn(
                                                     "w-full flex items-center justify-between px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all",
@@ -331,7 +331,7 @@ export default function ContractsPage() {
                                         </TableCell>
                                         <TableCell>
                                             <div className={cn("inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest", getStatusStyles(con.status).bg)}>
-                                                <div className={cn("w-1.5 h-1.5 rounded-full", getStatusStyles(con.status).dot)} />
+                                                <div className={cn("w-1.5 h-1.5 rounded-full", con.status === CONTRACT_STATUS.ACTIVE ? "animate-pulse" : "", getStatusStyles(con.status).dot)} />
                                                 {getStatusStyles(con.status).label}
                                             </div>
                                         </TableCell>
@@ -342,12 +342,6 @@ export default function ContractsPage() {
                                                         <Eye className="w-4 h-4" />
                                                     </Button>
                                                 </Link>
-                                                <Button variant="ghost" size="icon" className="h-9 w-9 text-secondary-400 hover:text-secondary-900 hover:bg-secondary-100 rounded-xl">
-                                                    <Edit2 className="w-4 h-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-9 w-9 text-secondary-400 hover:text-destructive hover:bg-destructive/5 rounded-xl">
-                                                    <MoreHorizontal className="w-4 h-4" />
-                                                </Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>

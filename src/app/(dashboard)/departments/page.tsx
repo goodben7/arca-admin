@@ -220,12 +220,6 @@ export default function DepartmentsPage() {
                                     className="w-full pl-12 pr-4 py-3.5 bg-secondary-50 border-none rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:bg-white transition-all font-bold placeholder:text-secondary-300"
                                 />
                             </div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" className="gap-2 border-secondary-100 text-secondary-600 font-bold px-6 py-5 rounded-xl">
-                                    <TrendingUp className="w-4 h-4" />
-                                    Métriques
-                                </Button>
-                            </div>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -235,14 +229,13 @@ export default function DepartmentsPage() {
                                         <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest pl-8">Structure & Code</TableHead>
                                         <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest">Responsable (Manager)</TableHead>
                                         <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest">Effectif</TableHead>
-                                        <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest">Secteur</TableHead>
                                         <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest text-right pr-8 px-6">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {departments.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="h-64 text-center">
+                                            <TableCell colSpan={4} className="h-64 text-center">
                                                 <div className="flex flex-col items-center gap-2 opacity-50">
                                                     <Building2 className="w-12 h-12 text-secondary-200" />
                                                     <p className="text-secondary-400 font-bold uppercase tracking-widest text-xs italic">Néant structurel</p>
@@ -285,11 +278,7 @@ export default function DepartmentsPage() {
                                                             <span className="text-[10px] font-bold text-secondary-400 uppercase tracking-wider">Membres</span>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="outline" className="text-[9px] font-black px-2.5 py-1 uppercase tracking-widest border-secondary-200">
-                                                            Pôle Expert
-                                                        </Badge>
-                                                    </TableCell>
+
                                                     <TableCell className="text-right pr-8 px-6">
                                                         <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-all gap-1 translate-x-4 group-hover:translate-x-0 transform">
                                                             <Button variant="ghost" size="icon" className="h-9 w-9 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl">

@@ -121,6 +121,80 @@ function RejectModal({
     );
 }
 
+// ─── Approve Modal ────────────────────────────────────────────────────────────
+function ApproveModal({
+    request,
+    employeeName,
+    onConfirm,
+    onCancel,
+    isLoading,
+}: {
+    request: LeaveRequest;
+    employeeName: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+    isLoading: boolean;
+}) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <Card className="w-full max-w-md border-none shadow-3xl bg-white rounded-[40px] overflow-hidden animate-in zoom-in-95 duration-200">
+                <CardHeader className="p-8 bg-emerald-50/50 border-b border-emerald-100 flex flex-row items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">
+                            <CheckCircle2 className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-base font-black text-secondary-900 uppercase tracking-tighter">Approuver la demande</CardTitle>
+                            <p className="text-xs font-medium text-secondary-500 mt-0.5">{employeeName}</p>
+                        </div>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={onCancel} className="rounded-full h-9 w-9 hover:bg-emerald-100 text-secondary-500">
+                        <X className="w-4 h-4" />
+                    </Button>
+                </CardHeader>
+                <CardContent className="p-8 space-y-6">
+                    <div className="flex items-center gap-3 p-4 bg-secondary-50 rounded-2xl border border-secondary-100">
+                        <Calendar className="w-4 h-4 text-secondary-400 shrink-0" />
+                        <div className="text-xs font-bold text-secondary-600 uppercase">
+                            {format(new Date(request.startDate), 'dd MMM yyyy', { locale: fr })} → {format(new Date(request.endDate), 'dd MMM yyyy', { locale: fr })}
+                            <span className="ml-2 text-primary-600">({request.numberOfDays} jours)</span>
+                        </div>
+                    </div>
+
+                    <p className="text-sm text-secondary-600 font-medium">
+                        Souhaitez-vous valider cette demande de congé ? L'employé sera notifié du statut d'approbation.
+                    </p>
+
+                    <div className="flex gap-3 pt-2">
+                        <Button
+                            variant="outline"
+                            onClick={onCancel}
+                            disabled={isLoading}
+                            className="flex-1 py-6 rounded-2xl font-bold uppercase tracking-widest text-xs border-secondary-200"
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={onConfirm}
+                            disabled={isLoading}
+                            className="flex-1 py-6 rounded-2xl font-black uppercase tracking-widest text-xs bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-100 gap-2 text-white"
+                        >
+                            {isLoading ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Confirmer
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function LeaveManagementPage() {
     const [requests, setRequests] = useState<LeaveRequest[]>([]);
@@ -129,6 +203,7 @@ export default function LeaveManagementPage() {
     const [error, setError] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null); // request id being acted upon
     const [rejectTarget, setRejectTarget] = useState<LeaveRequest | null>(null);
+    const [approveTarget, setApproveTarget] = useState<LeaveRequest | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
     const [avatarsMap, setAvatarsMap] = useState<Record<string, string>>({});
 
@@ -172,11 +247,13 @@ export default function LeaveManagementPage() {
         setTimeout(() => setToast(null), 4000);
     }
 
-    async function handleApprove(req: LeaveRequest) {
-        setActionLoading(req.id);
+    async function handleApprove() {
+        if (!approveTarget) return;
+        setActionLoading(approveTarget.id);
         try {
-            await approveLeaveRequest(req.id);
-            showToast(`Demande de ${employees[req.employee] || req.employee} approuvée avec succès.`, 'success');
+            await approveLeaveRequest(approveTarget.id);
+            showToast(`Demande de ${employees[approveTarget.employee] || approveTarget.employee} approuvée avec succès.`, 'success');
+            setApproveTarget(null);
             fetchData();
         } catch (e: any) {
             showToast(e.message, 'error');
@@ -250,6 +327,17 @@ export default function LeaveManagementPage() {
                     onConfirm={handleReject}
                     onCancel={() => setRejectTarget(null)}
                     isLoading={actionLoading === rejectTarget.id}
+                />
+            )}
+
+            {/* Approve modal */}
+            {approveTarget && (
+                <ApproveModal
+                    request={approveTarget}
+                    employeeName={employees[approveTarget.employee] || approveTarget.employee}
+                    onConfirm={handleApprove}
+                    onCancel={() => setApproveTarget(null)}
+                    isLoading={actionLoading === approveTarget.id}
                 />
             )}
 
@@ -339,7 +427,7 @@ export default function LeaveManagementPage() {
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-secondary-900 uppercase text-xs">{employeeName}</span>
-                                                    <span className="text-[10px] text-secondary-400 font-medium">MCBS Staff</span>
+                                                    <span className="text-[10px] text-secondary-400 font-medium">ARCA Personnel</span>
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -371,13 +459,10 @@ export default function LeaveManagementPage() {
                                                     <Button
                                                         size="sm"
                                                         disabled={isActing}
-                                                        onClick={() => handleApprove(req)}
+                                                        onClick={() => setApproveTarget(req)}
                                                         className="h-9 px-4 font-bold rounded-xl text-xs uppercase tracking-tight gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-sm shadow-emerald-100 text-white"
                                                     >
-                                                        {isActing
-                                                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                            : <><CheckCircle2 className="w-3.5 h-3.5" /> Approuver</>
-                                                        }
+                                                        <CheckCircle2 className="w-3.5 h-3.5" /> Approuver
                                                     </Button>
                                                     <Button
                                                         size="sm"

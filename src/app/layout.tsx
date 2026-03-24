@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 
 export const metadata: Metadata = {
-  title: "MCBS Africa SIRH",
-  description: "Système d'Information Ressources Humaines de MCBS Africa.",
+  title: "ARCA SIRH - Administration RH",
+  description: "Système d'Information Ressources Humaines de l'ARCA.",
 };
 
 export default function RootLayout({

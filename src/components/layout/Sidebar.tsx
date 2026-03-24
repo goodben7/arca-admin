@@ -28,17 +28,14 @@ export function Sidebar() {
         <aside className="w-64 bg-white border-r border-secondary-200 flex flex-col h-screen sticky top-0 overflow-y-auto">
             <div className="p-6 flex items-center gap-3">
                 <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm overflow-hidden border border-secondary-100 p-1">
-                    <img src="/logo.png" alt="MCBS Logo" className="w-full h-full object-contain" />
+                    <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
                 </div>
                 <div>
-                    <h1 className="font-black leading-none tracking-tight text-lg">
-                        <span className="text-[#2B59A1]">M</span>
-                        <span className="text-[#E42E28]">C</span>
-                        <span className="text-[#2B59A1]">B</span>
-                        <span className="text-[#E42E28]">S</span>
-                        <span className="text-[#808285] ml-1.5 px-1 font-extrabold border-l-2 border-secondary-200">AFRICA</span>
+                    <h1 className="font-black leading-none tracking-tight text-xl">
+                        <span className="text-primary-600 tracking-tighter">AR</span>
+                        <span className="text-accent-red-500 tracking-tighter">CA</span>
                     </h1>
-                    <p className="text-[10px] text-[#2B59A1] font-black uppercase tracking-[0.2em] mt-1.5 opacity-80">HR Excellence</p>
+                    <p className="text-[9px] text-primary-700 font-black uppercase tracking-[0.15em] mt-1.5 opacity-90 leading-tight">Administration<br />RH & Contrôle</p>
                 </div>
             </div>
 

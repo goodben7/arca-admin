@@ -58,3 +58,21 @@ export async function getContractById(id: string): Promise<Contract> {
 
     return response.json();
 }
+
+export async function changeContractStatus(action: string, contractId: string) {
+    const response = await request(`/api/contracts/${action}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ contractId }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || 'Erreur lors du changement de statut du contrat.');
+    }
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : {};
+}

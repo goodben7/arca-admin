@@ -3,13 +3,15 @@ export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.arca.ere
 
 function getToken() {
     if (typeof window === 'undefined') return null;
-    return document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+    const match = document.cookie.match(new RegExp('(^| )token=([^;]+)'));
+    if (match) return match[2];
+    return null;
 }
 
 function handleLogout() {
     if (typeof window === 'undefined') return;
 
-    // Supprimer le cookie
+    // Supprimer le cookie de session
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
 
     // Rediriger vers login

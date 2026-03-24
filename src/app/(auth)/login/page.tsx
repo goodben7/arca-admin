@@ -53,7 +53,7 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen grid lg:grid-cols-2">
             {/* Visual Side (Hidden on mobile) */}
-            <div className="hidden lg:flex bg-gradient-to-br from-primary-600 via-primary-800 to-black p-12 flex-col justify-between relative overflow-hidden">
+            <div className="hidden lg:flex bg-gradient-to-br from-primary-700 via-primary-900 to-black p-12 flex-col justify-between relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none">
                     <div className="absolute top-[10%] right-[10%] w-64 h-64 border-4 border-white/20 rounded-full" />
                     <div className="absolute bottom-[20%] left-[10%] w-96 h-96 border-2 border-white/10 rounded-full" />
@@ -62,17 +62,16 @@ export default function LoginPage() {
                 <div className="relative z-10">
                     <div className="flex items-center gap-4 mb-10">
                         <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl p-2 border border-white/20">
-                            <img src="/logo.png" alt="MCBS Logo" className="w-full h-full object-contain" />
+                            <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
                         </div>
                         <div>
                             <h1 className="leading-none tracking-tight text-3xl font-black">
-                                <span className="text-white">M</span>
-                                <span className="text-[#E42E28]">C</span>
-                                <span className="text-white">B</span>
-                                <span className="text-[#E42E28]">S</span>
-                                <span className="text-white/60 ml-2 text-xl font-extrabold border-l border-white/20 pl-2 uppercase">Africa</span>
+                                <span className="text-white">AR</span>
+                                <span className="text-accent-red-500">CA</span>
                             </h1>
-                            <p className="text-[10px] text-primary-200 font-black uppercase tracking-[0.3em] mt-1.5 opacity-80">HR Excellence</p>
+                            <p className="text-[10px] text-primary-100 font-black uppercase tracking-[0.2em] mt-1.5 opacity-90 leading-tight">
+                                Autorité de Régulation<br />& de Contrôle des Assurances
+                            </p>
                         </div>
                     </div>
 
@@ -80,9 +79,13 @@ export default function LoginPage() {
                         <h2 className="text-5xl font-extrabold text-white leading-tight tracking-tighter">
                             Gérez votre capital humain avec excellence.
                         </h2>
-                        <div className="w-20 h-1.5 bg-accent-red-500 rounded-full" />
-                        <p className="text-primary-100 text-lg font-medium opacity-80 leading-relaxed">
-                            La plateforme SIRH nouvelle génération pour l'administration RH, le recrutement, la paie et le développement des talents de MCBS Africa.
+                        <div className="flex gap-2">
+                            <div className="w-12 h-1.5 bg-primary-500 rounded-full" />
+                            <div className="w-4 h-1.5 bg-accent-red-500 rounded-full" />
+                            <div className="w-4 h-1.5 bg-accent-yellow-500 rounded-full" />
+                        </div>
+                        <p className="text-primary-50/70 text-lg font-medium leading-relaxed">
+                            Plateforme d'administration RH centralisée pour l'ARCA : gestion des talents, des contrats et du suivi de carrière.
                         </p>
                     </div>
                 </div>
@@ -92,7 +95,7 @@ export default function LoginPage() {
                         <ShieldCheck className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <p className="text-white font-bold tracking-tight">Accès Sécurisé MCBS</p>
+                        <p className="text-white font-bold tracking-tight">Portail Sécurisé ARCA</p>
                     </div>
                 </div>
             </div>
@@ -103,18 +106,15 @@ export default function LoginPage() {
                     <div className="text-center lg:text-left">
                         <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
                             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg p-1.5 border border-secondary-100">
-                                <img src="/logo.png" alt="MCBS Logo" className="w-full h-full object-contain" />
+                                <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
                             </div>
                             <h1 className="leading-none tracking-tight text-2xl font-black">
-                                <span className="text-[#2B59A1]">M</span>
-                                <span className="text-[#E42E28]">C</span>
-                                <span className="text-[#2B59A1]">B</span>
-                                <span className="text-[#E42E28]">S</span>
-                                <span className="text-[#808285] ml-1.5 px-1 font-extrabold border-l-2 border-secondary-200 uppercase text-base">Africa</span>
+                                <span className="text-primary-600">AR</span>
+                                <span className="text-accent-red-500">CA</span>
                             </h1>
                         </div>
                         <h3 className="text-3xl font-black text-secondary-900 mb-2 mt-4 tracking-tight">Bon retour !</h3>
-                        <p className="text-secondary-500 font-medium">Authentifiez-vous pour accéder à l'espace RH MCBS.</p>
+                        <p className="text-secondary-500 font-medium italic">Accédez à votre espace RH ARCA.</p>
                     </div>
 
                     <Card className="border-none shadow-2xl shadow-secondary-200/50 overflow-hidden bg-white">
@@ -184,6 +184,12 @@ export default function LoginPage() {
                             </form>
                         </CardContent>
                     </Card>
+
+                    <div className="pt-8 text-center lg:text-left">
+                        <p className="text-[10px] font-black tracking-[0.2em] text-secondary-300 uppercase">
+                            Powered by <span className="bg-gradient-to-r from-[#8b31cc] to-[#ff6b3d] bg-clip-text text-transparent">Digis</span>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
