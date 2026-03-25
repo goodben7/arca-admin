@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
+import { Fragment, FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
     Building2,
@@ -15,7 +16,8 @@ import {
     FileText,
     TrendingUp,
     Shield,
-    Pencil
+    Pencil,
+    Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -28,15 +30,219 @@ import {
     TableHeader,
     TableRow
 } from '@/components/ui/Table';
-import { getDepartments, getAllEmployees } from '@/lib/api/employee';
+import { getAllEmployees, getDepartments, updateDepartment } from '@/lib/api/employee';
 import { Department, Employee } from '@/types/employee';
+import { Input, Label } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
+import { cn } from '@/lib/utils';
+
+type DepartmentForm = {
+    name: string;
+    code: string;
+    description: string;
+    managerId: string;
+};
+
+function DepartmentDrawer({
+    open,
+    onClose,
+    department,
+    managerOptions,
+    initialForm,
+    onSubmit,
+    isSubmitting,
+    error
+}: {
+    open: boolean;
+    onClose: () => void;
+    department: Department | null;
+    managerOptions: Array<{ value: string; label: string }>;
+    initialForm: DepartmentForm;
+    onSubmit: (payload: DepartmentForm) => Promise<void>;
+    isSubmitting: boolean;
+    error: string | null;
+}) {
+    const [form, setForm] = useState<DepartmentForm>(initialForm);
+
+    useEffect(() => {
+        if (open) setForm(initialForm);
+    }, [open, initialForm]);
+
+    async function handleFormSubmit(e: FormEvent) {
+        e.preventDefault();
+        await onSubmit(form);
+    }
+
+    return (
+        <Transition.Root show={open} as={Fragment}>
+            <Dialog as="div" className="relative z-50" onClose={onClose}>
+                <Transition.Child
+                    as={Fragment}
+                    enter="ease-in-out duration-300"
+                    enterFrom="opacity-0"
+                    enterTo="opacity-100"
+                    leave="ease-in-out duration-200"
+                    leaveFrom="opacity-100"
+                    leaveTo="opacity-0"
+                >
+                    <div className="fixed inset-0 bg-secondary-950/40 backdrop-blur-sm" />
+                </Transition.Child>
+
+                <div className="fixed inset-0 overflow-hidden">
+                    <div className="absolute inset-0 overflow-hidden">
+                        <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="transform transition ease-in-out duration-300"
+                                enterFrom="translate-x-full"
+                                enterTo="translate-x-0"
+                                leave="transform transition ease-in-out duration-200"
+                                leaveFrom="translate-x-0"
+                                leaveTo="translate-x-full"
+                            >
+                                <Dialog.Panel className="pointer-events-auto w-screen max-w-lg">
+                                    <div className="h-full overflow-y-auto bg-white rounded-l-[32px] shadow-2xl border-l border-secondary-100">
+                                        <div className="p-6 border-b border-secondary-100 flex items-start justify-between gap-4">
+                                            <div className="min-w-0">
+                                                <Dialog.Title className="text-lg font-black uppercase tracking-tight text-secondary-900">
+                                                    Modifier le département
+                                                </Dialog.Title>
+                                                <p className="text-sm text-secondary-500 font-medium truncate mt-1">
+                                                    {department?.name ?? ''}
+                                                </p>
+                                            </div>
+                                            <Button
+                                                variant="outline"
+                                                onClick={onClose}
+                                                className="h-10 px-4 rounded-2xl"
+                                            >
+                                                Fermer
+                                            </Button>
+                                        </div>
+
+                                        <form onSubmit={handleFormSubmit} className="p-6 space-y-5">
+                                            {error && (
+                                                <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
+                                                    <p className="text-xs font-black uppercase tracking-widest text-destructive">
+                                                        Erreur
+                                                    </p>
+                                                    <p className="text-sm font-medium text-secondary-700 mt-1">
+                                                        {error}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <div className="space-y-2">
+                                                <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">
+                                                    Nom
+                                                </Label>
+                                                <Input
+                                                    value={form.name}
+                                                    onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
+                                                    required
+                                                    className="h-12"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">
+                                                        Code
+                                                    </Label>
+                                                    <Input
+                                                        value={form.code}
+                                                        onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))}
+                                                        required
+                                                        className="h-12"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">
+                                                        Manager
+                                                    </Label>
+                                                    <Select
+                                                        value={form.managerId}
+                                                        onChange={(e) => setForm(f => ({ ...f, managerId: e.target.value }))}
+                                                        className="h-12"
+                                                    >
+                                                        <option value="">Aucun</option>
+                                                        {managerOptions.map((opt) => (
+                                                            <option key={opt.value} value={opt.value}>
+                                                                {opt.label}
+                                                            </option>
+                                                        ))}
+                                                    </Select>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">
+                                                    Description
+                                                </Label>
+                                                <Textarea
+                                                    value={form.description}
+                                                    onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+                                                    className="min-h-[120px]"
+                                                />
+                                            </div>
+
+                                            <div className="pt-2 flex items-center justify-end gap-3">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={onClose}
+                                                    className="h-12 px-5 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                                                    disabled={isSubmitting}
+                                                >
+                                                    Annuler
+                                                </Button>
+                                                <Button
+                                                    type="submit"
+                                                    disabled={isSubmitting}
+                                                    className={cn(
+                                                        'h-12 px-5 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-2 shadow-sm',
+                                                        'bg-primary-600 hover:bg-primary-700 text-white'
+                                                    )}
+                                                >
+                                                    <Save className="w-4 h-4" />
+                                                    {isSubmitting ? 'En cours...' : 'Enregistrer'}
+                                                </Button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </div>
+            </Dialog>
+        </Transition.Root>
+    );
+}
 
 export default function DepartmentsPage() {
     const [departments, setDepartments] = useState<Department[]>([]);
     const [employeeMap, setEmployeeMap] = useState<Record<string, string>>({});
     const [deptCounts, setDeptCounts] = useState<Record<string, number>>({});
+    const [managerOptions, setManagerOptions] = useState<Array<{ value: string; label: string }>>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+    const [drawerSubmitting, setDrawerSubmitting] = useState(false);
+    const [drawerError, setDrawerError] = useState<string | null>(null);
+
+    const drawerInitialForm: DepartmentForm = useMemo(() => {
+        return {
+            name: selectedDepartment?.name ?? '',
+            code: selectedDepartment?.code ?? '',
+            description: selectedDepartment?.description ?? '',
+            managerId: selectedDepartment?.managerId ?? ''
+        };
+    }, [selectedDepartment]);
 
     async function fetchData() {
         setIsLoading(true);
@@ -53,6 +259,7 @@ export default function DepartmentsPage() {
             // Build manager map and count employees per dept
             const empMap: Record<string, string> = {};
             const counts: Record<string, number> = {};
+            const optionsMap = new Map<string, string>();
 
             empsArray.forEach((emp: Employee) => {
                 const fullName = `${emp.firstName} ${emp.lastName}`.trim();
@@ -60,6 +267,9 @@ export default function DepartmentsPage() {
                 if (emp['@id']) {
                     empMap[emp['@id']] = fullName;
                 }
+
+                optionsMap.set(emp.id, fullName);
+                if (emp['@id']) optionsMap.set(emp['@id'], fullName);
 
                 // Count per department
                 const deptId = emp.department; // assuming this is the ID or IRI
@@ -71,6 +281,7 @@ export default function DepartmentsPage() {
             setDepartments(deptsArray);
             setEmployeeMap(empMap);
             setDeptCounts(counts);
+            setManagerOptions(Array.from(optionsMap.entries()).map(([value, label]) => ({ value, label })));
         } catch (err: any) {
             setError(err.message || 'Erreur lors du chargement des départements.');
         } finally {
@@ -103,6 +314,42 @@ export default function DepartmentsPage() {
 
     return (
         <div className="space-y-6">
+            <DepartmentDrawer
+                open={drawerOpen}
+                onClose={() => {
+                    setDrawerOpen(false);
+                    setSelectedDepartment(null);
+                    setDrawerError(null);
+                }}
+                department={selectedDepartment}
+                managerOptions={managerOptions}
+                initialForm={drawerInitialForm}
+                isSubmitting={drawerSubmitting}
+                error={drawerError}
+                onSubmit={async (payload) => {
+                    if (!selectedDepartment) return;
+                    setDrawerSubmitting(true);
+                    setDrawerError(null);
+                    try {
+                        const patch: Partial<Department> = {
+                            name: payload.name,
+                            code: payload.code,
+                            description: payload.description,
+                            managerId: payload.managerId
+                        };
+
+                        await updateDepartment(selectedDepartment.id, patch);
+                        setDrawerOpen(false);
+                        setSelectedDepartment(null);
+                        await fetchData();
+                    } catch (e: any) {
+                        setDrawerError(e?.message || 'Erreur lors de la mise à jour du département.');
+                    } finally {
+                        setDrawerSubmitting(false);
+                    }
+                }}
+            />
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">Départements</h1>
@@ -282,11 +529,19 @@ export default function DepartmentsPage() {
 
                                                     <TableCell className="text-right pr-8 px-6">
                                                         <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-all gap-1 translate-x-4 group-hover:translate-x-0 transform">
-                                                            <Link href={`/departments/${dept.id}/edit`}>
-                                                                <Button variant="ghost" size="icon" className="h-9 w-9 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl" title="Modifier">
-                                                                    <Pencil className="w-4 h-4" />
-                                                                </Button>
-                                                            </Link>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-9 w-9 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl"
+                                                                title="Modifier"
+                                                                onClick={() => {
+                                                                    setSelectedDepartment(dept);
+                                                                    setDrawerError(null);
+                                                                    setDrawerOpen(true);
+                                                                }}
+                                                            >
+                                                                <Pencil className="w-4 h-4" />
+                                                            </Button>
                                                             <Button variant="ghost" size="icon" className="h-9 w-9 text-secondary-400 hover:text-secondary-900 hover:bg-secondary-100 rounded-xl">
                                                                 <MoreVertical className="w-4 h-4" />
                                                             </Button>

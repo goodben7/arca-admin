@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Users,
   FileCheck,
@@ -16,6 +16,18 @@ import {
   Briefcase,
   Check
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -77,6 +89,33 @@ export default function DashboardPage() {
   // Leave requests pending
   const pendingLeaves = leaves.filter(l => l.status === 'PENDING').length;
   const totalDepartments = departments.length;
+
+  const deptDistribution = useMemo(() => {
+    return departments.slice(0, 8).map((dept: Department) => {
+      const count = employees.filter((e: Employee) => {
+        const deptId =
+          (e.department as any)?.id ||
+          (typeof e.department === 'string' && e.department.split('/').pop()) ||
+          e.department;
+        return deptId === dept.id || e.department === (dept as any)['@id'];
+      }).length;
+
+      return {
+        id: dept.id,
+        name: dept.name,
+        count
+      };
+    });
+  }, [departments, employees]);
+
+  const contractStatusData = useMemo(() => {
+    return [
+      { name: 'Actifs', value: activeContracts, color: '#007398' }, // ARCA Blue
+      { name: 'En attente', value: pendingContracts, color: '#D99C00' }, // ARCA Yellow-ish
+      { name: 'Terminés', value: endedContracts, color: '#10B981' }, // Emerald
+      { name: 'Annulés', value: cancelledContracts, color: '#C1272D' } // ARCA Red
+    ];
+  }, [activeContracts, pendingContracts, endedContracts, cancelledContracts]);
 
   const getEmployeeName = (idOrIri: string) => {
     if (!idOrIri) return "Collab. Inconnu";
@@ -162,74 +201,174 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y divide-secondary-50">
-              {departments.length > 0 ? departments.slice(0, 8).map(dept => {
-                const deptCount = employees.filter(e => {
-                  const deptId = (e.department as any)?.id || (typeof e.department === 'string' && e.department.split('/').pop()) || e.department;
-                  return deptId === dept.id || e.department === dept['@id'];
-                }).length;
-                return (
-                  <div key={dept.id} className="p-8 group hover:bg-secondary-50/50 transition-all duration-300">
-                    <div className="flex flex-col gap-1 items-center md:items-start">
-                      <span className="text-[10px] font-black uppercase text-secondary-400 tracking-[0.2em] mb-2">{dept.name}</span>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-black text-secondary-900 group-hover:text-primary-600 transition-colors tabular-nums">{deptCount}</span>
-                        <span className="text-[10px] font-bold text-secondary-300 uppercase">Talents</span>
-                      </div>
+            {deptDistribution.length > 0 ? (
+              <div className="p-6">
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={deptDistribution}
+                    layout="vertical"
+                    margin={{ top: 10, right: 18, bottom: 10, left: 0 }}
+                    barCategoryGap={14}
+                    barGap={6}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis type="number" tick={{ fill: '#64748B', fontSize: 12 }} />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={140}
+                      tick={{ fill: '#334155', fontSize: 12 }}
+                    />
+                    <Tooltip
+                      content={({ active, payload }: any) => {
+                        if (!active || !payload?.length) return null;
+                        const p = payload[0]?.payload;
+                        return (
+                          <div className="rounded-2xl border border-secondary-100 bg-white/90 backdrop-blur p-3 shadow-2xl">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-secondary-400">
+                              {p?.name}
+                            </p>
+                            <p className="text-sm font-black text-secondary-900 tabular-nums">
+                              {p?.count} collaborateurs
+                            </p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Bar
+                      dataKey="count"
+                      radius={[12, 12, 12, 12]}
+                      fill="#007398"
+                      isAnimationActive
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="p-16 flex flex-col items-center justify-center gap-4">
+                <TrendingUp className="w-12 h-12 text-secondary-100 animate-pulse" />
+                <span className="text-secondary-400 font-bold uppercase tracking-widest text-[10px]">Aucune donnée disponible</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="space-y-8">
+          {/* Contract Status */}
+          <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[40px]">
+            <CardHeader className="p-8 border-b border-secondary-50">
+              <CardTitle className="text-xl font-black text-secondary-900 uppercase tracking-tight">
+                Contrats par Statut
+              </CardTitle>
+              <CardDescription className="text-sm font-medium italic">Répartition rapide</CardDescription>
+            </CardHeader>
+            <CardContent className="p-8 pt-6 space-y-6">
+              <div className="flex items-center justify-center">
+                <div className="w-full" style={{ height: 220 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Tooltip
+                        content={({ active, payload }: any) => {
+                          if (!active || !payload?.length) return null;
+                          const p = payload[0]?.payload;
+                          return (
+                            <div className="rounded-2xl border border-secondary-100 bg-white/90 backdrop-blur p-3 shadow-2xl">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-secondary-400">
+                                {p?.name}
+                              </p>
+                              <p className="text-sm font-black text-secondary-900 tabular-nums">
+                                {p?.value} contrats
+                              </p>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Pie
+                        data={contractStatusData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={82}
+                        paddingAngle={2}
+                        isAnimationActive
+                      >
+                        {contractStatusData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {contractStatusData.map((entry) => (
+                  <div
+                    key={entry.name}
+                    className="flex items-center gap-3 p-3 rounded-2xl border border-secondary-100/60 bg-secondary-50/30"
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ backgroundColor: entry.color }}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-secondary-400 truncate">
+                        {entry.name}
+                      </p>
+                      <p className="text-sm font-black text-secondary-900 tabular-nums">
+                        {entry.value}
+                      </p>
                     </div>
                   </div>
-                )
-              }) : (
-                <div className="p-16 col-span-full flex flex-col items-center justify-center gap-4">
-                  <TrendingUp className="w-12 h-12 text-secondary-100 animate-pulse" />
-                  <span className="text-secondary-400 font-bold uppercase tracking-widest text-[10px]">Aucune donnée disponible</span>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Activity Feed */}
-        <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[40px]">
-          <CardHeader className="p-8 border-b border-secondary-50">
-            <CardTitle className="text-xl font-black text-secondary-900 uppercase tracking-tight">
-              Actions Requises
-            </CardTitle>
-            <CardDescription className="text-sm font-medium italic">Flux d'approbation prioritaire</CardDescription>
-          </CardHeader>
-          <CardContent className="p-8 pt-6 space-y-8">
-            <div className="space-y-6">
-              {leaves.filter(l => l.status === 'PENDING').slice(0, 3).map((leave, i) => (
-                <ActivityItem
-                  key={`l-${i}`}
-                  user={getEmployeeName(leave.employee)}
-                  action="Congé en attente"
-                  date={format(new Date(leave.startDate), 'dd MMM yyyy', { locale: fr })}
-                  type="leave"
-                />
-              ))}
-              {contracts.filter(c => c.status === 'PENDING').slice(0, 3).map((contract, i) => (
-                <ActivityItem
-                  key={`c-${i}`}
-                  user={getEmployeeName(contract.employee)}
-                  action="Nouveau contrat"
-                  date={format(new Date(contract.startDate), 'dd MMM yyyy', { locale: fr })}
-                  type="contract"
-                />
-              ))}
-              {(leaves.filter(l => l.status === 'PENDING').length === 0 && contracts.filter(c => c.status === 'PENDING').length === 0) && (
-                <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <FileCheck className="w-10 h-10 text-secondary-100" />
-                  <p className="text-[10px] font-black uppercase text-secondary-300 tracking-widest text-center">Tout est à jour !</p>
-                </div>
-              )}
-            </div>
+          {/* Activity Feed */}
+          <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[40px]">
+            <CardHeader className="p-8 border-b border-secondary-50">
+              <CardTitle className="text-xl font-black text-secondary-900 uppercase tracking-tight">
+                Actions Requises
+              </CardTitle>
+              <CardDescription className="text-sm font-medium italic">Flux d'approbation prioritaire</CardDescription>
+            </CardHeader>
+            <CardContent className="p-8 pt-6 space-y-8">
+              <div className="space-y-6">
+                {leaves.filter(l => l.status === 'PENDING').slice(0, 3).map((leave, i) => (
+                  <ActivityItem
+                    key={`l-${i}`}
+                    user={getEmployeeName(leave.employee)}
+                    action="Congé en attente"
+                    date={format(new Date(leave.startDate), 'dd MMM yyyy', { locale: fr })}
+                    type="leave"
+                  />
+                ))}
+                {contracts.filter(c => c.status === 'PENDING').slice(0, 3).map((contract, i) => (
+                  <ActivityItem
+                    key={`c-${i}`}
+                    user={getEmployeeName(contract.employee)}
+                    action="Nouveau contrat"
+                    date={format(new Date(contract.startDate), 'dd MMM yyyy', { locale: fr })}
+                    type="contract"
+                  />
+                ))}
+                {(leaves.filter(l => l.status === 'PENDING').length === 0 && contracts.filter(c => c.status === 'PENDING').length === 0) && (
+                  <div className="flex flex-col items-center justify-center py-10 gap-3">
+                    <FileCheck className="w-10 h-10 text-secondary-100" />
+                    <p className="text-[10px] font-black uppercase text-secondary-300 tracking-widest text-center">Tout est à jour !</p>
+                  </div>
+                )}
+              </div>
 
-            <Button variant="ghost" className="w-full text-primary-600 font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl hover:bg-primary-50 transition-all border border-dashed border-primary-100">
-              Voir tout l'historique
-            </Button>
-          </CardContent>
-        </Card>
+              <Button variant="ghost" className="w-full text-primary-600 font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl hover:bg-primary-50 transition-all border border-dashed border-primary-100">
+                Voir tout l'historique
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

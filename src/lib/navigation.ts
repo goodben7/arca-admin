@@ -45,7 +45,7 @@ export const NAV_ITEMS = [
     {
         title: 'Autres Modules',
         items: [
-            { title: 'Recrutement', href: '/recruitment', icon: UserPlus, status: 'under-construction' },
+            { title: 'Recrutement', href: '/recruitment', icon: UserPlus, status: 'active' },
             { title: 'Carrière', href: '/career', icon: GraduationCap, status: 'under-construction' },
             { title: 'Paie', href: '/payroll', icon: Calculator, status: 'under-construction' },
             { title: 'Rapports', href: '/reports', icon: BarChart3, status: 'under-construction' },
