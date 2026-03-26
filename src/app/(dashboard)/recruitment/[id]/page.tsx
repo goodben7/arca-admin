@@ -246,7 +246,7 @@ export default function RecruitmentDetailsPage() {
                 setRequest(reqData);
 
                 // Load maps for display
-                const [deptsData, posData] = await Promise.all([getDepartments(), getAllPositions()]);
+                const [deptsData, posData]:any = await Promise.all([getDepartments(), getAllPositions()]);
 
                 const dList = Array.isArray(deptsData) ? deptsData : deptsData['hydra:member'] || [];
                 const dMap: Record<string, string> = {};

@@ -91,7 +91,7 @@ export default function LoginPage() {
             const data = await login(formData.username, formData.password);
             const isSecure = window.location.protocol === 'https:';
             document.cookie = `token=${data.token}; path=/; max-age=86400; samesite=lax${isSecure ? '; secure' : ''}`;
-            router.push('/');
+            router.push('/dashboard');
         } catch (err: any) {
             setError(err.message || 'Une erreur est survenue lors de la connexion.');
         } finally {

@@ -13,13 +13,14 @@ import {
     BarChart3,
     Settings,
     ShieldCheck,
-    UserCog
+    UserCog,
+    ClipboardList,
 } from 'lucide-react';
 
 export const NAV_ITEMS = [
     {
         title: 'Dashboard',
-        href: '/',
+        href: '/dashboard',
         icon: LayoutDashboard,
         status: 'active'
     },
@@ -46,6 +47,8 @@ export const NAV_ITEMS = [
         title: 'Autres Modules',
         items: [
             { title: 'Recrutement', href: '/recruitment', icon: UserPlus, status: 'active' },
+            { title: "Offres d'emploi", href: '/job-offers', icon: Briefcase, status: 'active' },
+            { title: 'Candidatures', href: '/applications', icon: ClipboardList, status: 'active' },
             { title: 'Carrière', href: '/career', icon: GraduationCap, status: 'under-construction' },
             { title: 'Paie', href: '/payroll', icon: Calculator, status: 'under-construction' },
             { title: 'Rapports', href: '/reports', icon: BarChart3, status: 'under-construction' },
