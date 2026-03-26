@@ -183,7 +183,7 @@ function OfferCard({ offer, deptMap }: { offer: JobOffer; deptMap: Record<string
                 </div>
 
                 {/* Métadonnées */}
-                <div className="flex flex-col gap-1.5 flex-1">
+                <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2">
                         <Building2 className="w-3.5 h-3.5 shrink-0 text-secondary-400" />
                         <span className="text-xs font-bold text-secondary-600 uppercase tracking-wide truncate">
@@ -199,6 +199,13 @@ function OfferCard({ offer, deptMap }: { offer: JobOffer; deptMap: Record<string
                         </div>
                     )}
                 </div>
+
+                {/* Extrait description */}
+                {offer.description && (
+                    <p className="text-xs text-secondary-500 font-medium leading-relaxed line-clamp-3 flex-1">
+                        {offer.description}
+                    </p>
+                )}
 
                 {/* Footer carte */}
                 <div className="flex items-center justify-between pt-4 border-t border-secondary-100">

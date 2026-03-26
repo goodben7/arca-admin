@@ -39,23 +39,22 @@ export async function getJobOfferById(id: string): Promise<JobOffer> {
     return response.json();
 }
 
-export async function updateJobOfferTitle(id: string, data: { title: string }): Promise<JobOffer> {
+export async function updateJobOffer(id: string, data: { title: string; description?: string }): Promise<JobOffer> {
     const path = id.startsWith('/') ? id : `/api/job_offers/${id}`;
     const response = await request(path, {
         method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
-
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || errorData.detail || "Erreur lors de la mise à jour de l'offre.");
     }
-
     return response.json();
 }
+
+/** @deprecated use updateJobOffer */
+export const updateJobOfferTitle = updateJobOffer;
 
 export async function closeJobOffer(jobOfferId: string): Promise<void> {
     const response = await request('/api/job_offers/closures', {

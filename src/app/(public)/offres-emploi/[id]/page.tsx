@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Building2, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, Clock, FileText } from 'lucide-react';
 import { getJobOfferById, getPublicDepartments } from '@/lib/api/jobOffer';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -111,7 +111,7 @@ export default async function OffreDetailPage({ params }: Props) {
                     {/* Logo ARCA dans le hero */}
                     <div className="hidden md:flex shrink-0 bg-white rounded-2xl items-center justify-center px-4 py-3 shadow-lg">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/logo_arca_nouveau-2.png" alt="ARCA" width={112} height={37} className="block w-28 h-auto max-w-[112px] object-contain" />
+                        <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="w-28 h-auto object-contain" />
                     </div>
                 </div>
             </div>
@@ -122,6 +122,21 @@ export default async function OffreDetailPage({ params }: Props) {
                 <InfoCard icon={Calendar} label="Date de publication" value={publishedDate || '—'} />
                 <InfoCard icon={Clock} label="Statut" value="Ouvert aux candidatures" valueClass="text-emerald-600" />
             </div>
+
+            {/* Description du poste */}
+            {offer.description && (
+                <div className="bg-white rounded-3xl border border-secondary-100 shadow-sm p-8 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#004b61]/5 border border-[#004b61]/10 flex items-center justify-center">
+                            <FileText className="w-4 h-4 text-[#004b61]" />
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-secondary-400">Description du poste</p>
+                    </div>
+                    <div className="prose prose-sm max-w-none text-secondary-700 font-medium leading-relaxed whitespace-pre-wrap">
+                        {offer.description}
+                    </div>
+                </div>
+            )}
 
             {/* Formulaire de candidature */}
             <CandidatureForm jobOfferId={offer.id} jobOfferTitle={offer.title} />
