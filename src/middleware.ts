@@ -16,12 +16,14 @@ export const config = {
     matcher: [
         /*
          * Protéger uniquement les routes du dashboard.
-         * Sont exclues automatiquement :
+         * Exclusions :
          * - / (landing)
          * - /login (auth)
          * - /offres-emploi (public)
-         * - _next/*, api/*, fichiers statiques
+         * - _next/* (assets Next.js)
+         * - api/*
+         * - Tous les fichiers statiques (png, jpg, svg, ico, webp, etc.)
          */
-        '/((?!$|login|offres-emploi|api|_next/static|_next/image|favicon.ico).*)',
+        '/((?!$|login|offres-emploi|api|_next|favicon\\.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf|otf|eot|css|js|map)).*)',
     ],
 };

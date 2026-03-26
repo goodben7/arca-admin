@@ -18,12 +18,12 @@ export default async function LandingPage() {
             {/* ── HEADER ── */}
             <header className="bg-[#004b61] sticky top-0 z-40 shadow-lg shadow-primary-900/20">
                 <div className="max-w-6xl mx-auto px-6 flex items-stretch justify-between">
-                    <div className="flex items-center py-2">
-                        <div className="bg-white rounded-xl px-3 py-1.5 shadow-sm flex items-center">
+                    <Link href="/" className="flex items-center py-2">
+                        <div className="bg-white rounded-xl px-3 py-1.5 shadow-sm">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/logo_arca_nouveau-2.png" alt="ARCA" width={120} height={39} className="block h-8 w-auto max-w-[120px] object-contain" />
+                            <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="h-8 w-auto object-contain" />
                         </div>
-                    </div>
+                    </Link>
                     <nav className="flex items-center gap-1">
                         <Link href="/offres-emploi" className="px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-all">
                             Offres d&apos;emploi
@@ -98,8 +98,8 @@ export default async function LandingPage() {
                         <div className="relative">
                             <div className="absolute inset-0 bg-white/5 rounded-[40px] blur-2xl scale-110" />
                             <div className="relative bg-white rounded-[32px] flex items-center justify-center p-8 shadow-2xl shadow-primary-900/30">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src="/logo_arca_nouveau-2.png" alt="ARCA" width={176} height={58} className="block w-44 h-auto max-w-[176px] object-contain" />
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="w-44 h-auto object-contain" />
                             </div>
                         </div>
                     </div>
@@ -160,9 +160,9 @@ export default async function LandingPage() {
             <footer className="bg-[#004b61] border-t border-white/10 mt-auto">
                 <div className="max-w-6xl mx-auto px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <div className="bg-white/10 rounded-lg px-2 py-1 flex items-center">
+                        <div className="bg-white/10 rounded-lg px-2 py-1">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/logo_arca_nouveau-2.png" alt="ARCA" width={75} height={25} className="block h-5 w-auto max-w-[75px] object-contain" />
+                            <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="h-5 w-auto object-contain" />
                         </div>
                         <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">
                             © {new Date().getFullYear()} ARCA — Tous droits réservés

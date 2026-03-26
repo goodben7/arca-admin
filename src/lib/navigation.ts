@@ -44,12 +44,17 @@ export const NAV_ITEMS = [
         ]
     },
     {
-        title: 'Autres Modules',
+        title: 'Recrutement',
         items: [
             { title: 'Recrutement', href: '/recruitment', icon: UserPlus, status: 'active' },
             { title: "Offres d'emploi", href: '/job-offers', icon: Briefcase, status: 'active' },
             { title: 'Candidatures', href: '/applications', icon: ClipboardList, status: 'active' },
             { title: 'Carrière', href: '/career', icon: GraduationCap, status: 'under-construction' },
+        ]
+    },
+    {
+        title: 'Autres Modules',
+        items: [
             { title: 'Paie', href: '/payroll', icon: Calculator, status: 'under-construction' },
             { title: 'Rapports', href: '/reports', icon: BarChart3, status: 'under-construction' },
         ]

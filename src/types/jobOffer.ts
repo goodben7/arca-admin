@@ -13,6 +13,7 @@ export type JobOfferStatus = typeof JOB_OFFER_STATUS[keyof typeof JOB_OFFER_STAT
 export interface JobOffer {
     id: string;
     title: string;
+    description?: string;
     department: string;
     recruitmentRequest: string;
 

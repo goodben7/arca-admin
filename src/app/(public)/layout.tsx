@@ -10,15 +10,9 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                 <div className="max-w-6xl mx-auto px-6 py-0 flex items-stretch justify-between">
                     {/* Logo */}
                     <Link href="/" className="flex items-center py-2 group">
-                        <div className="bg-white rounded-xl px-3 py-1.5 shadow-sm flex items-center">
+                        <div className="bg-white rounded-xl px-3 py-1.5 shadow-sm">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src="/logo_arca_nouveau-2.png"
-                                alt="ARCA"
-                                width={120}
-                                height={39}
-                                className="block h-8 w-auto max-w-[120px] object-contain"
-                            />
+                            <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="h-8 w-auto object-contain" />
                         </div>
                     </Link>
 
@@ -51,9 +45,9 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
             <footer className="bg-[#004b61] border-t border-white/10 mt-auto">
                 <div className="max-w-6xl mx-auto px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <div className="bg-white/10 rounded-lg px-2 py-1 flex items-center">
+                        <div className="bg-white/10 rounded-lg px-2 py-1">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/logo_arca_nouveau-2.png" alt="ARCA" width={75} height={25} className="block h-5 w-auto max-w-[75px] object-contain" />
+                            <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="h-5 w-auto object-contain" />
                         </div>
                         <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">
                             © {new Date().getFullYear()} ARCA — Tous droits réservés

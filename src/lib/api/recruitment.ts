@@ -49,6 +49,7 @@ export async function createRecruitmentRequest(payload: {
     position: string;
     numberOfPositions: number;
     justification: string;
+    description: string;
 }): Promise<RecruitmentRequest> {
     const response = await request('/api/recruitment_requests', {
         method: 'POST',

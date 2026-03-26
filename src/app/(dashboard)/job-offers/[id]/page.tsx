@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Input, Label } from '@/components/ui/Input';
 import { getDepartments } from '@/lib/api/employee';
-import { closeJobOffer, createDraftJobOffer, getJobOfferById, publishJobOffer, updateJobOfferTitle } from '@/lib/api/jobOffer';
+import { closeJobOffer, createDraftJobOffer, getJobOfferById, publishJobOffer, updateJobOffer } from '@/lib/api/jobOffer';
 import { getAllApplications } from '@/lib/api/application';
 import { JobOffer, STATUS_CLOSED, STATUS_DRAFT, STATUS_PUBLISHED } from '@/types/jobOffer';
 import { Application, APPLICATION_STATUS_LABELS, APPLICATION_STATUS_STYLES } from '@/types/application';
@@ -42,15 +42,16 @@ function getStatusBadge(status: string) {
     }
 }
 
-// ── TitleDrawer ───────────────────────────────────────────────────────────────
-function TitleDrawer({ open, onClose, initialTitle, isSubmitting, error, onSubmit }: {
-    open: boolean; onClose: () => void; initialTitle: string;
+// ── EditDrawer ────────────────────────────────────────────────────────────────
+function EditDrawer({ open, onClose, initialTitle, initialDescription, isSubmitting, error, onSubmit }: {
+    open: boolean; onClose: () => void;
+    initialTitle: string; initialDescription: string;
     isSubmitting: boolean; error: string | null;
-    onSubmit: (p: { title: string }) => Promise<void>;
+    onSubmit: (p: { title: string; description: string }) => Promise<void>;
 }) {
-    const [draft, setDraft] = useState({ title: initialTitle });
-    useEffect(() => { if (open) setDraft({ title: initialTitle }); }, [open, initialTitle]);
-    async function handleSubmit(e: FormEvent) { e.preventDefault(); await onSubmit({ title: draft.title }); }
+    const [draft, setDraft] = useState({ title: initialTitle, description: initialDescription });
+    useEffect(() => { if (open) setDraft({ title: initialTitle, description: initialDescription }); }, [open, initialTitle, initialDescription]);
+    async function handleSubmit(e: FormEvent) { e.preventDefault(); await onSubmit(draft); }
 
     return (
         <Transition.Root show={open} as={Fragment}>
@@ -65,14 +66,24 @@ function TitleDrawer({ open, onClose, initialTitle, isSubmitting, error, onSubmi
                                 <Dialog.Panel className="pointer-events-auto w-screen max-w-lg">
                                     <div className="h-full overflow-y-auto bg-white rounded-l-[32px] shadow-2xl border-l border-secondary-100">
                                         <div className="p-6 border-b border-secondary-100 flex items-start justify-between gap-4">
-                                            <Dialog.Title className="text-lg font-black uppercase tracking-tight text-secondary-900">Modifier le titre</Dialog.Title>
+                                            <Dialog.Title className="text-lg font-black uppercase tracking-tight text-secondary-900">Modifier l&apos;offre</Dialog.Title>
                                             <Button variant="outline" onClick={onClose} className="h-10 px-4 rounded-2xl">Fermer</Button>
                                         </div>
                                         <form onSubmit={handleSubmit} className="p-6 space-y-5">
                                             {error && <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4"><p className="text-sm font-medium text-secondary-700">{error}</p></div>}
                                             <div className="space-y-2">
-                                                <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">Titre</Label>
+                                                <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">Titre *</Label>
                                                 <Input value={draft.title} onChange={e => setDraft(p => ({ ...p, title: e.target.value }))} required className="h-12" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">Description du poste</Label>
+                                                <textarea
+                                                    value={draft.description}
+                                                    onChange={e => setDraft(p => ({ ...p, description: e.target.value }))}
+                                                    rows={8}
+                                                    placeholder="Décrivez le poste, les missions, le profil recherché..."
+                                                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm font-medium text-secondary-900 placeholder:text-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all resize-none"
+                                                />
                                             </div>
                                             <div className="pt-2 flex items-center justify-end gap-3">
                                                 <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="h-12 px-5 rounded-2xl font-black uppercase tracking-widest text-[10px]">Annuler</Button>
@@ -267,6 +278,21 @@ export default function JobOfferDetailsPage() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Description */}
+                            <div className="space-y-2">
+                                <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">Description du poste</Label>
+                                {jobOffer.description ? (
+                                    <div className="rounded-2xl border border-secondary-100 bg-secondary-50/30 px-4 py-4 text-sm font-medium text-secondary-700 leading-relaxed whitespace-pre-wrap">
+                                        {jobOffer.description}
+                                    </div>
+                                ) : (
+                                    <div className="rounded-2xl border border-dashed border-secondary-200 bg-secondary-50/30 px-4 py-4 text-sm font-medium text-secondary-400 italic">
+                                        Aucune description renseignée.
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                 {[
                                     { label: 'Créée le', val: fmtDate(jobOffer.createdAt) },
@@ -281,7 +307,7 @@ export default function JobOfferDetailsPage() {
                             </div>
                             <div className="flex items-center justify-end gap-3">
                                 <Button variant="outline" className="h-12 px-5 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-2" onClick={() => { setDrawerError(null); setDrawerOpen(true); }}>
-                                    <Pencil className="w-4 h-4" />Modifier titre
+                                    <Pencil className="w-4 h-4" />Modifier l&apos;offre
                                 </Button>
                             </div>
                         </CardContent>
@@ -392,15 +418,16 @@ export default function JobOfferDetailsPage() {
                 </Card>
             )}
 
-            <TitleDrawer
+            <EditDrawer
                 open={drawerOpen}
                 onClose={() => { setDrawerOpen(false); setDrawerError(null); }}
                 initialTitle={jobOffer.title}
+                initialDescription={jobOffer.description || ''}
                 isSubmitting={drawerSubmitting}
                 error={drawerError}
-                onSubmit={async ({ title }) => {
+                onSubmit={async ({ title, description }) => {
                     setDrawerSubmitting(true); setDrawerError(null);
-                    try { await updateJobOfferTitle(jobOffer.id, { title }); setDrawerOpen(false); showToast('Titre mis à jour.', 'success'); await refresh(); }
+                    try { await updateJobOffer(jobOffer.id, { title, description }); setDrawerOpen(false); showToast('Offre mise à jour.', 'success'); await refresh(); }
                     catch (e: any) { setDrawerError(e?.message || "Erreur."); }
                     finally { setDrawerSubmitting(false); }
                 }}

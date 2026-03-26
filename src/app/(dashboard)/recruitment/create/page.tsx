@@ -38,11 +38,13 @@ export default function CreateRecruitmentRequestPage() {
         position: string;
         numberOfPositions: number;
         justification: string;
+        description: string;
     }>({
         department: '',
         position: '',
         numberOfPositions: 1,
-        justification: ''
+        justification: '',
+        description: ''
     });
 
     useEffect(() => {
@@ -90,7 +92,8 @@ export default function CreateRecruitmentRequestPage() {
                 department: formData.department,
                 position: formData.position,
                 numberOfPositions: formData.numberOfPositions,
-                justification: formData.justification
+                justification: formData.justification,
+                description: formData.description
             });
 
             router.push('/recruitment');
@@ -239,6 +242,22 @@ export default function CreateRecruitmentRequestPage() {
                                         onChange={handleChange}
                                         rows={5}
                                         placeholder="Expliquez le besoin de recrutement..."
+                                        className="bg-secondary-50/30"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 group">
+                                    <Label className="uppercase tracking-widest text-xs font-black text-secondary-400">
+                                        <FileText className="inline-block w-4 h-4 mr-2 text-secondary-500" />
+                                        Description du poste
+                                    </Label>
+                                    <Textarea
+                                        required
+                                        name="description"
+                                        value={formData.description}
+                                        onChange={handleChange}
+                                        rows={5}
+                                        placeholder="Décrivez les missions, le profil recherché, les compétences requises..."
                                         className="bg-secondary-50/30"
                                     />
                                 </div>

@@ -160,6 +160,7 @@ export default function LoginPage() {
                         <div className="relative p-1">
                             <div className="absolute inset-0 bg-white/20 rounded-3xl blur-md group-hover:bg-white/30 transition-all" />
                             <div className="relative w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-2xl p-3 border border-white/40">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
                             </div>
                         </div>
@@ -172,7 +173,7 @@ export default function LoginPage() {
                                 Autorité de Régulation
                             </p>
                             <p className="text-[11px] text-white/40 font-bold uppercase tracking-[0.15em] mt-1 leading-none">
-                                & de Contrôle des Assurances
+                                &amp; de Contrôle des Assurances
                             </p>
                         </div>
                     </div>
@@ -251,6 +252,7 @@ export default function LoginPage() {
                     {/* Mobile Header */}
                     <div className="flex lg:hidden flex-col items-center gap-6 mb-4">
                         <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-2xl p-4 border border-secondary-100">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
                         </div>
                         <div className="text-center">

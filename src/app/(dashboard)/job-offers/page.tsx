@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Input, Label } from '@/components/ui/Input';
-import { getAllJobOffers, updateJobOfferTitle } from '@/lib/api/jobOffer';
+import { getAllJobOffers, updateJobOffer } from '@/lib/api/jobOffer';
 import { getDepartments } from '@/lib/api/employee';
 import { JobOffer } from '@/types/jobOffer';
 import { STATUS_CLOSED, STATUS_DRAFT, STATUS_PUBLISHED } from '@/types/jobOffer';
@@ -47,7 +47,8 @@ type TitleDrawerProps = {
     open: boolean;
     onClose: () => void;
     title: string;
-    onSubmit: (payload: { title: string }) => Promise<void>;
+    description: string;
+    onSubmit: (payload: { title: string; description: string }) => Promise<void>;
     isSubmitting: boolean;
     error: string | null;
 };
@@ -56,19 +57,20 @@ function TitleDrawer({
     open,
     onClose,
     title,
+    description,
     onSubmit,
     isSubmitting,
     error,
 }: TitleDrawerProps) {
-    const [draft, setDraft] = useState({ title });
+    const [draft, setDraft] = useState({ title, description });
 
     useEffect(() => {
-        if (open) setDraft({ title });
-    }, [open, title]);
+        if (open) setDraft({ title, description });
+    }, [open, title, description]);
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        await onSubmit({ title: draft.title });
+        await onSubmit(draft);
     }
 
     return (
@@ -126,13 +128,26 @@ function TitleDrawer({
 
                                             <div className="space-y-2">
                                                 <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">
-                                                    Titre
+                                                    Titre *
                                                 </Label>
                                                 <Input
                                                     value={draft.title}
                                                     onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))}
                                                     required
                                                     className="h-12"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">
+                                                    Description du poste
+                                                </Label>
+                                                <textarea
+                                                    value={draft.description}
+                                                    onChange={e => setDraft(p => ({ ...p, description: e.target.value }))}
+                                                    rows={8}
+                                                    placeholder="Décrivez le poste, les missions, le profil recherché..."
+                                                    className="w-full px-4 py-3 bg-secondary-50 border border-secondary-200 rounded-2xl text-sm font-medium text-secondary-900 placeholder:text-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all resize-none"
                                                 />
                                             </div>
 
@@ -382,14 +397,15 @@ export default function JobOffersPage() {
                     setDrawerError(null);
                 }}
                 title={selected?.title || ''}
+                description={selected?.description || ''}
                 isSubmitting={drawerSubmitting}
                 error={drawerError}
-                onSubmit={async ({ title }) => {
+                onSubmit={async ({ title, description }) => {
                     if (!selected) return;
                     setDrawerSubmitting(true);
                     setDrawerError(null);
                     try {
-                        await updateJobOfferTitle(selected.id, { title });
+                        await updateJobOffer(selected.id, { title, description });
                         setDrawerOpen(false);
                         setSelected(null);
                         await fetchData();
