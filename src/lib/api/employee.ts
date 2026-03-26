@@ -75,6 +75,24 @@ export async function createDepartment(data: Partial<Department>): Promise<Depar
     return response.json();
 }
 
+export async function updateDepartment(id: string, data: Partial<Department>): Promise<Department> {
+    const path = id.startsWith('/') ? id : `/api/departments/${id}`;
+    const response = await request(path, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/merge-patch+json',
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || 'Erreur lors de la mise à jour du département.');
+    }
+
+    return response.json();
+}
+
 export async function createWorkExperience(data: WorkExperience): Promise<WorkExperience> {
     const response = await request('/api/work_experiences', {
         method: 'POST',

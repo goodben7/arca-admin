@@ -33,7 +33,8 @@ export type DocumentType = typeof DOCUMENT_TYPE[keyof typeof DOCUMENT_TYPE];
 export const HOLDER_TYPE = {
     CONTRACT: "CONTRACT",
     EMPLOYEE: "EMPLOYEE",
-    LEAVE: "LEAVE"
+    LEAVE: "LEAVE",
+    APPLICATION: "APPLICATION",
 } as const;
 
 export type HolderType = typeof HOLDER_TYPE[keyof typeof HOLDER_TYPE];
