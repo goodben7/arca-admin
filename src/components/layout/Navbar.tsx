@@ -1,10 +1,11 @@
 'use client';
 
-import { Menu, ChevronDown, LogOut, User, Settings } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, ChevronDown, LogOut, User, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAbout } from '@/lib/api/auth';
 import { PERSON_TYPE_LABELS } from '@/types/profile';
+import { useSidebar } from './SidebarContext';
 
 function getRoleLabel(user: any): string {
     if (user?.profile?.label) return user.profile.label;
@@ -16,6 +17,7 @@ function getRoleLabel(user: any): string {
 
 export function Navbar() {
     const router = useRouter();
+    const { collapsed, toggle } = useSidebar();
     const [user, setUser] = useState<any>(null);
     const [open, setOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -24,7 +26,6 @@ export function Navbar() {
         getAbout().then(setUser).catch(() => setUser(null));
     }, []);
 
-    // Fermer en cliquant dehors
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -45,10 +46,18 @@ export function Navbar() {
     const roleLabel = user ? getRoleLabel(user) : '';
 
     return (
-        <header className="h-16 bg-white border-b border-secondary-200 sticky top-0 z-30 px-6 flex items-center justify-between">
-            {/* Mobile Toggle */}
-            <button className="p-2 -ml-2 sm:hidden text-secondary-600">
-                <Menu className="w-5 h-5" />
+        <header className="h-16 bg-white border-b border-secondary-200 sticky top-0 z-30 px-4 flex items-center justify-between gap-4">
+
+            {/* Bouton toggle sidebar */}
+            <button
+                onClick={toggle}
+                title={collapsed ? 'Ouvrir le menu' : 'Réduire le menu'}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-secondary-500 hover:bg-secondary-100 hover:text-secondary-900 transition-all shrink-0"
+            >
+                {collapsed
+                    ? <PanelLeftOpen className="w-5 h-5" />
+                    : <PanelLeftClose className="w-5 h-5" />
+                }
             </button>
 
             <div className="flex-1" />
@@ -78,24 +87,18 @@ export function Navbar() {
                 {/* Dropdown */}
                 {open && (
                     <div className="absolute right-0 top-[calc(100%+8px)] w-64 bg-white rounded-2xl border border-secondary-100 shadow-2xl shadow-secondary-200/60 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                        {/* En-tête utilisateur */}
                         <div className="px-4 py-4 border-b border-secondary-100 bg-secondary-50/50">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-primary-100 text-primary-700 font-black flex items-center justify-center text-sm border border-primary-200 shrink-0">
                                     {initials}
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-sm font-black text-secondary-900 truncate tracking-tight">
-                                        {userLabel}
-                                    </p>
-                                    <p className="text-[10px] text-secondary-400 font-bold uppercase tracking-widest mt-0.5 truncate">
-                                        {roleLabel}
-                                    </p>
+                                    <p className="text-sm font-black text-secondary-900 truncate tracking-tight">{userLabel}</p>
+                                    <p className="text-[10px] text-secondary-400 font-bold uppercase tracking-widest mt-0.5 truncate">{roleLabel}</p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Actions */}
                         <div className="p-2">
                             <button
                                 onClick={() => { setOpen(false); router.push('/profiles'); }}
@@ -113,7 +116,6 @@ export function Navbar() {
                             </button>
                         </div>
 
-                        {/* Séparateur + Déconnexion */}
                         <div className="p-2 border-t border-secondary-100">
                             <button
                                 onClick={handleLogout}

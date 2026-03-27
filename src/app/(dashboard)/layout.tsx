@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { DashboardPreloader } from "@/components/layout/DashboardPreloader";
+import { SidebarProvider } from "@/components/layout/SidebarContext";
 
 export const metadata: Metadata = {
     title: {
@@ -17,7 +18,7 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <>
+        <SidebarProvider>
             <DashboardPreloader />
             <div className="flex min-h-screen">
                 <Sidebar />
@@ -30,6 +31,6 @@ export default function DashboardLayout({
                     </main>
                 </div>
             </div>
-        </>
+        </SidebarProvider>
     );
 }
