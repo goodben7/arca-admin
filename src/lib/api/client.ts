@@ -8,26 +8,28 @@ function getToken() {
     return null;
 }
 
-function handleLogout() {
+function handleLogout(errorMessage?: string) {
     if (typeof window === 'undefined') return;
 
-    // Supprimer le cookie de session
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
 
-    // Rediriger vers login
-    window.location.href = '/login';
+    const url = errorMessage
+        ? `/login?error=${encodeURIComponent(errorMessage)}`
+        : '/login';
+    window.location.href = url;
 }
 
 interface RequestOptions extends RequestInit {
     skipAuthRedirect?: boolean;
+    skipAuth?: boolean;
 }
 
 export async function request(path: string, options: RequestOptions = {}) {
-    const { skipAuthRedirect = false, ...fetchOptions } = options;
+    const { skipAuthRedirect = false, skipAuth = false, ...fetchOptions } = options;
     const token = getToken();
 
     const headers = new Headers(fetchOptions.headers);
-    if (token) {
+    if (token && !skipAuth) {
         headers.set('Authorization', `Bearer ${token}`);
     }
     if (!headers.has('Accept')) {
@@ -42,8 +44,13 @@ export async function request(path: string, options: RequestOptions = {}) {
     });
 
     if (response.status === 401 && !skipAuthRedirect) {
-        handleLogout();
-        throw new Error('Session expirée');
+        let errorMessage = 'Session expirée';
+        try {
+            const errorData = await response.clone().json();
+            if (errorData.message) errorMessage = errorData.message;
+        } catch {}
+        handleLogout(errorMessage);
+        throw new Error(errorMessage);
     }
 
     return response;

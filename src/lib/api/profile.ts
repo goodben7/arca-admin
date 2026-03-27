@@ -51,3 +51,10 @@ export async function getAllUsers(): Promise<{ member: AppUser[] } | AppUser[]> 
     if (!res.ok) throw new Error('Impossible de charger les utilisateurs.');
     return res.json();
 }
+
+export async function getUserById(id: string): Promise<AppUser> {
+    const path = id.startsWith('/') ? id : `/api/users/${id}`;
+    const res = await request(path);
+    if (!res.ok) throw new Error(`Impossible de charger l'utilisateur ${id}.`);
+    return res.json();
+}

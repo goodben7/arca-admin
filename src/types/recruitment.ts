@@ -21,6 +21,7 @@ export interface RecruitmentRequest {
     position: string;
     numberOfPositions: number;
     justification: string;
+    description?: string;
     status: RecruitmentRequestStatus | string;
 
     approvedBy?: string;

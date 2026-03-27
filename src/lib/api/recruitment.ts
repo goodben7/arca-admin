@@ -44,6 +44,20 @@ export async function rejectRecruitmentRequest(recruitmentRequestId: string, rea
     }
 }
 
+export async function updateRecruitmentRequest(id: string, data: { description?: string; justification?: string }): Promise<RecruitmentRequest> {
+    const path = id.startsWith('/') ? id : `/api/recruitment_requests/${id}`;
+    const response = await request(path, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.detail || 'Erreur lors de la mise à jour.');
+    }
+    return response.json();
+}
+
 export async function createRecruitmentRequest(payload: {
     department: string;
     position: string;
