@@ -14,7 +14,10 @@ import {
     XCircle,
     ArrowLeft,
     Building2,
-    Briefcase
+    Briefcase,
+    Pencil,
+    Save,
+    X
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -27,7 +30,8 @@ import { getAllPositions } from '@/lib/api/position';
 import {
     approveRecruitmentRequest,
     getRecruitmentRequestById,
-    rejectRecruitmentRequest
+    rejectRecruitmentRequest,
+    updateRecruitmentRequest
 } from '@/lib/api/recruitment';
 import { RecruitmentRequest, RECRUITMENT_REQUEST_STATUS, STATUS_APPROVED, STATUS_PENDING, STATUS_REJECTED } from '@/types/recruitment';
 
@@ -235,6 +239,10 @@ export default function RecruitmentDetailsPage() {
     const [rejectOpen, setRejectOpen] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+    const [editingDesc, setEditingDesc] = useState(false);
+    const [descDraft, setDescDraft] = useState('');
+    const [descSaving, setDescSaving] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -453,6 +461,79 @@ export default function RecruitmentDetailsPage() {
                                     {request.justification || '-'}
                                 </p>
                             </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="mt-6 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label className="uppercase tracking-widest text-[9px] font-black text-secondary-400">
+                                    Description du poste
+                                </Label>
+                                {!editingDesc && (
+                                    <button
+                                        onClick={() => { setDescDraft(request.description || ''); setEditingDesc(true); }}
+                                        className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 transition-colors"
+                                    >
+                                        <Pencil className="w-3 h-3" />
+                                        {request.description ? 'Modifier' : 'Ajouter'}
+                                    </button>
+                                )}
+                            </div>
+
+                            {editingDesc ? (
+                                <div className="space-y-3">
+                                    <Textarea
+                                        value={descDraft}
+                                        onChange={e => setDescDraft(e.target.value)}
+                                        rows={6}
+                                        placeholder="Décrivez les missions, le profil recherché, les compétences requises..."
+                                        className="bg-secondary-50/30"
+                                        autoFocus
+                                    />
+                                    <div className="flex items-center justify-end gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setEditingDesc(false)}
+                                            disabled={descSaving}
+                                            className="h-9 px-4 rounded-xl font-black uppercase tracking-widest text-[10px] gap-1.5"
+                                        >
+                                            <X className="w-3.5 h-3.5" />Annuler
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            disabled={descSaving}
+                                            onClick={async () => {
+                                                setDescSaving(true);
+                                                try {
+                                                    const updated = await updateRecruitmentRequest(request.id, { description: descDraft });
+                                                    setRequest(updated);
+                                                    setEditingDesc(false);
+                                                    showToast('Description mise à jour.', 'success');
+                                                } catch (e: any) {
+                                                    showToast(e?.message || 'Erreur.', 'error');
+                                                } finally {
+                                                    setDescSaving(false);
+                                                }
+                                            }}
+                                            className="h-9 px-4 rounded-xl font-black uppercase tracking-widest text-[10px] bg-primary-600 hover:bg-primary-700 text-white gap-1.5"
+                                        >
+                                            {descSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                            Enregistrer
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : request.description ? (
+                                <div className="rounded-2xl border border-secondary-100 bg-secondary-50/30 p-4">
+                                    <p className="text-sm font-medium text-secondary-700 whitespace-pre-wrap leading-relaxed">
+                                        {request.description}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-secondary-200 bg-secondary-50/30 px-4 py-4 text-sm font-medium text-secondary-400 italic">
+                                    Aucune description renseignée. Cliquez sur &quot;Ajouter&quot; pour en saisir une.
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter as useNextRouter } from 'next/navigation';
+import { useRouter as useNextRouter, useSearchParams } from 'next/navigation';
 import {
     Lock,
     User,
@@ -65,6 +65,7 @@ const SLIDES = [
 
 export default function LoginPage() {
     const router = useNextRouter();
+    const searchParams = useSearchParams();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -74,6 +75,15 @@ export default function LoginPage() {
         username: '',
         password: ''
     });
+
+    useEffect(() => {
+        const urlError = searchParams.get('error');
+        if (urlError) {
+            // Supprimer le cookie token expiré
+            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            setError(urlError);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         const timer = setInterval(() => {

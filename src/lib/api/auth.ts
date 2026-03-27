@@ -8,6 +8,7 @@ export async function login(username: string, password: string) {
         },
         body: JSON.stringify({ username, password }),
         skipAuthRedirect: true,
+        skipAuth: true,
     } as any);
 
     if (!response.ok) {

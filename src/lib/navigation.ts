@@ -15,6 +15,8 @@ import {
     ShieldCheck,
     UserCog,
     ClipboardList,
+    BookOpen,
+    CalendarDays,
 } from 'lucide-react';
 
 export const NAV_ITEMS = [
@@ -50,6 +52,13 @@ export const NAV_ITEMS = [
             { title: "Offres d'emploi", href: '/job-offers', icon: Briefcase, status: 'active' },
             { title: 'Candidatures', href: '/applications', icon: ClipboardList, status: 'active' },
             { title: 'Carrière', href: '/career', icon: GraduationCap, status: 'under-construction' },
+        ]
+    },
+    {
+        title: 'Formation',
+        items: [
+            { title: 'Demandes de formation', href: '/training', icon: BookOpen, status: 'active' },
+            { title: 'Sessions de formation', href: '/training/sessions', icon: CalendarDays, status: 'active' },
         ]
     },
     {
