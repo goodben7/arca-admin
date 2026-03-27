@@ -240,32 +240,43 @@ export default function DashboardPage() {
             </div>
 
             {/* ══════════════════════════════════════════════════════════════════
-                LIGNE 1 — 3 KPIs larges (structure maquette)
+                LIGNE 1 — 3 KPIs larges — structure identique
             ══════════════════════════════════════════════════════════════════ */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* KPI 1 — Total effectifs */}
                 <Link href="/employees">
-                    <div className="group relative overflow-hidden rounded-3xl bg-[#007398] p-7 text-white shadow-xl shadow-[#007398]/30 hover:shadow-2xl hover:shadow-[#007398]/50 hover:-translate-y-1 transition-all cursor-pointer">
-                        {/* Halos internes */}
+                    <div className="group relative overflow-hidden rounded-3xl bg-[#007398] p-7 text-white shadow-xl shadow-[#007398]/30 hover:shadow-2xl hover:shadow-[#007398]/50 hover:-translate-y-1 transition-all cursor-pointer h-full">
                         <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/8 blur-2xl group-hover:bg-white/12 transition-all" />
                         <div className="absolute -bottom-6 -left-6 w-28 h-28 rounded-full bg-[#FDB913]/20 blur-xl" />
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-white/3 blur-3xl" />
-                        <div className="relative">
-                            <div className="flex items-center justify-between mb-4">
+                        <div className="relative flex flex-col h-full gap-4">
+                            {/* Ligne 1 : badge label + badge statut */}
+                            <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-1.5">
                                     <Users className="w-3.5 h-3.5" />
                                     <span className="text-[10px] font-black uppercase tracking-widest">Total Effectifs</span>
                                 </div>
                                 <div className="flex items-center gap-1 bg-white/15 rounded-lg px-2.5 py-1">
                                     <TrendingUp className="w-3 h-3 text-[#FDB913]" />
-                                    <span className="text-[10px] font-black text-[#FDB913]">+{activeEmployees}</span>
+                                    <span className="text-[10px] font-black text-[#FDB913]">{activeEmployees} actifs</span>
                                 </div>
                             </div>
-                            <p className="text-6xl font-black tabular-nums tracking-tighter leading-none">{employees.length}</p>
-                            <div className="mt-4 flex items-center gap-4 text-white/60 text-[10px] font-bold uppercase tracking-widest">
-                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#FDB913]" />{activeEmployees} actifs</span>
-                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white/30" />{employees.length - activeEmployees} autres</span>
+                            {/* Ligne 2 : grand chiffre */}
+                            <p className="text-7xl font-black tabular-nums tracking-tighter leading-none">{employees.length}</p>
+                            {/* Ligne 3 : barre de progression */}
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                                    <span>Actifs</span>
+                                    <span>{employees.length > 0 ? Math.round((activeEmployees / employees.length) * 100) : 0}%</span>
+                                </div>
+                                <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
+                                    <div className="h-full bg-[#FDB913] rounded-full transition-all" style={{ width: employees.length > 0 ? `${Math.round((activeEmployees / employees.length) * 100)}%` : '0%' }} />
+                                </div>
+                            </div>
+                            {/* Ligne 4 : légende dots */}
+                            <div className="flex items-center gap-4 text-white/50 text-[10px] font-bold uppercase tracking-widest">
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#FDB913]" />{activeEmployees} actifs</span>
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/30" />{employees.length - activeEmployees} autres</span>
                             </div>
                         </div>
                     </div>
@@ -273,50 +284,56 @@ export default function DashboardPage() {
 
                 {/* KPI 2 — Recrutements */}
                 <Link href="/recruitment">
-                    <div className="group relative overflow-hidden rounded-3xl bg-white/80 backdrop-blur-sm border border-white shadow-sm hover:shadow-xl hover:shadow-[#007398]/10 hover:-translate-y-1 transition-all cursor-pointer">
+                    <div className="group relative overflow-hidden rounded-3xl bg-white/80 backdrop-blur-sm border border-white p-7 shadow-sm hover:shadow-xl hover:shadow-[#007398]/10 hover:-translate-y-1 transition-all cursor-pointer h-full">
                         <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#007398]/5 blur-2xl group-hover:bg-[#007398]/10 transition-all" />
                         <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-[#FDB913]/8 blur-xl" />
-                        <div className="relative">
-                            <div className="flex items-center justify-between mb-4">
+                        <div className="relative flex flex-col h-full gap-4">
+                            {/* Ligne 1 : badge label + badge statut */}
+                            <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 bg-[#f0f9fb] rounded-xl px-3 py-1.5">
                                     <UserCheck className="w-3.5 h-3.5 text-[#007398]" />
                                     <span className="text-[10px] font-black uppercase tracking-widest text-[#007398]">Recrutements</span>
                                 </div>
-                                {pendingRecruitments > 0 && (
+                                {pendingRecruitments > 0 ? (
                                     <div className="flex items-center gap-1 bg-[#FDB913]/15 rounded-lg px-2.5 py-1">
                                         <span className="text-[10px] font-black text-[#D99C00]">{pendingRecruitments} en attente</span>
                                     </div>
+                                ) : (
+                                    <div className="flex items-center gap-1 bg-emerald-50 rounded-lg px-2.5 py-1 border border-emerald-200">
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                        <span className="text-[10px] font-black text-emerald-600">À jour</span>
+                                    </div>
                                 )}
                             </div>
-                            <p className="text-6xl font-black tabular-nums tracking-tighter leading-none text-secondary-900">{recruitments.length}</p>
-                            {/* Mini barre de progression */}
-                            <div className="mt-4 space-y-1.5">
-                                <div className="flex items-center justify-between text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
-                                    <span>Candidatures</span>
-                                    <span>{applications.length}</span>
-                                </div>
-                                <div className="h-1.5 bg-secondary-100 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-[#007398] rounded-full transition-all"
-                                        style={{ width: applications.length > 0 ? `${Math.min((applications.filter(a => a.status === 'HIRED').length / applications.length) * 100, 100)}%` : '0%' }}
-                                    />
-                                </div>
+                            {/* Ligne 2 : grand chiffre */}
+                            <p className="text-7xl font-black tabular-nums tracking-tighter leading-none text-secondary-900">{recruitments.length}</p>
+                            {/* Ligne 3 : barre de progression */}
+                            <div className="space-y-1.5">
                                 <div className="flex items-center justify-between text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
                                     <span>Recrutés</span>
-                                    <span>{applications.filter(a => a.status === 'HIRED').length}</span>
+                                    <span>{applications.filter(a => a.status === 'HIRED').length} / {applications.length}</span>
                                 </div>
+                                <div className="h-1.5 bg-secondary-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-[#007398] rounded-full transition-all" style={{ width: applications.length > 0 ? `${Math.min((applications.filter(a => a.status === 'HIRED').length / applications.length) * 100, 100)}%` : '0%' }} />
+                                </div>
+                            </div>
+                            {/* Ligne 4 : légende dots */}
+                            <div className="flex items-center gap-4 text-secondary-400 text-[10px] font-bold uppercase tracking-widest">
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#007398]" />{applications.length} candidatures</span>
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#FDB913]" />{applications.filter(a => a.status === 'HIRED').length} recrutés</span>
                             </div>
                         </div>
                     </div>
                 </Link>
 
-                {/* KPI 3 — Conformité / Contrats */}
+                {/* KPI 3 — Contrats actifs */}
                 <Link href="/contracts">
-                    <div className="group relative overflow-hidden rounded-3xl bg-white/80 backdrop-blur-sm border border-white shadow-sm hover:shadow-xl hover:shadow-[#C1272D]/10 hover:-translate-y-1 transition-all cursor-pointer">
+                    <div className="group relative overflow-hidden rounded-3xl bg-white/80 backdrop-blur-sm border border-white p-7 shadow-sm hover:shadow-xl hover:shadow-[#C1272D]/10 hover:-translate-y-1 transition-all cursor-pointer h-full">
                         <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#C1272D]/5 blur-2xl group-hover:bg-[#C1272D]/10 transition-all" />
                         <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-[#007398]/6 blur-xl" />
-                        <div className="relative">
-                            <div className="flex items-center justify-between mb-4">
+                        <div className="relative flex flex-col h-full gap-4">
+                            {/* Ligne 1 : badge label + badge statut */}
+                            <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 bg-[#f0f9fb] rounded-xl px-3 py-1.5">
                                     <FileCheck className="w-3.5 h-3.5 text-[#007398]" />
                                     <span className="text-[10px] font-black uppercase tracking-widest text-[#007398]">Contrats actifs</span>
@@ -333,10 +350,22 @@ export default function DashboardPage() {
                                     </div>
                                 )}
                             </div>
-                            <p className="text-6xl font-black tabular-nums tracking-tighter leading-none text-secondary-900">{activeContracts}</p>
-                            <div className="mt-4 flex items-center gap-4 text-secondary-400 text-[10px] font-bold uppercase tracking-widest">
-                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#FDB913]" />{contracts.filter(c => c.status === 'PENDING').length} en attente</span>
-                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#C1272D]" />{contracts.filter(c => c.status === 'CANCELLED').length} annulés</span>
+                            {/* Ligne 2 : grand chiffre */}
+                            <p className="text-7xl font-black tabular-nums tracking-tighter leading-none text-secondary-900">{activeContracts}</p>
+                            {/* Ligne 3 : barre de progression */}
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
+                                    <span>Actifs</span>
+                                    <span>{contracts.length > 0 ? Math.round((activeContracts / contracts.length) * 100) : 0}%</span>
+                                </div>
+                                <div className="h-1.5 bg-secondary-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-[#007398] rounded-full transition-all" style={{ width: contracts.length > 0 ? `${Math.round((activeContracts / contracts.length) * 100)}%` : '0%' }} />
+                                </div>
+                            </div>
+                            {/* Ligne 4 : légende dots */}
+                            <div className="flex items-center gap-4 text-secondary-400 text-[10px] font-bold uppercase tracking-widest">
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#FDB913]" />{contracts.filter(c => c.status === 'PENDING').length} en attente</span>
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#C1272D]" />{contracts.filter(c => c.status === 'CANCELLED').length} annulés</span>
                             </div>
                         </div>
                     </div>
