@@ -276,10 +276,8 @@ export default function TrainingRequestDetailPage() {
         setActionError(null);
         try {
             await approveTrainingRequest(request.id);
-            showToast('Demande approuvée avec succès.');
             setShowApproveModal(false);
-            const updated = await getTrainingRequestById(request.id);
-            setRequest(updated);
+            router.push(`/training/sessions/create?requestId=${request.id}`);
         } catch (e: any) {
             setActionError(e?.message || "Erreur lors de l'approbation.");
         } finally {
