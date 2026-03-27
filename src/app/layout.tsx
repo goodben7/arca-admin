@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-poppins",
+});
 
 export const metadata: Metadata = {
   title: "ARCA SIRH - Administration RH",
@@ -16,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className="h-full">
-      <body className={`${inter.className} h-full bg-background text-foreground antialiased`}>
+      <body className={`${poppins.variable} font-sans h-full bg-background text-foreground antialiased`}>
         {children}
       </body>
     </html>
