@@ -67,6 +67,9 @@
   /* Spacing & Radius */
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
+
+  /* Typography */
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Label } from '@/components/ui/Input';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Preloader } from '@/components/ui/Preloader';
 import { login } from '@/lib/api/auth';
 import { cn } from '@/lib/utils';
 
@@ -68,6 +69,7 @@ export function LoginForm() {
     const searchParams = useSearchParams();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [showPreloader, setShowPreloader] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -82,6 +84,9 @@ export function LoginForm() {
             document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
             setError(urlError);
         }
+        // Masquer le preloader initial après le montage
+        const t = setTimeout(() => setShowPreloader(false), 900);
+        return () => clearTimeout(t);
     }, [searchParams]);
 
     useEffect(() => {
@@ -100,15 +105,17 @@ export function LoginForm() {
             const data = await login(formData.username, formData.password);
             const isSecure = window.location.protocol === 'https:';
             document.cookie = `token=${data.token}; path=/; max-age=86400; samesite=lax${isSecure ? '; secure' : ''}`;
+            setShowPreloader(true);
             router.push('/dashboard');
         } catch (err: any) {
             setError(err.message || 'Une erreur est survenue lors de la connexion.');
-        } finally {
             setIsLoading(false);
         }
     }
 
     return (
+        <>
+        <Preloader visible={showPreloader} message={isLoading ? "Connexion en cours…" : "Chargement…"} />
         <div className="min-h-screen grid lg:grid-cols-2 bg-white overflow-hidden">
             <style jsx global>{`
                 @keyframes float {
@@ -133,35 +140,15 @@ export function LoginForm() {
                 }
             `}</style>
 
-            {/* Visual Side (Left) - SLIDER */}
+            {/* Visual Side (Left) — background fixe, textes en slide */}
             <div className="hidden lg:flex p-16 flex-col justify-between relative overflow-hidden group border-r border-secondary-100">
-                {/* Background Slides */}
-                {SLIDES.map((slide, idx) => (
-                    <div
-                        key={slide.id}
-                        className={cn(
-                            "absolute inset-0 transition-all duration-[2000ms] ease-in-out",
-                            idx === currentSlide ? "opacity-100 scale-100 z-0" : "opacity-0 scale-110 z-[-1]"
-                        )}
-                    >
-                        {slide.type === 'content' ? (
-                            <div className="absolute inset-0 bg-[#004b61]">
-                                {/* Background Decorations */}
-                                <div className="absolute top-0 right-0 w-full h-full pointer-events-none">
-                                    <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[100px] animate-float" />
-                                    <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-accent-red-500/5 rounded-full blur-[100px] animate-float-delayed" />
-                                    <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="absolute inset-0 overflow-hidden">
-                                <img src={slide.src} alt="" className="w-full h-full object-cover transition-transform duration-[10s] ease-linear transform scale-110 group-hover:scale-100" />
-                                <div className="absolute inset-0 bg-[#004b61]/60 backdrop-blur-[1px]" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#004b61] via-[#004b61]/40 to-black/20" />
-                            </div>
-                        )}
-                    </div>
-                ))}
+
+                {/* ── Background fixe ── */}
+                <div className="absolute inset-0 bg-[#004b61]">
+                    <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[100px] animate-float" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-accent-red-500/5 rounded-full blur-[100px] animate-float-delayed" />
+                    <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
+                </div>
 
                 <div className="relative z-10 space-y-12">
                     {/* Brand Section */}
@@ -187,14 +174,18 @@ export function LoginForm() {
                         </div>
                     </div>
 
-                    {/* Content Area - Changing per slide */}
-                    <div className="max-w-xl min-h-[400px] flex flex-col justify-center">
+                    {/* ── Zone de texte — seuls les textes slident ── */}
+                    <div className="max-w-xl min-h-[400px] relative flex flex-col justify-center">
                         {SLIDES.map((slide, idx) => (
                             <div
                                 key={`text-${slide.id}`}
                                 className={cn(
-                                    "space-y-12 transition-all duration-1000 delay-300",
-                                    idx === currentSlide ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-12 absolute pointer-events-none"
+                                    "absolute inset-0 flex flex-col justify-center space-y-12 transition-all duration-700 ease-in-out",
+                                    idx === currentSlide
+                                        ? "opacity-100 translate-y-0 pointer-events-auto"
+                                        : idx < currentSlide
+                                            ? "opacity-0 -translate-y-8 pointer-events-none"
+                                            : "opacity-0 translate-y-8 pointer-events-none"
                                 )}
                             >
                                 <div className="space-y-6">
@@ -216,7 +207,7 @@ export function LoginForm() {
                         ))}
 
                         {/* Pagination / Indicators */}
-                        <div className="flex items-center gap-6 mt-auto pt-10">
+                        <div className="relative mt-auto pt-[420px] flex items-center gap-6">
                             <div className="flex gap-2">
                                 {SLIDES.map((_, idx) => (
                                     <button
@@ -371,5 +362,6 @@ export function LoginForm() {
                 </div>
             </div>
         </div>
+        </>
     );
 }
