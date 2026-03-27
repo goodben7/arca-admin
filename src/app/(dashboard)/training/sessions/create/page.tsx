@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ChevronLeft,
@@ -21,7 +21,7 @@ import { getAllTrainingRequests } from '@/lib/api/training';
 import { createTrainingSession } from '@/lib/api/trainingSession';
 import { TrainingRequest } from '@/types/training';
 
-export default function CreateTrainingSessionPage() {
+function CreateTrainingSessionForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const preselectedRequestId = searchParams.get('requestId') || '';
@@ -299,5 +299,17 @@ export default function CreateTrainingSessionPage() {
                 </div>
             </form>
         </div>
+    );
+}
+
+export default function CreateTrainingSessionPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
+            </div>
+        }>
+            <CreateTrainingSessionForm />
+        </Suspense>
     );
 }
