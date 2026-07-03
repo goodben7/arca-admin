@@ -11,15 +11,20 @@ import {
     ChevronRight,
     Plus
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { getAllRecruitmentRequests } from '@/lib/api/recruitment';
+import { getDepartments } from '@/lib/api/employee';
+import { getAllPositions } from '@/lib/api/position';
+import { extractId } from '@/lib/api-iri';
 import { RecruitmentRequest, RECRUITMENT_REQUEST_STATUS, STATUS_APPROVED, STATUS_PENDING, STATUS_REJECTED } from '@/types/recruitment';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { DataPanel } from '@/components/layout/DataPanel';
 
 function normalizeList(data: any): RecruitmentRequest[] {
     if (Array.isArray(data)) return data as RecruitmentRequest[];
@@ -27,8 +32,20 @@ function normalizeList(data: any): RecruitmentRequest[] {
     return [];
 }
 
+function isPlaceholderText(value?: string) {
+    const v = value?.trim();
+    return !v || v === '---' || v === '--';
+}
+
+function resolveFromMap(value: string, map: Record<string, string>): string {
+    const id = extractId(value) || value;
+    return map[value] || map[id] || id;
+}
+
 export default function RecruitmentPage() {
     const [requests, setRequests] = useState<RecruitmentRequest[]>([]);
+    const [departmentsMap, setDepartmentsMap] = useState<Record<string, string>>({});
+    const [positionsMap, setPositionsMap] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
@@ -38,8 +55,23 @@ export default function RecruitmentPage() {
             try {
                 setIsLoading(true);
                 setError(null);
-                const data = await getAllRecruitmentRequests();
+                const [data, deptsData, posData] = await Promise.all([
+                    getAllRecruitmentRequests(),
+                    getDepartments().catch(() => []),
+                    getAllPositions().catch(() => []),
+                ]);
                 setRequests(normalizeList(data));
+
+                const dList = Array.isArray(deptsData) ? deptsData : (deptsData as { 'hydra:member'?: { id: string; name: string; '@id'?: string }[] })['hydra:member'] || [];
+                const dMap: Record<string, string> = {};
+                dList.forEach(d => { dMap[d.id] = d.name; if (d['@id']) dMap[d['@id']] = d.name; });
+                setDepartmentsMap(dMap);
+
+                type PosItem = { id: string; title: string; '@id'?: string };
+                const pList: PosItem[] = Array.isArray(posData) ? posData as PosItem[] : (posData as { member?: PosItem[]; 'hydra:member'?: PosItem[] }).member || (posData as { 'hydra:member'?: PosItem[] })['hydra:member'] || [];
+                const pMap: Record<string, string> = {};
+                pList.forEach(p => { pMap[p.id] = p.title; if (p['@id']) pMap[p['@id']] = p.title; });
+                setPositionsMap(pMap);
             } catch (e: any) {
                 setError(e?.message || "Erreur lors du chargement des demandes.");
             } finally {
@@ -53,10 +85,15 @@ export default function RecruitmentPage() {
     const filtered = requests.filter((r) => {
         if (!search.trim()) return true;
         const q = search.trim().toLowerCase();
+        const posLabel = resolveFromMap(r.position, positionsMap).toLowerCase();
+        const deptLabel = resolveFromMap(r.department, departmentsMap).toLowerCase();
         return (
+            r.id.toLowerCase().includes(q) ||
             (r.justification || '').toLowerCase().includes(q) ||
-            (r.department || '').toLowerCase().includes(q) ||
-            (r.position || '').toLowerCase().includes(q)
+            deptLabel.includes(q) ||
+            posLabel.includes(q) ||
+            (r.position || '').toLowerCase().includes(q) ||
+            (r.department || '').toLowerCase().includes(q)
         );
     });
 
@@ -74,40 +111,31 @@ export default function RecruitmentPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">Recrutement</h1>
-                    <p className="text-secondary-500 font-medium italic">
-                        Demandes de postes et validation RH.
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Link href="/recruitment/create">
-                        <Button className="gap-2 shadow-xl shadow-primary-200 py-3 px-5 rounded-2xl transition-all active:scale-[0.98]">
-                            <Plus className="w-4 h-4" />
-                            <span className="font-bold uppercase tracking-widest text-[10px]">
-                                Nouvelle demande
-                            </span>
-                        </Button>
-                    </Link>
-                    <Badge className="font-black bg-primary-50 text-primary-600 border-primary-100 px-3 py-1 rounded-lg text-[10px] tracking-widest">
-                        {requests.length} demande(s)
-                    </Badge>
-                </div>
-            </div>
+        <PageShell>
+            <PageHeader
+                title="Recrutement"
+                description="Demandes de postes et validation RH."
+                actions={
+                    <>
+                        <Link href="/recruitment/create">
+                            <Button className="gap-2 shadow-xl shadow-primary-200 py-3 px-5 rounded-2xl transition-all active:scale-[0.98]">
+                                <Plus className="w-4 h-4" />
+                                <span className="font-bold uppercase tracking-widest text-[10px]">
+                                    Nouvelle demande
+                                </span>
+                            </Button>
+                        </Link>
+                        <Badge className="font-black bg-primary-50 text-primary-600 border-primary-100 px-3 py-1 rounded-lg text-[10px] tracking-widest">
+                            {requests.length} demande(s)
+                        </Badge>
+                    </>
+                }
+            />
 
-            <Card className="overflow-hidden border-none shadow-xl shadow-secondary-200/50 animate-in fade-in">
-                <CardHeader className="border-b border-secondary-100 bg-white">
-                    <CardTitle className="text-secondary-900 font-black uppercase tracking-tight text-lg">
-                        Historique des demandes
-                    </CardTitle>
-                    <CardDescription className="text-secondary-500 font-medium italic">
-                        Cliquez sur une demande pour approuver ou refuser.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent className="p-6">
+            <DataPanel
+                title="Historique des demandes"
+                description="Cliquez sur une demande pour approuver ou refuser."
+            >
                     <div className="mb-6 flex flex-col md:flex-row md:items-center gap-4 md:justify-between">
                         <div className="relative w-full md:w-96">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-secondary-300" />
@@ -160,6 +188,10 @@ export default function RecruitmentPage() {
                                         const createdAt = req.createdAt
                                             ? format(new Date(req.createdAt), 'dd MMM yyyy', { locale: fr })
                                             : '-';
+                                        const positionId = extractId(req.position) || req.position;
+                                        const positionLabel = resolveFromMap(req.position, positionsMap);
+                                        const departmentId = extractId(req.department) || req.department;
+                                        const departmentLabel = resolveFromMap(req.department, departmentsMap);
 
                                         return (
                                             <TableRow key={req.id} className="group hover:bg-secondary-50/50 transition-colors">
@@ -170,7 +202,10 @@ export default function RecruitmentPage() {
                                                         </div>
                                                         <div>
                                                             <div className="font-black text-secondary-900 uppercase tracking-tighter text-sm">
-                                                                {req.justification ? req.justification : `Demande ${req.id}`}
+                                                                {isPlaceholderText(req.justification) ? `Demande ${req.id}` : req.justification}
+                                                            </div>
+                                                            <div className="text-[10px] font-mono text-secondary-400 mt-0.5">
+                                                                {req.id}
                                                             </div>
                                                             <div className="text-[10px] font-black uppercase text-secondary-400 tracking-[0.2em] mt-1 flex items-center gap-2">
                                                                 <CalendarClock className="w-3.5 h-3.5" />
@@ -181,10 +216,16 @@ export default function RecruitmentPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <span className="text-sm font-bold text-secondary-700">
-                                                        {req.position}
+                                                        {positionLabel}
                                                     </span>
+                                                    <div className="text-[10px] font-mono text-secondary-400 mt-0.5">
+                                                        {positionId}
+                                                    </div>
                                                     <div className="text-[10px] font-bold text-secondary-400 uppercase tracking-wider mt-1">
-                                                        {req.numberOfPositions} poste(s)
+                                                        {departmentLabel} · {req.numberOfPositions} poste(s)
+                                                    </div>
+                                                    <div className="text-[10px] font-mono text-secondary-300">
+                                                        {departmentId}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -210,9 +251,8 @@ export default function RecruitmentPage() {
                             </TableBody>
                         </Table>
                     )}
-                </CardContent>
-            </Card>
-        </div>
+            </DataPanel>
+        </PageShell>
     );
 }
 

@@ -58,3 +58,66 @@ export async function getUserById(id: string): Promise<AppUser> {
     if (!res.ok) throw new Error(`Impossible de charger l'utilisateur ${id}.`);
     return res.json();
 }
+
+export async function createUser(data: { email: string; profile?: string; employee?: string; active?: boolean }): Promise<AppUser> {
+    const res = await request('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+        throw new Error((err.detail as string) || (err.message as string) || 'Erreur lors de la création de l\'utilisateur.');
+    }
+    return res.json();
+}
+
+export async function updateUser(id: string, data: Partial<AppUser>): Promise<AppUser> {
+    const path = id.startsWith('/') ? id : `/api/users/${id}`;
+    const res = await request(path, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/merge-patch+json' },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+        throw new Error((err.detail as string) || (err.message as string) || 'Erreur lors de la mise à jour de l\'utilisateur.');
+    }
+    return res.json();
+}
+
+export async function deleteUser(id: string): Promise<void> {
+    const path = id.startsWith('/') ? id : `/api/users/${id}`;
+    const res = await request(path, { method: 'DELETE' });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+        throw new Error((err.detail as string) || (err.message as string) || 'Erreur lors de la suppression de l\'utilisateur.');
+    }
+}
+
+export async function lockToggleUser(id: string): Promise<AppUser> {
+    const path = id.startsWith('/') ? id : `/api/users/${id}`;
+    const res = await request(`${path}/lock_toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+        throw new Error((err.detail as string) || (err.message as string) || 'Erreur lors du verrouillage/déverrouillage.');
+    }
+    return res.json();
+}
+
+export async function changeUserPassword(id: string, password: string): Promise<void> {
+    const path = id.startsWith('/') ? id : `/api/users/${id}`;
+    const res = await request(`${path}/credentials`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/merge-patch+json' },
+        body: JSON.stringify({ password }),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+        throw new Error((err.detail as string) || (err.message as string) || 'Erreur lors du changement de mot de passe.');
+    }
+}

@@ -32,11 +32,15 @@ import { Input, Label } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import Link from 'next/link';
 import { createEmployee, getDepartments, getAllEmployees, createWorkExperience, createSkill } from '@/lib/api/employee';
+import { getJobRoles, getGrades } from '@/lib/api/jobArchitecture';
 import { getAllPositions } from '@/lib/api/position';
 import { getAllProfiles } from '@/lib/api/profile';
 import { GENDER, MARITAL, STATUS, Department, Employee, SKILL_LEVEL } from '@/types/employee';
+import { JobRole, Grade } from '@/types/jobArchitecture';
 import { Position } from '@/types/position';
 import { Profile } from '@/types/profile';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function CreateEmployeePage() {
     const router = useRouter();
@@ -50,6 +54,8 @@ export default function CreateEmployeePage() {
     const [managers, setManagers] = useState<Employee[]>([]);
     const [positions, setPositions] = useState<Position[]>([]);
     const [profiles, setProfiles] = useState<Profile[]>([]);
+    const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
+    const [grades, setGrades] = useState<Grade[]>([]);
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -63,6 +69,8 @@ export default function CreateEmployeePage() {
         address: '',
         department: '',
         position: '',
+        jobRole: '',
+        grade: '',
         managerId: '',
         employeeNumber: '',
         profile: '',
@@ -115,11 +123,13 @@ export default function CreateEmployeePage() {
     useEffect(() => {
         async function loadData() {
             try {
-                const [deptsData, empsData, posData, profData] = await Promise.all([
+                const [deptsData, empsData, posData, profData, rolesData, gradesData] = await Promise.all([
                     getDepartments(),
                     getAllEmployees(),
                     getAllPositions(),
-                    getAllProfiles()
+                    getAllProfiles(),
+                    getJobRoles().catch(() => []),
+                    getGrades().catch(() => []),
                 ]);
 
                 const depts = Array.isArray(deptsData) ? deptsData : deptsData['hydra:member'] || [];
@@ -131,6 +141,8 @@ export default function CreateEmployeePage() {
                 setManagers(emps);
                 setPositions(pos);
                 setProfiles(profs);
+                setJobRoles(rolesData);
+                setGrades(gradesData);
             } catch (err) {
                 console.error('Erreur chargement données:', err);
                 setError('Impossible de charger les listes de départements ou de managers.');
@@ -174,6 +186,8 @@ export default function CreateEmployeePage() {
                 hireDate: formatDate(formData.hireDate),
                 departureDate: formatDate(formData.departureDate),
                 profile: formData.profile || undefined,
+                jobRole: formData.jobRole || undefined,
+                grade: formData.grade || undefined,
             };
 
             const newEmployee = await createEmployee(payload as any);
@@ -246,58 +260,49 @@ export default function CreateEmployeePage() {
     }
 
     return (
-        <div className="space-y-8 pb-10 max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Link href="/employees">
-                        <Button variant="outline" size="icon" className="h-10 w-10 border-none bg-white shadow-sm hover:scale-110 active:scale-95 transition-all">
-                            <ChevronLeft className="w-5 h-5 text-secondary-600" />
-                        </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-2xl font-bold text-secondary-900 uppercase tracking-tighter">Nouvel Employé</h1>
-                        <p className="text-secondary-500 font-medium italic">Enregistrez un nouveau membre dans l'organisation.</p>
+        <PageShell className="max-w-4xl mx-auto">
+            <PageHeader
+                title="Nouvel Employé"
+                description="Enregistrez un nouveau membre dans l'organisation."
+                backHref="/employees"
+                actions={
+                    <div className="flex items-center gap-0 bg-white/80 backdrop-blur-md p-1.5 rounded-[24px] shadow-sm border border-secondary-100">
+                        {[
+                            { step: 1, label: 'PERSONNEL' },
+                            { step: 2, label: 'PROFESSIONNEL' },
+                            { step: 3, label: 'EXPÉRIENCE' }
+                        ].map((s, idx) => (
+                            <div key={s.step} className="flex items-center">
+                                <button
+                                    type="button"
+                                    onClick={() => activeStep > s.step && setActiveStep(s.step)}
+                                    className={cn(
+                                        "flex items-center gap-2.5 px-4 py-2.5 rounded-[18px] transition-all duration-300",
+                                        activeStep === s.step
+                                            ? "bg-secondary-900 text-white shadow-lg shadow-secondary-200"
+                                            : activeStep > s.step
+                                                ? "text-emerald-600 hover:bg-emerald-50"
+                                                : "text-secondary-400 opacity-60"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[10px]",
+                                        activeStep === s.step
+                                            ? "bg-white/20"
+                                            : activeStep > s.step
+                                                ? "bg-emerald-100"
+                                                : "bg-secondary-100"
+                                    )}>
+                                        {activeStep > s.step ? <CheckCircle2 className="w-3.5 h-3.5" /> : s.step}
+                                    </div>
+                                    <span className="text-[10px] font-black tracking-[0.1em]">{s.label}</span>
+                                </button>
+                                {idx < 2 && <div className="w-8 h-[2px] bg-secondary-100/50 mx-1 rounded-full" />}
+                            </div>
+                        ))}
                     </div>
-                </div>
-
-                {/* Step Indicator */}
-                <div className="flex items-center gap-0 bg-white/80 backdrop-blur-md p-1.5 rounded-[24px] shadow-sm border border-secondary-100">
-                    {[
-                        { step: 1, label: 'PERSONNEL' },
-                        { step: 2, label: 'PROFESSIONNEL' },
-                        { step: 3, label: 'EXPÉRIENCE' }
-                    ].map((s, idx) => (
-                        <div key={s.step} className="flex items-center">
-                            <button
-                                type="button"
-                                onClick={() => activeStep > s.step && setActiveStep(s.step)}
-                                className={cn(
-                                    "flex items-center gap-2.5 px-4 py-2.5 rounded-[18px] transition-all duration-300",
-                                    activeStep === s.step
-                                        ? "bg-secondary-900 text-white shadow-lg shadow-secondary-200"
-                                        : activeStep > s.step
-                                            ? "text-emerald-600 hover:bg-emerald-50"
-                                            : "text-secondary-400 opacity-60"
-                                )}
-                            >
-                                <div className={cn(
-                                    "w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[10px]",
-                                    activeStep === s.step
-                                        ? "bg-white/20"
-                                        : activeStep > s.step
-                                            ? "bg-emerald-100"
-                                            : "bg-secondary-100"
-                                )}>
-                                    {activeStep > s.step ? <CheckCircle2 className="w-3.5 h-3.5" /> : s.step}
-                                </div>
-                                <span className="text-[10px] font-black tracking-[0.1em]">{s.label}</span>
-                            </button>
-                            {idx < 2 && <div className="w-8 h-[2px] bg-secondary-100/50 mx-1 rounded-full" />}
-                        </div>
-                    ))}
-                </div>
-            </div>
+                }
+            />
 
             <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {error && (
@@ -320,7 +325,7 @@ export default function CreateEmployeePage() {
                             </div>
                         </div>
 
-                        <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white/80 backdrop-blur-xl rounded-[32px] overflow-hidden">
+                        <Card className="border-none  shadow-sm-200/40 bg-white/80 backdrop-blur-xl rounded-xl overflow-hidden">
                             <CardContent className="p-10 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                                 <div className="space-y-2">
                                     <Label htmlFor="firstName" className="text-[11px] font-black text-secondary-400 uppercase tracking-widest ml-1">Prénom</Label>
@@ -420,7 +425,7 @@ export default function CreateEmployeePage() {
                             </div>
                         </div>
 
-                        <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white/80 backdrop-blur-xl rounded-[32px] overflow-hidden">
+                        <Card className="border-none  shadow-sm-200/40 bg-white/80 backdrop-blur-xl rounded-xl overflow-hidden">
                             <CardContent className="p-10 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                                 <div className="space-y-2">
                                     <Label htmlFor="employeeNumber" className="text-[11px] font-black text-secondary-400 uppercase tracking-widest ml-1">Matricule</Label>
@@ -449,6 +454,32 @@ export default function CreateEmployeePage() {
                                             className="h-14 bg-secondary-50/50 border-secondary-100 rounded-2xl focus:bg-white transition-all font-bold appearance-none">
                                             <option value="">Sélectionner un poste...</option>
                                             {positions.map(pos => <option key={pos.id} value={pos.id}>{pos.title}</option>)}
+                                        </Select>
+                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="jobRole" className="text-[11px] font-black text-secondary-400 uppercase tracking-widest ml-1">Fiche métier RH</Label>
+                                    <div className="relative group">
+                                        <Select id="jobRole" value={formData.jobRole} onChange={handleChange}
+                                            className="h-14 bg-secondary-50/50 border-secondary-100 rounded-2xl focus:bg-white transition-all font-bold appearance-none">
+                                            <option value="">Sélectionner une fiche métier...</option>
+                                            {jobRoles.map(r => (
+                                                <option key={r.id} value={r.id}>{r.title}{r.code ? ` (${r.code})` : ''}</option>
+                                            ))}
+                                        </Select>
+                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="grade" className="text-[11px] font-black text-secondary-400 uppercase tracking-widest ml-1">Grade</Label>
+                                    <div className="relative group">
+                                        <Select id="grade" value={formData.grade} onChange={handleChange}
+                                            className="h-14 bg-secondary-50/50 border-secondary-100 rounded-2xl focus:bg-white transition-all font-bold appearance-none">
+                                            <option value="">Sélectionner un grade...</option>
+                                            {grades.map(g => (
+                                                <option key={g.id} value={g.id}>{g.name}</option>
+                                            ))}
                                         </Select>
                                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
                                     </div>
@@ -533,12 +564,12 @@ export default function CreateEmployeePage() {
 
                             <div className="grid grid-cols-1 gap-6">
                                 {experiences.map((exp, index) => (
-                                    <Card key={index} className="border-none shadow-xl shadow-secondary-200/40 bg-white/60 backdrop-blur-sm rounded-[24px] overflow-hidden relative group">
+                                    <Card key={index} className="border-none shadow-sm-200/40 bg-white/60 backdrop-blur-sm rounded-[24px] overflow-hidden relative group">
                                         {experiences.length > 1 && (
                                             <button
                                                 type="button"
                                                 onClick={() => removeExperience(index)}
-                                                className="absolute top-4 right-4 p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                className="absolute top-4 right-4 p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all opacity-100"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -628,12 +659,12 @@ export default function CreateEmployeePage() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {skills.map((skill, index) => (
-                                    <Card key={index} className="border-none shadow-xl shadow-secondary-200/40 bg-white/60 backdrop-blur-sm rounded-[24px] overflow-hidden relative group">
+                                    <Card key={index} className="border-none shadow-sm-200/40 bg-white/60 backdrop-blur-sm rounded-[24px] overflow-hidden relative group">
                                         {skills.length > 1 && (
                                             <button
                                                 type="button"
                                                 onClick={() => removeSkill(index)}
-                                                className="absolute top-4 right-4 p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                className="absolute top-4 right-4 p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all opacity-100"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -700,7 +731,7 @@ export default function CreateEmployeePage() {
                             <Button
                                 type="button"
                                 onClick={() => setActiveStep(activeStep + 1)}
-                                className="h-16 px-14 rounded-[24px] bg-secondary-900 text-white font-black hover:bg-black transition-all shadow-xl shadow-secondary-200 hover:-translate-y-1 active:translate-y-0 uppercase tracking-[0.2em] text-xs"
+                                className="h-16 px-14 rounded-[24px] bg-secondary-900 text-white font-black hover:bg-black transition-all shadow-sm-200 hover:-translate-y-1 active:translate-y-0 uppercase tracking-[0.2em] text-xs"
                             >
                                 Suivant
                             </Button>
@@ -728,6 +759,6 @@ export default function CreateEmployeePage() {
                     Une fois la fiche créée, une invitation par email sera automatiquement envoyée à l'employé pour qu'il puisse compléter son profil et accéder à la plateforme.
                 </p>
             </div>
-        </div>
+        </PageShell>
     );
 }

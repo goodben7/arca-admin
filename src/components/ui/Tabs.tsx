@@ -11,7 +11,7 @@ const TabsList = React.forwardRef<
     <TabList
         ref={ref}
         className={cn(
-            "inline-flex h-12 p-1.5 items-center justify-center rounded-xl bg-secondary-100/50 text-secondary-500",
+            "inline-flex h-12 p-1.5 items-center justify-center rounded-2xl bg-muted/80 text-muted-foreground gap-1",
             className
         )}
         {...props}
@@ -26,10 +26,10 @@ const TabsTrigger = React.forwardRef<
     <Tab
         ref={ref}
         className={({ selected }) => cn(
-            "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-6 py-2 text-sm font-bold ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+            "inline-flex items-center justify-center whitespace-nowrap rounded-xl px-5 py-2 text-sm font-semibold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
             selected
-                ? "bg-white text-primary-700 shadow-sm shadow-primary-100"
-                : "text-secondary-500 hover:bg-white/50 hover:text-secondary-900",
+                ? "bg-surface text-primary-700 shadow-card dark:text-primary-300"
+                : "text-muted-foreground hover:bg-surface/60 hover:text-foreground",
             className
         )}
         {...props}
@@ -44,7 +44,7 @@ const TabsContent = React.forwardRef<
     <TabPanel
         ref={ref}
         className={cn(
-            "mt-6 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 animate-in fade-in slide-in-from-top-2 duration-300",
+            "mt-6 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 animate-in fade-in slide-in-from-top-2 duration-300",
             className
         )}
         {...props}

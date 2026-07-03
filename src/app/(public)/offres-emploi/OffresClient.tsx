@@ -48,7 +48,7 @@ export default function OffresClient({ offers, deptMap, fetchError }: Props) {
     return (
         <div className="space-y-8">
             {/* Hero */}
-            <div className="relative overflow-hidden rounded-3xl bg-[#004b61] px-8 py-10 md:px-12 md:py-14 shadow-2xl shadow-primary-900/20">
+            <div className="relative overflow-hidden rounded-xl bg-primary-900 px-8 py-10 md:px-12 md:py-14 shadow-2xl shadow-primary-900/20">
                 <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute top-[-30%] right-[-10%] w-[500px] h-[500px] bg-primary-400/10 rounded-full blur-[100px]" />
                     <div
@@ -165,15 +165,15 @@ function OfferCard({ offer, deptMap }: { offer: JobOffer; deptMap: Record<string
     const deptLabel = resolveDept(offer.department, deptMap);
 
     return (
-        <article className="group bg-white rounded-3xl border border-secondary-100 shadow-sm hover:shadow-lg hover:shadow-primary-100/40 hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col">
+        <article className="group bg-white rounded-xl border border-secondary-100 shadow-sm hover:shadow-lg hover:shadow-primary-100/40 hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col">
             {/* Bande accent */}
             <div className="h-1 bg-gradient-to-r from-accent-red-500 via-accent-yellow-500 to-primary-400" />
 
             <div className="p-6 flex flex-col flex-1 gap-4">
                 {/* Icône + titre */}
                 <div className="flex items-start gap-3">
-                    <div className="shrink-0 w-10 h-10 rounded-xl bg-[#004b61]/5 border border-[#004b61]/10 flex items-center justify-center group-hover:bg-[#004b61]/10 transition-colors">
-                        <Briefcase className="w-4.5 h-4.5 text-[#004b61]" />
+                    <div className="shrink-0 w-10 h-10 rounded-xl bg-primary-900/5 border border-primary-900/10 flex items-center justify-center group-hover:bg-primary-900/10 transition-colors">
+                        <Briefcase className="w-4.5 h-4.5 text-primary-900" />
                     </div>
                     <div className="min-w-0 flex-1 pt-0.5">
                         <h2 className="font-black text-secondary-900 uppercase tracking-tighter text-sm leading-tight line-clamp-2">
@@ -215,7 +215,7 @@ function OfferCard({ offer, deptMap }: { offer: JobOffer; deptMap: Record<string
                     </span>
                     <Link
                         href={`/offres-emploi/${offer.id}`}
-                        className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white bg-[#004b61] hover:bg-[#003649] active:scale-95 rounded-xl px-4 py-2 transition-all shadow-sm"
+                        className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white bg-primary-900 hover:bg-primary-950 active:scale-95 rounded-xl px-4 py-2 transition-all shadow-sm"
                     >
                         Voir l&apos;offre
                         <ArrowRight className="w-3.5 h-3.5" />

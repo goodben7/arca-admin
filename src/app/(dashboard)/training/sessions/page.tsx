@@ -23,6 +23,8 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { getAllTrainingSessions } from '@/lib/api/trainingSession';
 import { TrainingSession, STATUS_PLANNED, STATUS_ONGOING, STATUS_COMPLETED, STATUS_CANCELLED } from '@/types/trainingSession';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 // ── Localizer ─────────────────────────────────────────────────────────────────
 const locales = { fr };
@@ -74,7 +76,7 @@ function SessionModal({ session, onClose, onView }: {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full mx-4 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 space-y-5 animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-primary-600 flex items-center justify-center shrink-0">
@@ -204,42 +206,36 @@ export default function TrainingSessionsPage() {
                 />
             )}
 
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                        <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">
-                            Sessions de formation
-                        </h1>
-                        <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest italic">
-                            {sessions.length} session(s) au total
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {/* Toggle vue */}
-                        <div className="flex items-center bg-secondary-100 rounded-2xl p-1 gap-1">
-                            <button
-                                onClick={() => setViewMode('list')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-white shadow text-secondary-900' : 'text-secondary-400 hover:text-secondary-700'}`}
+            <PageShell>
+                <PageHeader
+                    title="Sessions de formation"
+                    description={`${sessions.length} session(s) au total`}
+                    actions={
+                        <>
+                            <div className="flex items-center bg-secondary-100 rounded-2xl p-1 gap-1">
+                                <button
+                                    onClick={() => setViewMode('list')}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-white shadow text-secondary-900' : 'text-secondary-400 hover:text-secondary-700'}`}
+                                >
+                                    <List className="w-3.5 h-3.5" /> Liste
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('calendar')}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'calendar' ? 'bg-white shadow text-secondary-900' : 'text-secondary-400 hover:text-secondary-700'}`}
+                                >
+                                    <CalendarDays className="w-3.5 h-3.5" /> Calendrier
+                                </button>
+                            </div>
+                            <Button
+                                onClick={() => router.push('/training/sessions/create')}
+                                className="rounded-2xl bg-primary-600 hover:bg-primary-700 text-white font-black uppercase tracking-widest text-xs px-6 py-5 flex items-center gap-2 shadow-lg shadow-primary-200"
                             >
-                                <List className="w-3.5 h-3.5" /> Liste
-                            </button>
-                            <button
-                                onClick={() => setViewMode('calendar')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'calendar' ? 'bg-white shadow text-secondary-900' : 'text-secondary-400 hover:text-secondary-700'}`}
-                            >
-                                <CalendarDays className="w-3.5 h-3.5" /> Calendrier
-                            </button>
-                        </div>
-                        <Button
-                            onClick={() => router.push('/training/sessions/create')}
-                            className="rounded-2xl bg-primary-600 hover:bg-primary-700 text-white font-black uppercase tracking-widest text-xs px-6 py-5 flex items-center gap-2 shadow-lg shadow-primary-200"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Nouvelle session
-                        </Button>
-                    </div>
-                </div>
+                                <Plus className="w-4 h-4" />
+                                Nouvelle session
+                            </Button>
+                        </>
+                    }
+                />
 
                 {/* Légende statuts */}
                 <div className="flex items-center gap-3 flex-wrap">
@@ -293,7 +289,7 @@ export default function TrainingSessionsPage() {
                                             <div
                                                 key={session.id}
                                                 onClick={() => router.push(`/training/sessions/${session.id}`)}
-                                                className="bg-white rounded-3xl border border-secondary-100 shadow-sm hover:shadow-xl hover:shadow-secondary-200/50 hover:-translate-y-1 transition-all cursor-pointer p-6 space-y-4"
+                                                className="bg-white rounded-xl border border-secondary-100 shadow-sm hover:shadow-xl hover:shadow-secondary-200/50 hover:-translate-y-1 transition-all cursor-pointer p-6 space-y-4"
                                             >
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center shrink-0">
@@ -340,7 +336,7 @@ export default function TrainingSessionsPage() {
 
                         {/* ── VUE CALENDRIER ── */}
                         {viewMode === 'calendar' && (
-                            <div className="bg-white rounded-3xl border border-secondary-100 shadow-sm overflow-hidden p-6">
+                            <div className="bg-white rounded-xl border border-secondary-100 shadow-sm overflow-hidden p-6">
                                 <style>{`
                                     .rbc-calendar { font-family: inherit; }
                                     .rbc-header { padding: 10px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; border-color: #f1f5f9; }
@@ -384,7 +380,7 @@ export default function TrainingSessionsPage() {
                         )}
                     </>
                 )}
-            </div>
+            </PageShell>
         </>
     );
 }

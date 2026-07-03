@@ -20,6 +20,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Preloader } from '@/components/ui/Preloader';
 import { login } from '@/lib/api/auth';
+import { setToken, clearToken, getToken, hasSession } from '@/lib/auth-token';
 import { cn } from '@/lib/utils';
 
 const SLIDES = [
@@ -69,7 +70,7 @@ export function LoginForm() {
     const searchParams = useSearchParams();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [showPreloader, setShowPreloader] = useState(true);
+    const [showPreloader, setShowPreloader] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -79,14 +80,17 @@ export function LoginForm() {
     });
 
     useEffect(() => {
+        if (getToken()) {
+            router.replace('/dashboard');
+        }
+    }, [router]);
+
+    useEffect(() => {
         const urlError = searchParams.get('error');
         if (urlError) {
-            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            clearToken();
             setError(urlError);
         }
-        // Masquer le preloader initial après le montage
-        const t = setTimeout(() => setShowPreloader(false), 900);
-        return () => clearTimeout(t);
     }, [searchParams]);
 
     useEffect(() => {
@@ -103,20 +107,19 @@ export function LoginForm() {
 
         try {
             const data = await login(formData.username, formData.password);
-            const isSecure = window.location.protocol === 'https:';
-            document.cookie = `token=${data.token}; path=/; max-age=86400; samesite=lax${isSecure ? '; secure' : ''}`;
-            setShowPreloader(true);
-            router.push('/dashboard');
+            setToken(data.token);
+            window.location.href = '/dashboard';
         } catch (err: any) {
             setError(err.message || 'Une erreur est survenue lors de la connexion.');
             setIsLoading(false);
+            setShowPreloader(false);
         }
     }
 
     return (
         <>
         <Preloader visible={showPreloader} message={isLoading ? "Connexion en cours…" : "Chargement…"} />
-        <div className="min-h-screen grid lg:grid-cols-2 bg-white overflow-hidden">
+        <div className="min-h-screen grid lg:grid-cols-2 bg-background overflow-hidden">
             <style jsx global>{`
                 @keyframes float {
                     0% { transform: translate(0, 0) scale(1); }
@@ -141,81 +144,82 @@ export function LoginForm() {
             `}</style>
 
             {/* Visual Side (Left) — background fixe, textes en slide */}
-            <div className="hidden lg:flex p-16 flex-col justify-between relative overflow-hidden group border-r border-secondary-100">
+            <div className="hidden lg:flex m-3 rounded-2xl flex-col justify-between relative overflow-hidden group shadow-float">
 
                 {/* ── Background fixe ── */}
-                <div className="absolute inset-0 bg-[#004b61]">
+                <div className="absolute inset-0 bg-primary-900 rounded-2xl">
                     <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[100px] animate-float" />
                     <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-accent-red-500/5 rounded-full blur-[100px] animate-float-delayed" />
                     <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
                 </div>
 
-                <div className="relative z-10 space-y-12">
+                <div className="relative z-10 space-y-8 p-8 md:p-10 flex flex-col flex-1">
                     {/* Brand Section */}
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4">
                         <div className="relative p-1">
-                            <div className="absolute inset-0 bg-white/20 rounded-3xl blur-md group-hover:bg-white/30 transition-all" />
-                            <div className="relative w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-2xl p-3 border border-white/40">
+                            <div className="absolute inset-0 bg-white/20 rounded-2xl blur-md group-hover:bg-white/30 transition-all" />
+                            <div className="relative w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-xl p-2.5 border border-white/40">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
                             </div>
                         </div>
                         <div>
                             <div className="flex items-baseline gap-1">
-                                <h1 className="text-4xl font-black tracking-tighter text-white">AR<span className="text-accent-red-500">CA</span></h1>
-                                <div className="w-2 h-2 rounded-full bg-accent-yellow-400 mb-1 animate-pulse" />
+                                <h1 className="text-2xl font-black tracking-tighter text-white">AR<span className="text-accent-red-500">CA</span></h1>
+                                <div className="w-1.5 h-1.5 rounded-full bg-accent-yellow-400 mb-0.5 animate-pulse" />
                             </div>
-                            <p className="text-[11px] text-white/60 font-black uppercase tracking-[0.25em] mt-2 leading-none">
+                            <p className="text-[9px] text-white/60 font-black uppercase tracking-[0.22em] mt-1.5 leading-tight">
                                 Autorité de Régulation
                             </p>
-                            <p className="text-[11px] text-white/40 font-bold uppercase tracking-[0.15em] mt-1 leading-none">
+                            <p className="text-[9px] text-white/40 font-bold uppercase tracking-[0.12em] mt-0.5 leading-tight">
                                 &amp; de Contrôle des Assurances
                             </p>
                         </div>
                     </div>
 
                     {/* ── Zone de texte — seuls les textes slident ── */}
-                    <div className="max-w-xl min-h-[400px] relative flex flex-col justify-center">
+                    <div className="max-w-md min-h-[260px] relative flex flex-col justify-center flex-1">
                         {SLIDES.map((slide, idx) => (
                             <div
                                 key={`text-${slide.id}`}
                                 className={cn(
-                                    "absolute inset-0 flex flex-col justify-center space-y-12 transition-all duration-700 ease-in-out",
+                                    "absolute inset-0 flex flex-col justify-center space-y-5 transition-all duration-700 ease-in-out",
                                     idx === currentSlide
                                         ? "opacity-100 translate-y-0 pointer-events-auto"
                                         : idx < currentSlide
-                                            ? "opacity-0 -translate-y-8 pointer-events-none"
-                                            : "opacity-0 translate-y-8 pointer-events-none"
+                                            ? "opacity-0 -translate-y-6 pointer-events-none"
+                                            : "opacity-0 translate-y-6 pointer-events-none"
                                 )}
                             >
-                                <div className="space-y-6">
-                                    <h2 className="text-7xl font-black text-white leading-[1] tracking-tighter">
-                                        <span className="block mb-2">{slide.title}</span>
-                                        <span className="bg-gradient-to-r from-white/70 to-white/20 bg-clip-text text-transparent">{slide.subtitle}</span>
-                                        <span className="block mt-2">
-                                            {slide.suffix} <span className="relative">
+                                <div className="space-y-3">
+                                    <h2 className="text-3xl xl:text-4xl font-black text-white leading-[1.1] tracking-tight">
+                                        <span className="block mb-1">{slide.title}</span>
+                                        <span className="bg-gradient-to-r from-white/80 to-white/30 bg-clip-text text-transparent">{slide.subtitle}</span>
+                                        <span className="block mt-1.5 text-[0.92em]">
+                                            {slide.suffix}{' '}
+                                            <span className="relative">
                                                 {slide.accent}
-                                                <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-accent-red-500 to-transparent rounded-full" />
+                                                <span className="absolute -bottom-1 left-0 w-full h-1 bg-gradient-to-r from-accent-red-500 to-transparent rounded-full" />
                                             </span>.
                                         </span>
                                     </h2>
                                 </div>
-                                <p className="text-white/40 text-xl font-medium leading-relaxed max-w-md italic border-l-2 border-white/10 pl-6">
-                                    "{slide.description}"
+                                <p className="text-white/45 text-sm font-medium leading-relaxed max-w-sm border-l-2 border-white/10 pl-4">
+                                    {slide.description}
                                 </p>
                             </div>
                         ))}
 
                         {/* Pagination / Indicators */}
-                        <div className="relative mt-auto pt-[420px] flex items-center gap-6">
-                            <div className="flex gap-2">
+                        <div className="relative mt-auto pt-[240px] flex items-center gap-4">
+                            <div className="flex gap-1.5">
                                 {SLIDES.map((_, idx) => (
                                     <button
                                         key={idx}
                                         onClick={() => setCurrentSlide(idx)}
                                         className={cn(
-                                            "transition-all duration-700 rounded-full h-1.5 relative overflow-hidden",
-                                            idx === currentSlide ? "w-12 bg-white/20" : "w-1.5 bg-white/10"
+                                            "transition-all duration-700 rounded-full h-1 relative overflow-hidden",
+                                            idx === currentSlide ? "w-10 bg-white/20" : "w-1.5 bg-white/10"
                                         )}
                                     >
                                         {idx === currentSlide && (
@@ -224,7 +228,7 @@ export function LoginForm() {
                                     </button>
                                 ))}
                             </div>
-                            <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">
+                            <span className="text-[9px] font-black text-white/25 uppercase tracking-[0.25em]">
                                 0{currentSlide + 1} / 0{SLIDES.length}
                             </span>
                         </div>
@@ -232,46 +236,46 @@ export function LoginForm() {
                 </div>
 
                 {/* Footer Security */}
-                <div className="relative z-10 flex items-center gap-6 pt-12">
+                <div className="relative z-10 flex items-center gap-4 px-8 md:px-10 pb-8 md:pb-10">
                     <div className="group/shield relative">
-                        <div className="absolute inset-0 bg-primary-400/20 rounded-2xl blur-lg scale-150 opacity-0 group-hover/shield:opacity-100 transition-opacity" />
-                        <div className="relative p-4 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl">
-                            <ShieldCheck className="w-8 h-8 text-white" />
+                        <div className="absolute inset-0 bg-primary-400/20 rounded-xl blur-lg scale-150 opacity-0 group-hover/shield:opacity-100 transition-opacity" />
+                        <div className="relative p-3 bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 shadow-xl">
+                            <ShieldCheck className="w-5 h-5 text-white" />
                         </div>
                     </div>
                     <div>
-                        <p className="text-xs font-black text-white/30 uppercase tracking-[0.3em] mb-1">Infrastructure</p>
-                        <p className="text-white font-black tracking-tight text-lg">Portail Sécurisé </p>
+                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.25em] mb-0.5">Infrastructure</p>
+                        <p className="text-white font-bold tracking-tight text-sm">Portail sécurisé</p>
                     </div>
                 </div>
             </div>
 
             {/* Login Side (Right) */}
-            <div className="flex items-center justify-center p-8 sm:p-20 bg-secondary-50/30 overflow-y-auto">
-                <div className="w-full max-w-[480px] space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <div className="flex items-center justify-center p-6 sm:p-10 lg:p-12 overflow-y-auto">
+                <div className="w-full max-w-[420px] space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                     {/* Mobile Header */}
-                    <div className="flex lg:hidden flex-col items-center gap-6 mb-4">
-                        <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-2xl p-4 border border-secondary-100">
+                    <div className="flex lg:hidden flex-col items-center gap-4 mb-2">
+                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg p-3 border border-secondary-100">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
                         </div>
                         <div className="text-center">
-                            <h1 className="text-3xl font-black tracking-tighter">AR<span className="text-accent-red-500">CA</span></h1>
-                            <p className="text-[10px] text-secondary-400 font-black uppercase tracking-[0.2em] mt-2 italic">Portail RH Centralisé</p>
+                            <h1 className="text-2xl font-black tracking-tighter">AR<span className="text-accent-red-500">CA</span></h1>
+                            <p className="text-[9px] text-secondary-400 font-black uppercase tracking-[0.2em] mt-1.5">Portail RH centralisé</p>
                         </div>
                     </div>
 
-                    <div className="space-y-3 px-2 text-center lg:text-left">
-                        <h3 className="text-5xl font-black text-secondary-950 tracking-tighter">
-                            Bon retour <span className="text-primary-600 italic font-medium truncate">!</span>
+                    <div className="space-y-2 px-1 text-center lg:text-left">
+                        <h3 className="text-3xl font-black text-secondary-950 tracking-tight">
+                            Bon retour<span className="text-primary-600"> !</span>
                         </h3>
-                        <p className="text-secondary-500 text-lg font-medium flex items-center justify-center lg:justify-start gap-2">
-                            Accès sécurisé à votre espace <ArrowRight className="w-4 h-4 text-secondary-300" />
+                        <p className="text-secondary-500 text-sm font-medium flex items-center justify-center lg:justify-start gap-2">
+                            Accès sécurisé à votre espace <ArrowRight className="w-3.5 h-3.5 text-secondary-300" />
                         </p>
                     </div>
 
-                    <Card className="border-none shadow-[0_40px_80px_-20px_rgba(0,0,0,0.06)] overflow-hidden bg-white/80 backdrop-blur-2xl rounded-[40px] border border-white">
-                        <CardContent className="p-10 space-y-8">
+                    <Card className="border border-secondary-100/80 shadow-float overflow-hidden rounded-2xl bg-white">
+                        <CardContent className="p-7 space-y-6">
                             {error && (
                                 <div className="p-5 bg-rose-50 border border-rose-100 rounded-3xl flex items-start gap-4 animate-in shake-1 duration-500">
                                     <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
@@ -282,20 +286,20 @@ export function LoginForm() {
                                 </div>
                             )}
 
-                            <form onSubmit={handleSubmit} className="grid gap-8">
-                                <div className="space-y-3">
-                                    <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary-400 ml-1">
+                            <form onSubmit={handleSubmit} className="grid gap-5">
+                                <div className="space-y-2">
+                                    <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-[0.18em] text-secondary-400 ml-1">
                                         Identifiant
                                     </Label>
                                     <div className="relative group">
-                                        <div className="absolute left-5 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
-                                            <User className="w-4 h-4 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
+                                            <User className="w-3.5 h-3.5 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
                                         </div>
                                         <Input
                                             id="username"
                                             type="text"
                                             placeholder="nom.utilisateur"
-                                            className="pl-16 h-16 bg-white border-secondary-200 focus:border-primary-500 focus:ring-8 focus:ring-primary-500/5 rounded-2xl text-base font-bold transition-all shadow-sm"
+                                            className="pl-12 h-11 bg-white border-secondary-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-xl text-sm font-semibold transition-all"
                                             value={formData.username}
                                             onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                             required
@@ -303,21 +307,19 @@ export function LoginForm() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between ml-1">
-                                        <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary-400">
-                                            Mot de passe
-                                        </Label>
-                                    </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.18em] text-secondary-400 ml-1">
+                                        Mot de passe
+                                    </Label>
                                     <div className="relative group">
-                                        <div className="absolute left-5 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
-                                            <Lock className="w-4 h-4 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
+                                            <Lock className="w-3.5 h-3.5 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
                                         </div>
                                         <Input
                                             id="password"
                                             type={showPassword ? "text" : "password"}
                                             placeholder="••••••••••••"
-                                            className="pl-16 pr-14 h-16 bg-white border-secondary-200 focus:border-primary-500 focus:ring-8 focus:ring-primary-500/5 rounded-2xl text-base font-bold transition-all shadow-sm"
+                                            className="pl-12 pr-11 h-11 bg-white border-secondary-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-xl text-sm font-semibold transition-all"
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                             required
@@ -325,9 +327,9 @@ export function LoginForm() {
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
                                         >
-                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                         </button>
                                     </div>
                                 </div>
@@ -335,7 +337,7 @@ export function LoginForm() {
                                 <Button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full h-16 text-xs font-black uppercase tracking-[0.3em] rounded-2xl bg-primary-600 hover:bg-primary-700 shadow-[0_20px_40px_-10px_rgba(0,75,97,0.3)] hover:shadow-[0_25px_50px_-12px_rgba(0,75,97,0.4)] transition-all active:scale-[0.98] group relative overflow-hidden"
+                                    className="w-full h-11 text-[10px] font-black uppercase tracking-[0.22em] rounded-xl bg-primary-600 hover:bg-primary-700 shadow-lg shadow-primary-900/20 transition-all active:scale-[0.98] group relative overflow-hidden mt-1"
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-[1.5s]" />
                                     {isLoading ? (

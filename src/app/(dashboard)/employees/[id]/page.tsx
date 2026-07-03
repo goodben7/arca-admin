@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     ChevronLeft, Mail, Phone, Briefcase, Calendar, MapPin, User, Shield, Clock, Heart,
     Globe, CheckCircle2, CalendarDays, Info, MoreVertical, Edit2, Download, Loader2,
     Building2, UserCircle2, FileText, Activity, FileCheck, Eye, Trash2, Plus, X, Upload, AlertCircle,
-    UserMinus, UserPlus, UserCheck, Power, Plane, Palmtree, Ban, ShieldCheck, UserCog, ChevronDown, MoreHorizontal
+    UserMinus, UserPlus, UserCheck, Power, Plane, Palmtree, Ban, ShieldCheck, UserCog, ChevronDown, MoreHorizontal, Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
@@ -14,19 +14,32 @@ import { Badge } from '@/components/ui/Badge';
 import { TabsProvider, TabsList, TabsTrigger, TabsContent, TabsPanels } from '@/components/ui/Tabs';
 import { Input, Label } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { getEmployeeById, getDepartments, getWorkExperiencesByEmployee, getSkillsByEmployee, createWorkExperience, createSkill, getAllEmployees, assignManager, changeEmployeeStatus } from '@/lib/api/employee';
+import { getEmployeeById, getDepartments, getWorkExperiencesByEmployee, createWorkExperience, getAllEmployees, assignManager, changeEmployeeStatus, updateEmployee } from '@/lib/api/employee';
+import { getEmployeeSkills, createEmployeeSkill, validateEmployeeSkill, getSkills } from '@/lib/api/skill';
+import { getJobRoles, getGrades } from '@/lib/api/jobArchitecture';
+import { extractId } from '@/lib/api-iri';
+import { JobRole, Grade } from '@/types/jobArchitecture';
 import { getAllPositions } from '@/lib/api/position';
 import { getAllUsers } from '@/lib/api/profile';
 import { AppUser } from '@/types/profile';
 import { getContractsByEmployee } from '@/lib/api/contract';
 import { getDocumentsByHolder, uploadDocument, deleteDocument } from '@/lib/api/document';
-import { Employee, STATUS, Department, WorkExperience, Skill, SKILL_LEVEL } from '@/types/employee';
+import { Employee, STATUS, Department, WorkExperience } from '@/types/employee';
+import { EmployeeSkill, Skill as CatalogSkill, SKILL_LEVEL, SKILL_LEVEL_LABELS, SkillLevel } from '@/types/skill';
+import { toast } from '@/lib/toast';
 import { Contract } from '@/types/contract';
 import { DocumentRecord, DOCUMENT_TYPE } from '@/types/document';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ContentPanel } from '@/components/layout/ContentPanel';
+import { EMPLOYEE_TAB_TRIGGER } from '@/components/employees/employeeProfileTabs';
+import { ProfileSection } from '@/components/employees/ProfileSection';
+import { ProfileField } from '@/components/employees/ProfileField';
+import { EmployeeProfilePhoto } from '@/components/employees/EmployeeProfilePhoto';
+import { AnchoredDropdown } from '@/components/ui/AnchoredDropdown';
 import { BASE_URL } from '@/lib/api/client';
 
 interface PageProps {
@@ -39,9 +52,12 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [departmentsMap, setDepartmentsMap] = useState<Record<string, string>>({});
     const [positionsMap, setPositionsMap] = useState<Record<string, string>>({});
+    const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
+    const [grades, setGrades] = useState<Grade[]>([]);
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [workExperiences, setWorkExperiences] = useState<WorkExperience[]>([]);
-    const [skills, setSkills] = useState<Skill[]>([]);
+    const [skills, setSkills] = useState<EmployeeSkill[]>([]);
+    const [skillsCatalog, setSkillsCatalog] = useState<CatalogSkill[]>([]);
     const [documents, setDocuments] = useState<DocumentRecord[]>([]);
     const [managerDetails, setManagerDetails] = useState<{ name: string, position?: string } | null>(null);
     const [usersMap, setUsersMap] = useState<Record<string, { name?: string, email: string }>>({});
@@ -53,6 +69,7 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
     const [error, setError] = useState<string | null>(null);
     const [isChangingStatus, setIsChangingStatus] = useState<string | null>(null);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+    const statusTriggerRef = useRef<HTMLButtonElement>(null);
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean,
         title: string,
@@ -163,9 +180,76 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
     const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
     const [isSkillLoading, setIsSkillLoading] = useState(false);
     const [skillForm, setSkillForm] = useState({
-        name: '',
-        level: 'BEGINNER' as any
+        skillId: '',
+        level: SKILL_LEVEL.BEGINNER as SkillLevel,
     });
+    const [validatingSkillId, setValidatingSkillId] = useState<string | null>(null);
+    const [isJobRoleModalOpen, setIsJobRoleModalOpen] = useState(false);
+    const [isJobRoleSaving, setIsJobRoleSaving] = useState(false);
+    const [jobRoleForm, setJobRoleForm] = useState({ jobRoleId: '', gradeId: '' });
+
+    const skillCatalogMap = useMemo(() => {
+        const map: Record<string, CatalogSkill> = {};
+        skillsCatalog.forEach(s => {
+            map[s.id] = s;
+            if (s.code) map[s.code] = s;
+            if (s['@id']) map[s['@id']] = s;
+        });
+        return map;
+    }, [skillsCatalog]);
+
+    const resolveSkillName = (skillRef: string) => {
+        const sid = extractId(skillRef) || skillRef;
+        const s = skillCatalogMap[sid] || skillCatalogMap[skillRef];
+        if (!s) return sid;
+        return s.code ? `${s.name} (${s.code})` : s.name;
+    };
+
+    const assignedSkillIds = useMemo(() =>
+        new Set(skills.map(es => extractId(es.skill)).filter(Boolean) as string[]),
+        [skills]
+    );
+
+    const jobRoleLabel = (ref?: string) => {
+        if (!ref) return '—';
+        const rid = extractId(ref) || ref;
+        const role = jobRoles.find(r => r.id === rid || r['@id'] === ref);
+        return role ? `${role.title}${role.code ? ` (${role.code})` : ''}` : rid;
+    };
+
+    const gradeLabel = (ref?: string) => {
+        if (!ref) return '—';
+        const gid = extractId(ref) || ref;
+        const grade = grades.find(g => g.id === gid || g['@id'] === ref);
+        return grade?.name || gid;
+    };
+
+    const openJobRoleModal = () => {
+        setJobRoleForm({
+            jobRoleId: extractId(employee?.jobRole) || '',
+            gradeId: extractId(employee?.grade) || '',
+        });
+        setIsJobRoleModalOpen(true);
+    };
+
+    async function handleSaveJobRole(e: React.FormEvent) {
+        e.preventDefault();
+        if (!jobRoleForm.jobRoleId) return toast.error('Sélectionnez une fiche métier.');
+        setIsJobRoleSaving(true);
+        try {
+            const updated = await updateEmployee(id, {
+                jobRole: jobRoleForm.jobRoleId,
+                ...(jobRoleForm.gradeId ? { grade: jobRoleForm.gradeId } : {}),
+            });
+            setEmployee(updated);
+            setIsJobRoleModalOpen(false);
+            toast.success('Fiche métier attribuée.');
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'attribution.');
+        } finally {
+            setIsJobRoleSaving(false);
+        }
+    }
 
     async function handleAddExperience(e: React.FormEvent) {
         e.preventDefault();
@@ -187,19 +271,37 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
 
     async function handleAddSkill(e: React.FormEvent) {
         e.preventDefault();
+        if (!skillForm.skillId) return toast.error('Sélectionnez une compétence.');
         setIsSkillLoading(true);
         try {
-            const newSkill = await createSkill({
-                ...skillForm,
-                employee: id
+            const newSkill = await createEmployeeSkill({
+                employee: id,
+                skill: skillForm.skillId,
+                level: skillForm.level,
             });
             setSkills(prev => [...prev, newSkill]);
             setIsSkillModalOpen(false);
-            setSkillForm({ name: '', level: 'BEGINNER' });
-        } catch (err: any) {
-            alert(err.message || "Erreur lors de l'ajout de la compétence");
+            setSkillForm({ skillId: '', level: SKILL_LEVEL.BEGINNER });
+            toast.success('Compétence ajoutée.');
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Erreur lors de l'ajout de la compétence");
         } finally {
             setIsSkillLoading(false);
+        }
+    }
+
+    async function handleValidateSkill(employeeSkillId: string) {
+        setValidatingSkillId(employeeSkillId);
+        try {
+            await validateEmployeeSkill(employeeSkillId);
+            setSkills(prev => prev.map(s =>
+                s.id === employeeSkillId ? { ...s, validatedAt: new Date().toISOString() } : s
+            ));
+            toast.success('Compétence validée.');
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Erreur lors de la validation.');
+        } finally {
+            setValidatingSkillId(null);
         }
     }
 
@@ -331,14 +433,17 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
 
                 const employeeIri = empData['@id'] || `/api/employees/${id}`;
 
-                const [deptsData, posData, contractsData, experiencesData, skillsData, documentsData, usersData] = await Promise.all([
+                const [deptsData, posData, contractsData, experiencesData, employeeSkillsData, catalogData, documentsData, usersData, rolesData, gradesData] = await Promise.all([
                     getDepartments(),
                     getAllPositions(),
                     getContractsByEmployee(id),
                     getWorkExperiencesByEmployee(id),
-                    getSkillsByEmployee(id),
+                    getEmployeeSkills(id).catch(() => []),
+                    getSkills().catch(() => []),
                     getDocumentsByHolder('EMPLOYEE', id).catch(() => []),
-                    getAllUsers().catch(() => ({ member: [] }))
+                    getAllUsers().catch(() => ({ member: [] })),
+                    getJobRoles().catch(() => []),
+                    getGrades().catch(() => []),
                 ]);
 
                 // Create users map
@@ -382,9 +487,10 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                 const experiencesList = Array.isArray(experiencesData) ? experiencesData : experiencesData['hydra:member'] || [];
                 setWorkExperiences(experiencesList);
 
-                // Handle skills
-                const skillsList = Array.isArray(skillsData) ? skillsData : skillsData['hydra:member'] || [];
-                setSkills(skillsList);
+                setSkills(employeeSkillsData);
+                setSkillsCatalog(catalogData);
+                setJobRoles(rolesData);
+                setGrades(gradesData);
 
                 // Handle documents
                 const docsList = Array.isArray(documentsData) ? documentsData : (documentsData as any)['hydra:member'] || [];
@@ -400,14 +506,14 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
 
     const getStatusInfo = (status: string) => {
         switch (status) {
-            case STATUS.ACTIVE: return { label: 'Actif', variant: 'success' as const, bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' };
-            case STATUS.ON_LEAVE: return { label: 'En congé', variant: 'warning' as const, bg: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500' };
-            case STATUS.INACTIVE: return { label: 'Inactif', variant: 'destructive' as const, bg: 'bg-slate-50 text-slate-700 border-slate-100', dot: 'bg-slate-400' };
-            case STATUS.SUSPENDED: return { label: 'Suspendu', variant: 'destructive' as const, bg: 'bg-orange-50 text-orange-700 border-orange-100', dot: 'bg-orange-500' };
-            case STATUS.TERMINATED: return { label: 'Contrat Terminé', variant: 'destructive' as const, bg: 'bg-rose-50 text-rose-700 border-rose-100', dot: 'bg-rose-600' };
-            case STATUS.PROBATION: return { label: 'Période d\'Essai', variant: 'warning' as const, bg: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500' };
-            case STATUS.RETIRED: return { label: 'Retraité', variant: 'secondary' as const, bg: 'bg-purple-50 text-purple-700 border-purple-100', dot: 'bg-purple-500' };
-            default: return { label: status, variant: 'secondary' as const, bg: 'bg-secondary-50 text-secondary-700 border-secondary-100', dot: 'bg-secondary-400' };
+            case STATUS.ACTIVE: return { label: 'Actif', variant: 'success' as const };
+            case STATUS.ON_LEAVE: return { label: 'En congé', variant: 'warning' as const };
+            case STATUS.INACTIVE: return { label: 'Inactif', variant: 'secondary' as const };
+            case STATUS.SUSPENDED: return { label: 'Suspendu', variant: 'destructive' as const };
+            case STATUS.TERMINATED: return { label: 'Contrat terminé', variant: 'destructive' as const };
+            case STATUS.PROBATION: return { label: "Période d'essai", variant: 'info' as const };
+            case STATUS.RETIRED: return { label: 'Retraité', variant: 'secondary' as const };
+            default: return { label: status, variant: 'secondary' as const };
         }
     };
 
@@ -422,8 +528,8 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
 
     if (error || !employee) {
         return (
-            <div className="max-w-xl mx-auto mt-20 p-12 bg-white rounded-[32px] border-none shadow-2xl shadow-rose-200/20 text-center space-y-6">
-                <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto">
+            <div className="max-w-xl mx-auto mt-20 p-12 bg-white rounded-xl border-none shadow-2xl shadow-rose-200/20 text-center space-y-6">
+                <div className="w-20 h-20 bg-rose-50 rounded-xl flex items-center justify-center mx-auto">
                     <Info className="w-10 h-10 text-rose-500" />
                 </div>
                 <div className="space-y-2">
@@ -440,810 +546,498 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
     const status = getStatusInfo(employee.status);
     const avatarDoc = [...documents].reverse().find(d => d.type === 'PHOTO');
 
+    const positionLabel = positionsMap[employee.position] || employee.position || '';
+    const departmentLabel = departmentsMap[employee.department] || employee.department || '';
+
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Top Toolbar */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="ghost"
-                        onClick={() => router.back()}
-                        className="p-0 hover:bg-transparent text-secondary-500 hover:text-secondary-900 transition-colors group"
-                    >
-                        <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-all">
-                            <ChevronLeft className="w-5 h-5" />
-                        </div>
-                    </Button>
-                    <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="px-3 py-1 font-black text-[10px] uppercase tracking-widest border-secondary-200 text-secondary-500 rounded-full bg-white">
-                            {employee.employeeNumber || employee.id}
-                        </Badge>
-                        <div className={cn("px-4 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest flex items-center gap-2", status.bg)}>
-                            <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", status.dot)} />
-                            {status.label}
-                        </div>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    {/* Primary Action - Manager */}
-                    <Button
-                        onClick={openAssignModal}
-                        variant="outline"
-                        className="h-10 px-4 rounded-xl border-primary-100 bg-primary-50/50 text-primary-600 font-bold uppercase tracking-widest text-[9px] hover:bg-primary-100 hover:border-primary-200 transition-all gap-2"
-                    >
-                        <UserCog className="w-4 h-4" /> 
-                        {employee.manager ? 'Changer Manager' : 'Assigner Manager'}
-                    </Button>
-
-                    {/* Status Actions Dropdown */}
-                    <div className="relative">
-                        <Button 
-                            onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
-                            variant="outline" 
-                            className={cn(
-                                "h-10 px-5 rounded-xl border-secondary-200 font-bold uppercase tracking-widest text-[9px] gap-2 transition-all",
-                                isStatusMenuOpen ? "bg-secondary-50 border-secondary-300 ring-4 ring-secondary-50" : "bg-white hover:bg-secondary-50"
-                            )}
-                        >
-                            <Activity className={cn("w-4 h-4", isChangingStatus ? "animate-pulse" : "")} />
-                            Actions Statut
-                            <ChevronDown className={cn("w-3 h-3 transition-transform duration-300", isStatusMenuOpen && "rotate-180")} />
+        <PageShell>
+            <PageHeader
+                title={`${employee.firstName} ${employee.lastName}`}
+                description={[positionLabel, departmentLabel, employee.employeeNumber].filter(Boolean).join(' · ') || undefined}
+                backHref="/employees"
+                leading={
+                    <EmployeeProfilePhoto
+                        firstName={employee.firstName}
+                        lastName={employee.lastName}
+                        photoUrl={avatarDoc?.contentUrl ? `${BASE_URL}${avatarDoc.contentUrl}` : undefined}
+                        isUploading={isUploadingAvatar}
+                        onUpload={handleAvatarUpload}
+                    />
+                }
+                actions={
+                    <>
+                        <Badge variant={status.variant}>{status.label}</Badge>
+                        <Button onClick={openAssignModal} variant="outline" size="sm" className="gap-2">
+                            <UserCog className="w-4 h-4" />
+                            {employee.manager ? 'Changer manager' : 'Assigner manager'}
                         </Button>
+                        <div>
+                            <Button
+                                ref={statusTriggerRef}
+                                onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                            >
+                                <Activity className={cn("w-4 h-4", isChangingStatus ? "animate-pulse" : "")} />
+                                Statut
+                                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isStatusMenuOpen && "rotate-180")} />
+                            </Button>
 
-                        {isStatusMenuOpen && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setIsStatusMenuOpen(false)} />
-                                <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl shadow-secondary-900/10 border border-secondary-100 p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="px-3 py-2 text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1">
-                                        Transitions Disponibles
-                                    </div>
-                                    
-                                    {employee.status === STATUS.ACTIVE && (
-                                        <div className="space-y-1">
-                                            <button onClick={() => handleStatusChange('suspensions')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold text-orange-600 hover:bg-orange-50 transition-colors">
-                                                <Ban className="w-4 h-4" /> Suspendre Collaborateur
-                                            </button>
-                                            <button onClick={() => handleStatusChange('on_leaves')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold text-amber-600 hover:bg-amber-50 transition-colors">
-                                                <Plane className="w-4 h-4" /> Mettre en Congé
-                                            </button>
-                                            <button onClick={() => handleStatusChange('terminations')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition-colors">
-                                                <UserMinus className="w-4 h-4" /> Terminer Contrat
-                                            </button>
-                                            <button onClick={() => handleStatusChange('retirements')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold text-purple-600 hover:bg-purple-50 transition-colors">
-                                                <Heart className="w-4 h-4" /> Départ à la Retraite
-                                            </button>
-                                            <div className="h-[1px] bg-secondary-50 my-1" />
-                                            <button onClick={() => handleStatusChange('deactivations')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold text-slate-500 hover:bg-slate-50 transition-colors">
-                                                <Power className="w-4 h-4" /> Désactiver le Dossier
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {(employee.status === STATUS.INACTIVE || employee.status === STATUS.SUSPENDED || employee.status === STATUS.ON_LEAVE || employee.status === STATUS.TERMINATED || employee.status === STATUS.RETIRED) && (
-                                        <button onClick={() => handleStatusChange('activations')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 transition-colors">
-                                            <CheckCircle2 className="w-4 h-4" /> 
-                                            {employee.status === STATUS.TERMINATED || employee.status === STATUS.RETIRED ? 'Ré-embaucher (Activer)' : 'Réactiver Collaborateur'}
-                                        </button>
-                                    )}
-
-                                    {employee.status === STATUS.PROBATION && (
-                                        <div className="space-y-1">
-                                            <button onClick={() => handleStatusChange('activations')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 transition-colors">
-                                                <ShieldCheck className="w-4 h-4" /> Valider Période d'Essai
-                                            </button>
-                                            <button onClick={() => handleStatusChange('terminations')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition-colors">
-                                                <UserMinus className="w-4 h-4" /> Mettre Fin à l'Essai
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {employee.status === STATUS.INACTIVE && (
-                                        <button onClick={() => handleStatusChange('probations')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold text-blue-600 hover:bg-blue-50 transition-colors">
-                                            <Clock className="w-4 h-4" /> Passer en Période d'Essai
-                                        </button>
-                                    )}
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    <div className="w-[1px] h-6 bg-secondary-100 mx-1" />
-
-                    <Button variant="outline" className="h-10 px-6 rounded-xl border-secondary-200 font-bold uppercase tracking-widest text-[9px] gap-2 bg-white hover:bg-secondary-50 transition-all shadow-sm">
-                        <Download className="w-4 h-4" />
-                        Exporter
-                    </Button>
-                </div>
-            </div>
-
-            {/* Profile Header Card */}
-            <Card className="border-none shadow-2xl shadow-secondary-200/50 bg-white overflow-hidden rounded-[40px] border border-secondary-100">
-                <div className="relative h-40 bg-gradient-to-r from-primary-600 via-primary-700 to-primary-900">
-                    <div className="absolute inset-0 bg-black/10" />
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_150%,#ffffff_0,transparent_50%)]" />
-                    <div className="absolute -bottom-16 left-12 z-10">
-                        <div className="w-44 h-44 rounded-[48px] bg-white p-2 shadow-2xl shadow-primary-900/20 group cursor-pointer relative" title="Modifier la photo">
-                            <label className="cursor-pointer block w-full h-full relative">
-                                <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
-                                <div className="w-full h-full rounded-[40px] bg-secondary-50 flex items-center justify-center border border-secondary-100 uppercase overflow-hidden relative group-hover:border-primary-200 transition-colors">
-                                    {isUploadingAvatar ? (
-                                        <Loader2 className="w-12 h-12 animate-spin text-primary-600" />
-                                    ) : avatarDoc?.contentUrl ? (
-                                        <img src={`${BASE_URL}${avatarDoc.contentUrl}`} alt="Avatar" className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
-                                    ) : (
-                                        <span className="text-6xl font-black text-secondary-200 tracking-tighter">
-                                            {employee.firstName?.[0]}{employee.lastName?.[0]}
-                                        </span>
-                                    )}
-                                    <div className="absolute inset-0 bg-primary-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[2px]">
-                                        <Upload className="w-8 h-8 text-white scale-90 group-hover:scale-100 transition-transform" />
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div className="pt-20 pb-10 pl-64 pr-12 flex items-end justify-between min-h-[160px]">
-                    <div className="space-y-4">
-                        <div className="space-y-1">
-                            <h1 className="text-4xl lg:text-5xl font-black text-secondary-900 uppercase tracking-tighter leading-none">
-                                {employee.firstName} <span className="text-primary-600">{employee.lastName}</span>
-                            </h1>
-                            <p className="text-xs font-black text-secondary-400 uppercase tracking-[0.3em]">Collaborateur ARCA</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pt-2">
-                            <div className="flex items-center gap-2.5 px-4 py-2 bg-primary-50 rounded-2xl border border-primary-100/50">
-                                <Briefcase className="w-4 h-4 text-primary-600" />
-                                <span className="text-[11px] font-black text-primary-800 uppercase tracking-widest">{positionsMap[employee.position] || employee.position}</span>
-                            </div>
-                            <div className="flex items-center gap-2.5 px-4 py-2 bg-secondary-50 rounded-2xl border border-secondary-100/50">
-                                <Building2 className="w-4 h-4 text-secondary-600" />
-                                <span className="text-[11px] font-black text-secondary-700 uppercase tracking-widest">{departmentsMap[employee.department] || employee.department}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-secondary-400 font-bold uppercase tracking-widest text-[10px]">
-                                <Calendar className="w-4 h-4 text-primary-400" />
-                                Depuis le {employee.hireDate ? format(new Date(employee.hireDate), 'dd MMMM yyyy', { locale: fr }) : '-'}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </Card>
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Left Side Info - Summary */}
-                <div className="lg:col-span-1 space-y-4">
-                    {/* Status inline badge - compact */}
-                    <div className={cn(
-                        "flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border w-fit shadow-sm transition-all hover:shadow-md",
-                        status.bg
-                    )}>
-                        <div className={cn(
-                            "w-2 h-2 rounded-full",
-                            status.dot
-                        )} />
-                        <span className={cn(
-                            "text-[10px] font-black uppercase tracking-widest",
-                            status.bg.includes('text-') ? "" : "text-secondary-700" // Fallback if needed, but status.bg usually includes text color
-                        )}>
-                            {status.label}
-                        </span>
-                    </div>
-
-                    {/* Contact Card */}
-                    <Card className="border-none shadow-xl shadow-secondary-100 bg-white rounded-[32px] overflow-hidden border border-secondary-100/50">
-                        <div className="p-6 space-y-6">
-                            <label className="text-[9px] font-black text-secondary-400 uppercase tracking-[0.3em] block">Coordonnées</label>
-
-                            {/* Email */}
-                            <div className="group">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-2xl bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0 group-hover:bg-primary-600 transition-all duration-300">
-                                        <Mail className="w-4 h-4 text-primary-600 group-hover:text-white transition-colors" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[9px] font-black text-secondary-400 uppercase tracking-widest mb-1">Email Professionnel</p>
-                                        <a href={`mailto:${employee.email}`} className="text-xs font-bold text-secondary-900 lowercase break-all hover:text-primary-600 transition-colors">
-                                            {employee.email}
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Phone */}
-                            <div className="group">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-600 transition-all duration-300">
-                                        <Phone className="w-4 h-4 text-emerald-600 group-hover:text-white transition-colors" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-[9px] font-black text-secondary-400 uppercase tracking-widest mb-1">Mobile / WhatsApp</p>
-                                        <a href={`tel:${employee.phone}`} className="text-xs font-bold text-secondary-900 hover:text-emerald-600 transition-colors tracking-wide">
-                                            {employee.phone}
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Department */}
-                        <div className="mx-4 mb-4">
-                            <div className="p-4 bg-gradient-to-br from-primary-600 to-primary-900 rounded-2xl text-white shadow-lg shadow-primary-200">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <Building2 className="w-4 h-4 text-primary-200" />
-                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary-200">Unité de Gestion</p>
-                                </div>
-                                <p className="font-black text-white uppercase text-sm tracking-tight leading-tight">
-                                    {departmentsMap[employee.department] || employee.department}
+                            <AnchoredDropdown
+                                open={isStatusMenuOpen}
+                                onClose={() => setIsStatusMenuOpen(false)}
+                                triggerRef={statusTriggerRef}
+                                width={240}
+                                className="p-1.5"
+                            >
+                                <p className="px-3 py-2 text-xs font-medium text-muted-foreground">
+                                    Actions disponibles
                                 </p>
-                                <p className="text-[9px] font-bold text-primary-300 uppercase tracking-widest mt-1">ARCA Administration</p>
-                            </div>
+
+                                {employee.status === STATUS.ACTIVE && (
+                                    <div className="space-y-0.5">
+                                        <button onClick={() => handleStatusChange('suspensions')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                            <Ban className="w-4 h-4 text-amber-600" /> Suspendre
+                                        </button>
+                                        <button onClick={() => handleStatusChange('on_leaves')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                            <Plane className="w-4 h-4 text-amber-600" /> Mettre en congé
+                                        </button>
+                                        <button onClick={() => handleStatusChange('terminations')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                            <UserMinus className="w-4 h-4 text-accent-red-500" /> Terminer contrat
+                                        </button>
+                                        <button onClick={() => handleStatusChange('retirements')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                            <Heart className="w-4 h-4 text-secondary-500" /> Retraite
+                                        </button>
+                                        <button onClick={() => handleStatusChange('deactivations')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                            <Power className="w-4 h-4 text-secondary-500" /> Désactiver
+                                        </button>
+                                    </div>
+                                )}
+
+                                {(employee.status === STATUS.INACTIVE || employee.status === STATUS.SUSPENDED || employee.status === STATUS.ON_LEAVE || employee.status === STATUS.TERMINATED || employee.status === STATUS.RETIRED) && (
+                                    <button onClick={() => handleStatusChange('activations')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                        Réactiver
+                                    </button>
+                                )}
+
+                                {employee.status === STATUS.PROBATION && (
+                                    <div className="space-y-0.5">
+                                        <button onClick={() => handleStatusChange('activations')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                            <ShieldCheck className="w-4 h-4 text-emerald-600" /> Valider essai
+                                        </button>
+                                        <button onClick={() => handleStatusChange('terminations')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                            <UserMinus className="w-4 h-4 text-accent-red-500" /> Fin d&apos;essai
+                                        </button>
+                                    </div>
+                                )}
+
+                                {employee.status === STATUS.INACTIVE && (
+                                    <button onClick={() => handleStatusChange('probations')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                        <Clock className="w-4 h-4 text-primary-500" /> Période d&apos;essai
+                                    </button>
+                                )}
+                            </AnchoredDropdown>
                         </div>
-                    </Card>
-                </div>
+                        <Button variant="outline" size="sm" className="gap-2">
+                            <Download className="w-4 h-4" />
+                            Exporter
+                        </Button>
+                    </>
+                }
+            />
 
-                {/* Right Side - Dynamic Content with Tabs */}
-                <div className="lg:col-span-3">
-                    <TabsProvider defaultIndex={0}>
-                        <div className="mb-6 bg-white p-1.5 rounded-3xl shadow-sm border border-secondary-100">
-                            <TabsList className="bg-transparent border-none gap-0.5 flex w-full">
-                                <TabsTrigger className="flex-1 rounded-2xl px-3 py-2.5 data-[state=active]:bg-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary-200 font-black uppercase tracking-wider text-[10px] transition-all">Général</TabsTrigger>
-                                <TabsTrigger className="flex-1 rounded-2xl px-3 py-2.5 data-[state=active]:bg-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary-200 font-black uppercase tracking-wider text-[10px] transition-all">Poste</TabsTrigger>
-                                <TabsTrigger className="flex-1 rounded-2xl px-3 py-2.5 data-[state=active]:bg-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary-200 font-black uppercase tracking-wider text-[10px] transition-all">Contrats</TabsTrigger>
-                                <TabsTrigger className="flex-1 rounded-2xl px-3 py-2.5 data-[state=active]:bg-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary-200 font-black uppercase tracking-wider text-[10px] transition-all">Expériences</TabsTrigger>
-                                <TabsTrigger className="flex-1 rounded-2xl px-3 py-2.5 data-[state=active]:bg-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary-200 font-black uppercase tracking-wider text-[10px] transition-all">Historique</TabsTrigger>
-                                <TabsTrigger className="flex-1 rounded-2xl px-3 py-2.5 data-[state=active]:bg-primary-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary-200 font-black uppercase tracking-wider text-[10px] transition-all">Documents</TabsTrigger>
-                            </TabsList>
+            <ContentPanel>
+            <TabsProvider defaultIndex={0}>
+                <TabsList className="w-full justify-start rounded-none bg-transparent border-b border-border p-0 h-auto gap-0 px-6">
+                    <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Général</TabsTrigger>
+                    <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Poste</TabsTrigger>
+                    <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Contrats</TabsTrigger>
+                    <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Expériences</TabsTrigger>
+                    <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Historique</TabsTrigger>
+                    <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Documents</TabsTrigger>
+                </TabsList>
+
+                <TabsPanels>
+                    <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
+                        <div className="space-y-8">
+                            <ProfileSection title="Coordonnées">
+                                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                                    <ProfileField label="E-mail" value={employee.email} />
+                                    <ProfileField label="Téléphone" value={employee.phone} />
+                                </dl>
+                            </ProfileSection>
+
+                            <ProfileSection title="Informations personnelles">
+                            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                                <ProfileField label="Nationalité" value={employee.nationality} />
+                                <ProfileField
+                                    label="Genre"
+                                    value={employee.gender === 'M' ? 'Masculin' : employee.gender === 'F' ? 'Féminin' : employee.gender === 'O' ? 'Autre' : undefined}
+                                />
+                                <ProfileField
+                                    label="Date de naissance"
+                                    value={employee.birthDate ? format(new Date(employee.birthDate), 'd MMMM yyyy', { locale: fr }) : undefined}
+                                />
+                                <ProfileField
+                                    label="Situation matrimoniale"
+                                    value={
+                                        employee.maritalStatus === 'SINGLE' ? 'Célibataire' :
+                                        employee.maritalStatus === 'MARRIED' ? 'Marié(e)' :
+                                        employee.maritalStatus === 'DIVORCED' ? 'Divorcé(e)' :
+                                        employee.maritalStatus
+                                    }
+                                />
+                                <ProfileField label="Résidence" value="Kinshasa, RD Congo" />
+                                <ProfileField label="Matricule" value={employee.employeeNumber} />
+                            </dl>
+                            </ProfileSection>
                         </div>
+                    </TabsContent>
 
-                        <TabsPanels>
-                            <TabsContent>
-                                <Card className="border-none shadow-xl shadow-secondary-100 bg-white rounded-[40px] overflow-hidden border border-secondary-100/50">
-                                    <CardHeader className="p-8 border-b border-secondary-50 bg-secondary-50/20">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-secondary-100">
-                                                <User className="w-6 h-6 text-primary-600" />
-                                            </div>
-                                            <div>
-                                                <CardTitle className="text-sm font-black text-secondary-900 uppercase tracking-widest leading-none mb-1">Données de l'individu</CardTitle>
-                                                <CardDescription className="text-[10px] font-bold uppercase text-secondary-400 tracking-wider">Informations administratives et état civil</CardDescription>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-                                        <DetailItem icon={Globe} label="Nationalité" value={employee.nationality} />
-                                        <DetailItem
-                                            icon={Heart}
-                                            label="Sexe"
-                                            value={employee.gender === 'M' ? 'Masculin' : employee.gender === 'F' ? 'Féminin' : 'Autre'}
-                                        />
-                                        <DetailItem
-                                            icon={CalendarDays}
-                                            label="Date de Naissance"
-                                            value={employee.birthDate ? format(new Date(employee.birthDate), 'dd MMMM yyyy', { locale: fr }) : '-'}
-                                        />
-                                        <DetailItem
-                                            icon={Shield}
-                                            label="Situation Matrimoniale"
-                                            value={employee.maritalStatus === 'SINGLE' ? 'Célibataire' : employee.maritalStatus === 'MARRIED' ? 'Marié(e)' : employee.maritalStatus === 'DIVORCED' ? 'Divorcé(e)' : employee.maritalStatus}
-                                        />
-                                        <DetailItem icon={MapPin} label="Résidence" value="Kinshasa, RD Congo" />
-                                        <DetailItem icon={FileCheck} label="Numéro Employé" value={employee.employeeNumber} />
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
+                    <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
+                        <ProfileSection title="Affectation">
+                            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 mb-8">
+                                <ProfileField label="Poste organisationnel" value={positionsMap[employee.position] || employee.position} />
+                                <ProfileField label="Département" value={departmentsMap[employee.department] || employee.department} />
+                                <ProfileField
+                                    label="Date d'intégration"
+                                    value={employee.hireDate ? format(new Date(employee.hireDate), 'd MMMM yyyy', { locale: fr }) : undefined}
+                                />
+                                <ProfileField label="Statut RH" value={status.label} />
+                            </dl>
 
-                            <TabsContent>
-                                <Card className="border-none shadow-xl shadow-secondary-100 bg-white rounded-[40px] overflow-hidden border border-secondary-100/50">
-                                    <CardHeader className="p-8 border-b border-secondary-50 bg-secondary-50/20">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-secondary-100">
-                                                <Briefcase className="w-6 h-6 text-emerald-600" />
-                                            </div>
-                                            <div>
-                                                <CardTitle className="text-sm font-black text-secondary-900 uppercase tracking-widest leading-none mb-1">Parcours Professionnel</CardTitle>
-                                                <CardDescription className="text-[10px] font-bold uppercase text-secondary-400 tracking-wider">Détails de la fonction et affectation</CardDescription>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="p-8 space-y-10">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-                                            <DetailItem icon={Briefcase} label="Poste Actuel" value={positionsMap[employee.position] || employee.position} />
-                                            <DetailItem icon={Building2} label="Département" value={departmentsMap[employee.department] || employee.department} />
-                                            <DetailItem icon={CalendarDays} label="Date d'intégration" value={employee.hireDate ? format(new Date(employee.hireDate), 'dd MMMM yyyy', { locale: fr }) : '-'} />
-                                            <DetailItem icon={Activity} label="Status RH" value={status.label} />
-                                        </div>
-
-                                        <div className="pt-8 border-t border-secondary-50">
-                                            <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-4 block">Ligne Hiérarchique</label>
-                                            {managerDetails ? (
-                                                <div className="flex items-center gap-4 p-5 bg-gradient-to-br from-indigo-50 to-white rounded-2xl border border-indigo-100 shadow-sm group hover:shadow-md transition-all duration-300">
-                                                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm border border-indigo-100 group-hover:scale-110 transition-transform">
-                                                        <UserCircle2 className="w-6 h-6 text-indigo-600" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-black text-secondary-900 uppercase text-xs">{managerDetails.name}</p>
-                                                        <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mt-0.5">
-                                                            {managerDetails.position ? (positionsMap[managerDetails.position] || managerDetails.position) : 'Manager'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-4 p-5 bg-secondary-50/50 rounded-2xl border border-secondary-100/50 italic grayscale group hover:grayscale-0 transition-all cursor-help">
-                                                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm border border-secondary-100">
-                                                        <UserCircle2 className="w-6 h-6 text-secondary-300" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-secondary-400 uppercase text-xs">Manager non assigné</p>
-                                                        <p className="text-[10px] font-bold text-secondary-300 uppercase tracking-wider mb-3">Aucun responsable identifié</p>
-                                                        <Button
-                                                            onClick={openAssignModal}
-                                                            variant="outline"
-                                                            className="h-8 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest border-secondary-200 text-secondary-600 hover:bg-secondary-50 hover:text-primary-600 transition-all border-dashed"
-                                                        >
-                                                            <Plus className="w-3.5 h-3.5 mr-2" />
-                                                            Assigner un manager
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-
-                            <TabsContent>
-                                <Card className="border-none shadow-xl shadow-secondary-100 bg-white rounded-[40px] overflow-hidden border border-secondary-100/50">
-                                    <CardHeader className="p-8 border-b border-secondary-50 bg-secondary-50/20">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-secondary-100">
-                                                <FileText className="w-6 h-6 text-indigo-600" />
-                                            </div>
-                                            <div>
-                                                <CardTitle className="text-sm font-black text-secondary-900 uppercase tracking-widest leading-none mb-1">Contrats de l'employé</CardTitle>
-                                                <CardDescription className="text-[10px] font-bold uppercase text-secondary-400 tracking-wider">Historique et détails des engagements contractuels</CardDescription>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="p-0">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left">
-                                                <thead className="bg-secondary-50/50 border-b border-secondary-100">
-                                                    <tr>
-                                                        <th className="px-8 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Type</th>
-                                                        <th className="px-8 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Date Début</th>
-                                                        <th className="px-8 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Date Fin</th>
-                                                        <th className="px-8 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Salaire</th>
-                                                        <th className="px-8 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Statut</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-secondary-50">
-                                                    {contracts.length === 0 ? (
-                                                        <tr>
-                                                            <td colSpan={5} className="px-8 py-10 text-center text-secondary-400 font-medium italic">
-                                                                Aucun contrat trouvé pour cet employé.
-                                                            </td>
-                                                        </tr>
-                                                    ) : (
-                                                        contracts.map((contract) => (
-                                                            <tr key={contract.id} className="hover:bg-secondary-50/50 transition-colors">
-                                                                <td className="px-8 py-5">
-                                                                    <Badge variant="outline" className="font-black text-[10px] uppercase border-secondary-200">
-                                                                        {contract.type}
-                                                                    </Badge>
-                                                                </td>
-                                                                <td className="px-8 py-5 text-xs font-bold text-secondary-600">
-                                                                    {contract.startDate ? format(new Date(contract.startDate), 'dd MMM yyyy', { locale: fr }) : '-'}
-                                                                </td>
-                                                                <td className="px-8 py-5 text-xs font-bold text-secondary-400 italic">
-                                                                    {contract.endDate ? format(new Date(contract.endDate), 'dd MMM yyyy', { locale: fr }) : 'Indéfini'}
-                                                                </td>
-                                                                <td className="px-8 py-5 text-xs font-bold text-emerald-700">
-                                                                    {contract.salary} <span className="text-[10px] text-secondary-400 ml-1">CDF</span>
-                                                                </td>
-                                                                <td className="px-8 py-5">
-                                                                    <Badge className="font-black text-[9px] uppercase tracking-widest py-1 px-3 rounded-full bg-secondary-100 text-secondary-600 border-none">
-                                                                        {contract.status}
-                                                                    </Badge>
-                                                                </td>
-                                                            </tr>
-                                                        ))
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-
-                            {/* Experiences & Skills Tab */}
-                            <TabsContent>
-                                <div className="space-y-8">
-                                    {/* Experiences Section */}
-                                    <Card className="border-none shadow-xl shadow-secondary-100 bg-white rounded-[40px] overflow-hidden border border-secondary-100/50">
-                                        <CardHeader className="p-8 border-b border-secondary-50 bg-secondary-50/20">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-secondary-100">
-                                                        <Briefcase className="w-6 h-6 text-indigo-600" />
-                                                    </div>
-                                                    <div>
-                                                        <CardTitle className="text-sm font-black text-secondary-900 uppercase tracking-widest leading-none mb-1">Expériences Probantes</CardTitle>
-                                                        <CardDescription className="text-[10px] font-bold uppercase text-secondary-400 tracking-wider">Parcours professionnel antérieur et interne</CardDescription>
-                                                    </div>
-                                                </div>
-                                                <Button onClick={() => setIsExpModalOpen(true)} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-lg shadow-primary-200 uppercase text-[10px] font-black tracking-widest h-10 px-5">
-                                                    <Plus className="w-4 h-4" /> Ajouter
-                                                </Button>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent className="p-8">
-                                            <div className="space-y-6">
-                                                {workExperiences.length === 0 ? (
-                                                    <p className="text-center py-10 text-secondary-400 font-medium italic">Aucune expérience enregistrée.</p>
-                                                ) : (
-                                                    workExperiences.map((exp, idx) => (
-                                                        <div key={exp.id || idx} className="flex gap-6 relative">
-                                                            {idx !== workExperiences.length - 1 && (
-                                                                <div className="absolute left-5 top-10 bottom-0 w-0.5 bg-secondary-100" />
-                                                            )}
-                                                            <div className="w-10 h-10 rounded-full bg-secondary-50 border-2 border-white shadow-sm flex items-center justify-center shrink-0 z-10">
-                                                                <Building2 className="w-4 h-4 text-secondary-400" />
-                                                            </div>
-                                                            <div className="flex-1 pb-8">
-                                                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
-                                                                    <h4 className="text-base font-black text-secondary-900 uppercase tracking-tight">{exp.position}</h4>
-                                                                    <Badge variant={exp.isInternal ? "success" : "outline"} className="w-fit text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
-                                                                        {exp.isInternal ? "Interne ARCA" : "Externe"}
-                                                                    </Badge>
-                                                                </div>
-                                                                <p className="text-sm font-bold text-primary-600 mb-2">{exp.company}</p>
-                                                                <div className="flex items-center gap-4 text-xs font-bold text-secondary-400 mb-3">
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <Calendar className="w-3.5 h-3.5" />
-                                                                        {exp.startDate ? format(new Date(exp.startDate), 'MMM yyyy', { locale: fr }) : '-'} — {exp.endDate ? format(new Date(exp.endDate), 'MMM yyyy', { locale: fr }) : 'Présent'}
-                                                                    </div>
-                                                                </div>
-                                                                {exp.description && (
-                                                                    <p className="text-sm text-secondary-500 font-medium leading-relaxed bg-secondary-50/50 p-4 rounded-2xl border border-secondary-100/50">
-                                                                        {exp.description}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    {/* Skills Section */}
-                                    <Card className="border-none shadow-xl shadow-secondary-100 bg-white rounded-[40px] overflow-hidden border border-secondary-100/50">
-                                        <CardHeader className="p-8 border-b border-secondary-50 bg-secondary-50/20">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-secondary-100">
-                                                        <Activity className="w-6 h-6 text-amber-600" />
-                                                    </div>
-                                                    <div>
-                                                        <CardTitle className="text-sm font-black text-secondary-900 uppercase tracking-widest leading-none mb-1">Compétences Clés</CardTitle>
-                                                        <CardDescription className="text-[10px] font-bold uppercase text-secondary-400 tracking-wider">Matrice de compétences et niveaux de maîtrise</CardDescription>
-                                                    </div>
-                                                </div>
-                                                <Button onClick={() => setIsSkillModalOpen(true)} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-lg shadow-primary-200 uppercase text-[10px] font-black tracking-widest h-10 px-5">
-                                                    <Plus className="w-4 h-4" /> Ajouter
-                                                </Button>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent className="p-8">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                {skills.length === 0 ? (
-                                                    <p className="col-span-full text-center py-10 text-secondary-400 font-medium italic">Aucune compétence répertoriée.</p>
-                                                ) : (
-                                                    skills.map((skill, idx) => (
-                                                        <div key={skill.id || idx} className="p-5 rounded-2xl border border-secondary-100 bg-white shadow-sm hover:shadow-md hover:border-primary-100 transition-all group">
-                                                            <div className="flex items-center justify-between mb-4">
-                                                                <h4 className="text-sm font-black text-secondary-900 uppercase tracking-tight truncate pr-2">{skill.name}</h4>
-                                                                <Badge className={cn(
-                                                                    "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border-none",
-                                                                    skill.level === 'EXPERT' ? "bg-purple-100 text-purple-700" :
-                                                                        skill.level === 'ADVANCED' ? "bg-emerald-100 text-emerald-700" :
-                                                                            skill.level === 'INTERMEDIATE' ? "bg-blue-100 text-blue-700" :
-                                                                                "bg-secondary-100 text-secondary-600"
-                                                                )}>
-                                                                    {skill.level}
-                                                                </Badge>
-                                                            </div>
-                                                            <div className="w-full h-1.5 bg-secondary-100 rounded-full overflow-hidden">
-                                                                <div
-                                                                    className={cn(
-                                                                        "h-full rounded-full transition-all duration-1000",
-                                                                        skill.level === 'EXPERT' ? "w-full bg-purple-500" :
-                                                                            skill.level === 'ADVANCED' ? "w-3/4 bg-emerald-500" :
-                                                                                skill.level === 'INTERMEDIATE' ? "w-1/2 bg-blue-500" :
-                                                                                    "w-1/4 bg-secondary-400"
-                                                                    )}
-                                                                    style={{ width: skill.level === 'EXPERT' ? '100%' : skill.level === 'ADVANCED' ? '75%' : skill.level === 'INTERMEDIATE' ? '50%' : '25%' }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                            <div className="pt-6 border-t border-border mb-8">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-semibold text-foreground">Fiche métier RH</h3>
+                                    <Button variant="outline" size="sm" onClick={openJobRoleModal}>
+                                        {employee.jobRole ? 'Modifier' : 'Attribuer'}
+                                    </Button>
                                 </div>
-                            </TabsContent>
+                                {employee.jobRole ? (
+                                    <div className="p-4 rounded-xl border border-primary-100 bg-primary-50/40">
+                                        <p className="font-semibold text-foreground">{jobRoleLabel(employee.jobRole)}</p>
+                                        <p className="text-xs font-mono text-muted-foreground mt-1">{extractId(employee.jobRole)}</p>
+                                        {employee.grade && (
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                Grade : {gradeLabel(employee.grade)}
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="p-4 rounded-xl border border-dashed border-border text-sm text-muted-foreground">
+                                        Aucune fiche métier attribuée — requis pour la mobilité et l&apos;éligibilité promotion.
+                                    </div>
+                                )}
+                            </div>
 
-                            {/* Audit / History Tab */}
-                            <TabsContent>
-                                <Card className="border-none shadow-xl shadow-secondary-100 bg-white rounded-[40px] overflow-hidden border border-secondary-100/50">
-                                    <CardHeader className="p-8 border-b border-secondary-50 bg-gradient-to-r from-secondary-50/60 to-white">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                                                    <Clock className="w-6 h-6 text-white" />
-                                                </div>
-                                                <div>
-                                                    <CardTitle className="text-sm font-black text-secondary-900 uppercase tracking-widest leading-none mb-1">Journal d'Audit</CardTitle>
-                                                    <CardDescription className="text-[10px] font-bold uppercase text-secondary-400 tracking-wider">Traçabilité complète du dossier</CardDescription>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-2xl">
-                                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                                                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Dossier Actif</span>
-                                            </div>
+                            <div className="pt-6 border-t border-border">
+                                <h3 className="text-sm font-semibold text-foreground mb-4">Manager</h3>
+                                {managerDetails ? (
+                                    <div className="flex items-center gap-4 p-4 rounded-xl border border-border bg-muted/30">
+                                        <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
+                                            <UserCircle2 className="w-5 h-5 text-primary-500" />
                                         </div>
-                                    </CardHeader>
-                                    <CardContent className="p-8">
-                                        {/* Stats Row */}
-                                        <div className="grid grid-cols-3 gap-4 mb-10">
-                                            <div className="p-4 rounded-2xl border bg-indigo-50 border-indigo-100 text-center">
-                                                <div className="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                                                    <FileCheck className="w-4 h-4 text-indigo-600" />
-                                                </div>
-                                                <p className="text-sm font-black text-indigo-700">
-                                                    {[
-                                                        employee.createdAt,
-                                                        employee.activatedAt,
-                                                        employee.deactivatedAt,
-                                                        employee.onLeaveAt,
-                                                        employee.suspendedAt,
-                                                        employee.terminatedAt,
-                                                        employee.retiredAt,
-                                                        employee.probationAt,
-                                                        employee.managerAssignedAt
-                                                    ].filter(Boolean).length}
-                                                </p>
-                                                <p className="text-[9px] font-black text-secondary-400 uppercase tracking-widest mt-0.5">Événements</p>
-                                            </div>
-                                            <div className="p-4 rounded-2xl border bg-amber-50 border-amber-100 text-center">
-                                                <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                                                    <CalendarDays className="w-4 h-4 text-amber-600" />
-                                                </div>
-                                                <p className="text-sm font-black text-amber-700">
-                                                    {employee.updatedAt ? format(new Date(employee.updatedAt), 'dd MMM', { locale: fr }) : '-'}
-                                                </p>
-                                                <p className="text-[9px] font-black text-secondary-400 uppercase tracking-widest mt-0.5">Dernière activité</p>
-                                            </div>
-                                            <div className="p-4 rounded-2xl border bg-primary-50 border-primary-100 text-center">
-                                                <div className="w-8 h-8 bg-primary-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                                                    <UserCircle2 className="w-4 h-4 text-primary-600" />
-                                                </div>
-                                                <p className="text-sm font-black text-primary-700 truncate">
-                                                    {employee.createdBy ? (usersMap[employee.createdBy]?.name || usersMap[employee.createdBy]?.email || employee.createdBy) : 'Système'}
-                                                </p>
-                                                <p className="text-[9px] font-black text-secondary-400 uppercase tracking-widest mt-0.5">Créé par</p>
-                                            </div>
+                                        <div>
+                                            <p className="font-medium text-foreground">{managerDetails.name}</p>
+                                            <p className="text-sm text-muted-foreground mt-0.5">
+                                                {managerDetails.position ? (positionsMap[managerDetails.position] || managerDetails.position) : 'Manager'}
+                                            </p>
                                         </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-dashed border-border">
+                                        <p className="text-sm text-muted-foreground flex-1">Aucun manager assigné</p>
+                                        <Button onClick={openAssignModal} variant="outline" size="sm" className="gap-2 shrink-0">
+                                            <Plus className="w-4 h-4" />
+                                            Assigner
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        </ProfileSection>
+                    </TabsContent>
 
-                                        {/* Timeline */}
-                                        <div className="relative space-y-0">
-                                            {/* Vertical line */}
-                                            <div className="absolute left-[22px] top-8 bottom-8 w-0.5 bg-gradient-to-b from-emerald-400 via-indigo-300 to-secondary-100 rounded-full" />
+                    <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
+                        <ProfileSection title="Contrats" contentClassName="p-0">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-secondary-100 border-b border-secondary-200">
+                                        <tr>
+                                            <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-secondary-600">Type</th>
+                                            <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-secondary-600">Début</th>
+                                            <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-secondary-600">Fin</th>
+                                            <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-secondary-600">Salaire</th>
+                                            <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-secondary-600">Statut</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-secondary-200">
+                                        {contracts.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
+                                                    Aucun contrat enregistré.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            contracts.map((contract) => (
+                                                <tr key={contract.id} className="hover:bg-primary-50/30">
+                                                    <td className="px-6 py-4">
+                                                        <Badge variant="outline">{contract.type}</Badge>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-secondary-800">
+                                                        {contract.startDate ? format(new Date(contract.startDate), 'dd MMM yyyy', { locale: fr }) : '—'}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-muted-foreground">
+                                                        {contract.endDate ? format(new Date(contract.endDate), 'dd MMM yyyy', { locale: fr }) : 'Indéfini'}
+                                                    </td>
+                                                    <td className="px-6 py-4 font-medium text-foreground">
+                                                        {contract.salary} CDF
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <Badge variant="secondary">{contract.status}</Badge>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </ProfileSection>
+                    </TabsContent>
 
-                                            {/* Event 1: Creation */}
-                                            <div className="flex gap-6 pb-8 relative group">
-                                                <div className="relative z-10 shrink-0">
-                                                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform duration-300">
-                                                        <CheckCircle2 className="w-5 h-5 text-white" />
-                                                    </div>
+                    <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
+                        <div className="space-y-8">
+                            <ProfileSection
+                                title="Expériences"
+                                description="Parcours professionnel antérieur et interne"
+                                action={
+                                    <Button onClick={() => setIsExpModalOpen(true)} variant="outline" size="sm" className="gap-2">
+                                        <Plus className="w-4 h-4" /> Ajouter
+                                    </Button>
+                                }
+                            >
+                                {workExperiences.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground py-4">Aucune expérience enregistrée.</p>
+                                ) : (
+                                    <div className="divide-y divide-border">
+                                        {workExperiences.map((exp, idx) => (
+                                            <div key={exp.id || idx} className="py-5 first:pt-0 last:pb-0">
+                                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-1">
+                                                    <h4 className="text-sm font-semibold text-foreground">{exp.position}</h4>
+                                                    <Badge variant={exp.isInternal ? 'success' : 'outline'}>
+                                                        {exp.isInternal ? 'Interne' : 'Externe'}
+                                                    </Badge>
                                                 </div>
-                                                <div className="flex-1 bg-gradient-to-br from-emerald-50 to-white p-5 rounded-3xl border border-emerald-100 shadow-sm group-hover:shadow-md transition-all duration-300">
-                                                    <div className="flex items-start justify-between gap-4 mb-3">
-                                                        <div>
-                                                            <p className="text-xs font-black text-secondary-900 uppercase tracking-widest">Dossier Créé</p>
-                                                            <p className="text-sm font-medium text-secondary-500 mt-1">
-                                                                Initialisé via le portail Admin ARCA par{' '}
-                                                                <span className="font-black text-secondary-800">
-                                                                    {usersMap[employee.createdBy]?.name || usersMap[employee.createdBy]?.email || employee.createdBy || 'Système'}
-                                                                </span>
-                                                            </p>
-                                                        </div>
-                                                        <span className="shrink-0 px-3 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-200">
-                                                            Création
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 pt-3 border-t border-emerald-100">
-                                                        <Calendar className="w-3.5 h-3.5 text-emerald-500" />
-                                                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">
-                                                            {employee.createdAt ? format(new Date(employee.createdAt), "dd MMMM yyyy 'à' HH:mm", { locale: fr }) : '-'}
+                                                <p className="text-sm text-primary-600 font-medium">{exp.company}</p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    {exp.startDate ? format(new Date(exp.startDate), 'MMM yyyy', { locale: fr }) : '—'}
+                                                    {' — '}
+                                                    {exp.endDate ? format(new Date(exp.endDate), 'MMM yyyy', { locale: fr }) : 'Présent'}
+                                                </p>
+                                                {exp.description && (
+                                                    <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{exp.description}</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </ProfileSection>
+
+                            <ProfileSection
+                                title="Compétences"
+                                description="Niveaux de maîtrise"
+                                action={
+                                    <Button onClick={() => setIsSkillModalOpen(true)} variant="outline" size="sm" className="gap-2">
+                                        <Plus className="w-4 h-4" /> Ajouter
+                                    </Button>
+                                }
+                            >
+                                {skills.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground py-4">Aucune compétence répertoriée.</p>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {skills.map((employeeSkill) => (
+                                            <div key={employeeSkill.id} className="p-4 rounded-xl border border-border">
+                                                <div className="flex items-start justify-between gap-2 mb-3">
+                                                    <div className="min-w-0">
+                                                        <h4 className="text-sm font-medium text-foreground truncate">
+                                                            {resolveSkillName(employeeSkill.skill as string)}
+                                                        </h4>
+                                                        <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                                                            {extractId(employeeSkill.skill)}
                                                         </p>
                                                     </div>
+                                                    <Badge variant="secondary" size="sm">
+                                                        {SKILL_LEVEL_LABELS[employeeSkill.level as SkillLevel] || employeeSkill.level}
+                                                    </Badge>
                                                 </div>
+                                                <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-3">
+                                                    <div
+                                                        className="h-full rounded-full bg-primary-500 transition-all"
+                                                        style={{
+                                                            width: employeeSkill.level === 'EXPERT' ? '100%'
+                                                                : employeeSkill.level === 'ADVANCED' ? '75%'
+                                                                : employeeSkill.level === 'INTERMEDIATE' ? '50%' : '25%'
+                                                        }}
+                                                    />
+                                                </div>
+                                                {employeeSkill.validatedAt ? (
+                                                    <Badge variant="success" className="text-[10px]">Validée</Badge>
+                                                ) : (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 text-[10px] gap-1"
+                                                        disabled={validatingSkillId === employeeSkill.id}
+                                                        onClick={() => handleValidateSkill(employeeSkill.id)}
+                                                    >
+                                                        {validatingSkillId === employeeSkill.id ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <CheckCircle2 className="w-3 h-3" />
+                                                        )}
+                                                        Valider
+                                                    </Button>
+                                                )}
                                             </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </ProfileSection>
+                        </div>
+                    </TabsContent>
 
-                                            {/* Event 2: Last update */}
-                                            {employee.updatedAt && employee.updatedAt !== employee.createdAt && (
-                                                <div className="flex gap-6 pb-8 relative group">
-                                                    <div className="relative z-10 shrink-0">
-                                                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform duration-300">
-                                                            <Edit2 className="w-5 h-5 text-white" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 bg-gradient-to-br from-indigo-50 to-white p-5 rounded-3xl border border-indigo-100 shadow-sm group-hover:shadow-md transition-all duration-300">
-                                                        <div className="flex items-start justify-between gap-4 mb-3">
-                                                            <div>
-                                                                <p className="text-xs font-black text-secondary-900 uppercase tracking-widest">Dossier Mis à Jour</p>
-                                                                <p className="text-sm font-medium text-secondary-500 mt-1">
-                                                                    Modification des données du dossier employé
-                                                                </p>
-                                                            </div>
-                                                            <span className="shrink-0 px-3 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-indigo-200">
-                                                                Mise à jour
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 pt-3 border-t border-indigo-100">
-                                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                                                            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">
-                                                                {format(new Date(employee.updatedAt), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
-                                                            </p>
-                                                        </div>
-                                                    </div>
+                    <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
+                        <ProfileSection title="Journal d'audit" description="Traçabilité du dossier">
+                            <div className="divide-y divide-border">
+                                {[
+                                    {
+                                        date: employee.createdAt,
+                                        label: 'Dossier créé',
+                                        detail: `Initialisé par ${usersMap[employee.createdBy]?.name || usersMap[employee.createdBy]?.email || employee.createdBy || 'Système'}`,
+                                        type: 'Création',
+                                    },
+                                    ...(employee.updatedAt && employee.updatedAt !== employee.createdAt ? [{
+                                        date: employee.updatedAt,
+                                        label: 'Dossier mis à jour',
+                                        detail: 'Modification des données du dossier employé',
+                                        type: 'Mise à jour',
+                                    }] : []),
+                                    ...[
+                                        { date: employee.activatedAt, by: employee.activatedBy, label: 'Dossier activé', type: 'Activation' },
+                                        { date: employee.managerAssignedAt, by: employee.managerAssignedBy, label: 'Manager assigné', type: 'Hiérarchie' },
+                                        { date: employee.probationAt, by: employee.probationBy, label: "Période d'essai", type: 'RH' },
+                                        { date: employee.onLeaveAt, by: employee.onLeaveBy, label: 'Départ en congé', type: 'Congés' },
+                                        { date: employee.suspendedAt, by: employee.suspendedBy, label: 'Dossier suspendu', type: 'Sanction' },
+                                        { date: employee.deactivatedAt, by: employee.deactivatedBy, label: 'Dossier désactivé', type: 'Statut' },
+                                        { date: employee.terminatedAt, by: employee.terminatedBy, label: 'Contrat terminé', type: 'Départ' },
+                                        { date: employee.retiredAt, by: employee.retiredBy, label: 'Départ retraite', type: 'Retraite' },
+                                    ]
+                                        .filter((ev) => ev.date)
+                                        .map((ev) => ({
+                                            date: ev.date!,
+                                            label: ev.label,
+                                            detail: `Par ${ev.by ? (usersMap[ev.by]?.name || usersMap[ev.by]?.email || ev.by) : 'Système'}`,
+                                            type: ev.type,
+                                        })),
+                                ]
+                                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                    .map((ev, idx) => (
+                                        <div key={idx} className="py-4 first:pt-0 last:pb-0 flex gap-4">
+                                            <div className="w-2 h-2 rounded-full bg-primary-500 mt-2 shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2 justify-between">
+                                                    <p className="text-sm font-medium text-foreground">{ev.label}</p>
+                                                    <Badge variant="secondary" size="sm">{ev.type}</Badge>
                                                 </div>
-                                            )}
-
-                                            {/* Dynamic Audit Events */}
-                                            {[
-                                                { date: employee.activatedAt, by: employee.activatedBy, label: "Dossier Activé", type: "Activation", icon: CheckCircle2, bg: "from-emerald-400 to-emerald-600", lightBg: "bg-emerald-50" },
-                                                { date: employee.managerAssignedAt, by: employee.managerAssignedBy, label: "Manager Assigné", type: "Hierarchie", icon: UserCircle2, bg: "from-indigo-400 to-indigo-600", lightBg: "bg-indigo-50" },
-                                                { date: employee.probationAt, by: employee.probationBy, label: "Période d'Essai", type: "RH", icon: Clock, bg: "from-amber-400 to-amber-600", lightBg: "bg-amber-50" },
-                                                { date: employee.onLeaveAt, by: employee.onLeaveBy, label: "Départ en Congé", type: "Congés", icon: CalendarDays, bg: "from-blue-400 to-blue-600", lightBg: "bg-blue-50" },
-                                                { date: employee.suspendedAt, by: employee.suspendedBy, label: "Dossier Suspendu", type: "Sanction", icon: AlertCircle, bg: "from-orange-400 to-orange-600", lightBg: "bg-orange-50" },
-                                                { date: employee.deactivatedAt, by: employee.deactivatedBy, label: "Dossier Désactivé", type: "Statut", icon: X, bg: "from-slate-400 to-slate-600", lightBg: "bg-slate-50" },
-                                                { date: employee.terminatedAt, by: employee.terminatedBy, label: "Contrat Terminé", type: "Départ", icon: Shield, bg: "from-rose-400 to-rose-600", lightBg: "bg-rose-50" },
-                                                { date: employee.retiredAt, by: employee.retiredBy, label: "Départ Retraite", type: "Retraite", icon: Heart, bg: "from-purple-400 to-purple-600", lightBg: "bg-purple-50" },
-                                            ].filter(ev => ev.date).sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime()).map((ev, idx) => (
-                                                <div key={idx} className="flex gap-6 pb-8 relative group">
-                                                    <div className="relative z-10 shrink-0">
-                                                        <div className={cn("w-11 h-11 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-110", ev.bg)}>
-                                                            <ev.icon className="w-5 h-5 text-white" />
-                                                        </div>
-                                                    </div>
-                                                    <div className={cn("flex-1 p-5 rounded-3xl border shadow-sm group-hover:shadow-md transition-all duration-300 bg-gradient-to-br from-white to-white", ev.lightBg.replace('bg-', 'from-'))}>
-                                                        <div className="flex items-start justify-between gap-4 mb-3">
-                                                            <div>
-                                                                <p className="text-xs font-black text-secondary-900 uppercase tracking-widest">{ev.label}</p>
-                                                                <p className="text-sm font-medium text-secondary-500 mt-1">
-                                                                    Action effectuée par <span className="font-black text-secondary-800">
-                                                                        {ev.by ? (usersMap[ev.by]?.name || usersMap[ev.by]?.email || ev.by) : 'Système'}
-                                                                    </span>
-                                                                </p>
-                                                            </div>
-                                                            <span className={cn("shrink-0 px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border", ev.lightBg.replace('bg-', 'bg-').replace('50', '100'), ev.lightBg.replace('bg-', 'text-').replace('50', '700'))}>
-                                                                {ev.type}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 pt-3 border-t border-secondary-100">
-                                                            <Calendar className="w-3.5 h-3.5 text-secondary-400" />
-                                                            <p className="text-[10px] font-black text-secondary-500 uppercase tracking-wider">
-                                                                {format(new Date(ev.date!), "dd MMMM yyyy 'à' HH:mm", { locale: fr })}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-
-                                            {/* End state */}
-                                            <div className="flex gap-6 relative">
-                                                <div className="relative z-10 shrink-0">
-                                                    <div className="w-11 h-11 rounded-2xl bg-secondary-100 border-2 border-dashed border-secondary-200 flex items-center justify-center">
-                                                        <MoreVertical className="w-4 h-4 text-secondary-300" />
-                                                    </div>
-                                                </div>
-                                                <div className="flex-1 py-3">
-                                                    <p className="text-[10px] font-black text-secondary-300 uppercase tracking-widest italic">
-                                                        Aucun autre événement enregistré
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-
-                            {/* Documents Tab */}
-                            <TabsContent>
-                                <Card className="border-none shadow-xl shadow-secondary-100 bg-white rounded-[40px] overflow-hidden border border-secondary-100/50">
-                                    <CardHeader className="p-8 border-b border-secondary-50 bg-secondary-50/20 flex flex-row items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-secondary-100">
-                                                <FileText className="w-6 h-6 text-indigo-600" />
-                                            </div>
-                                            <div>
-                                                <CardTitle className="text-sm font-black text-secondary-900 uppercase tracking-widest leading-none mb-1">Documents de l'employé</CardTitle>
-                                                <CardDescription className="text-[10px] font-bold uppercase text-secondary-400 tracking-wider">Liste des documents liés au dossier</CardDescription>
+                                                <p className="text-sm text-muted-foreground mt-0.5">{ev.detail}</p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    {format(new Date(ev.date), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                                </p>
                                             </div>
                                         </div>
-                                        <Button onClick={() => setIsDocModalOpen(true)} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-lg shadow-primary-200 uppercase text-[10px] font-black tracking-widest h-10 px-5">
-                                            <Plus className="w-4 h-4" /> Nouveau Document
-                                        </Button>
-                                    </CardHeader>
-                                    <CardContent className="p-0">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left">
-                                                <thead className="bg-secondary-50/50 border-b border-secondary-100">
-                                                    <tr>
-                                                        <th className="px-8 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Type</th>
-                                                        <th className="px-8 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Titre</th>
-                                                        <th className="px-8 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest">Date</th>
-                                                        <th className="px-8 py-4 text-[10px] font-black text-secondary-400 uppercase tracking-widest text-right">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-secondary-50">
-                                                    {documents.filter(d => d.type !== 'PHOTO').length === 0 ? (
-                                                        <tr>
-                                                            <td colSpan={4} className="px-8 py-10 text-center text-secondary-400 font-medium italic">
-                                                                Aucun document trouvé pour cet employé.
-                                                            </td>
-                                                        </tr>
-                                                    ) : (
-                                                        documents.filter(d => d.type !== 'PHOTO').map((doc) => (
-                                                            <tr key={doc.id} className="hover:bg-secondary-50/50 transition-colors">
-                                                                <td className="px-8 py-5">
-                                                                    <Badge variant="outline" className="font-black text-[10px] uppercase border-secondary-200">
-                                                                        {doc.type}
-                                                                    </Badge>
-                                                                </td>
-                                                                <td className="px-8 py-5 text-xs font-bold text-secondary-900">
-                                                                    {doc.title || doc.documentRefNumber || 'Document sans titre'}
-                                                                </td>
-                                                                <td className="px-8 py-5 text-xs font-bold text-secondary-500">
-                                                                    {doc.createdAt ? format(new Date(doc.createdAt), 'dd MMM yyyy', { locale: fr }) : '-'}
-                                                                </td>
-                                                                <td className="px-8 py-5 text-right flex justify-end gap-2">
-                                                                    {doc.contentUrl && (
-                                                                        <Button onClick={() => setPreviewDocUrl(`${BASE_URL}${doc.contentUrl}`)} variant="ghost" size="icon" className="h-8 w-8 text-secondary-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
-                                                                            <Eye className="w-4 h-4" />
-                                                                        </Button>
-                                                                    )}
-                                                                    {doc.contentUrl && (
-                                                                        <a href={`${BASE_URL}${doc.contentUrl}`} download target="_blank" rel="noreferrer">
-                                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-secondary-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg">
-                                                                                <Download className="w-4 h-4" />
-                                                                            </Button>
-                                                                        </a>
-                                                                    )}
-                                                                    <Button onClick={() => handleDeleteDocument(doc.id || (doc as any)['@id'])} variant="ghost" size="icon" className="h-8 w-8 text-secondary-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
-                                                                        <Trash2 className="w-4 h-4" />
+                                    ))}
+                            </div>
+                        </ProfileSection>
+                    </TabsContent>
+
+                    <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
+                        <ProfileSection
+                            title="Documents"
+                            description="Pièces jointes du dossier"
+                            action={
+                                <Button onClick={() => setIsDocModalOpen(true)} variant="pill" size="sm" className="gap-2">
+                                    <Plus className="w-4 h-4" /> Ajouter
+                                </Button>
+                            }
+                            contentClassName="p-0 -mx-0"
+                        >
+                            <div className="overflow-x-auto border border-border rounded-xl">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-secondary-100 border-b border-secondary-200">
+                                        <tr>
+                                            <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-secondary-600">Type</th>
+                                            <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-secondary-600">Titre</th>
+                                            <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-secondary-600">Date</th>
+                                            <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-secondary-600 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-secondary-200">
+                                        {documents.filter((d) => d.type !== 'PHOTO').length === 0 ? (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground">
+                                                    Aucun document pour cet employé.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            documents.filter((d) => d.type !== 'PHOTO').map((doc) => (
+                                                <tr key={doc.id} className="hover:bg-primary-50/30">
+                                                    <td className="px-6 py-4">
+                                                        <Badge variant="outline">{doc.type}</Badge>
+                                                    </td>
+                                                    <td className="px-6 py-4 font-medium text-foreground">
+                                                        {doc.title || doc.documentRefNumber || 'Sans titre'}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-muted-foreground">
+                                                        {doc.createdAt ? format(new Date(doc.createdAt), 'd MMM yyyy', { locale: fr }) : '—'}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex justify-end gap-1">
+                                                            {doc.contentUrl && (
+                                                                <Button onClick={() => setPreviewDocUrl(`${BASE_URL}${doc.contentUrl}`)} variant="ghost" size="icon" className="h-8 w-8">
+                                                                    <Eye className="w-4 h-4" />
+                                                                </Button>
+                                                            )}
+                                                            {doc.contentUrl && (
+                                                                <a href={`${BASE_URL}${doc.contentUrl}`} download target="_blank" rel="noreferrer">
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                        <Download className="w-4 h-4" />
                                                                     </Button>
-                                                                </td>
-                                                            </tr>
-                                                        ))
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
+                                                                </a>
+                                                            )}
+                                                            <Button onClick={() => handleDeleteDocument(doc.id || (doc as any)['@id'])} variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </ProfileSection>
+                    </TabsContent>
                         </TabsPanels>
-                    </TabsProvider>
-                </div>
-            </div>
+            </TabsProvider>
+            </ContentPanel>
+
             {/* Modals */}
             {isDocModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-                    <Card className="w-full max-w-lg border-none shadow-2xl bg-white rounded-3xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <Card className="w-full max-w-lg border-none shadow-2xl bg-white rounded-xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <CardHeader className="p-6 border-b border-secondary-50 flex flex-row items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
@@ -1298,7 +1092,7 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
             {/* Experience Modal */}
             {isExpModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-                    <Card className="w-full max-w-lg border-none shadow-2xl bg-white rounded-3xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <Card className="w-full max-w-lg border-none shadow-2xl bg-white rounded-xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <CardHeader className="p-6 border-b border-secondary-50 flex flex-row items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
@@ -1367,10 +1161,63 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                 </div>
             )}
 
+            {/* Job Role Modal */}
+            {isJobRoleModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <Card className="w-full max-w-md border-none shadow-2xl bg-white rounded-xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <CardHeader className="p-6 border-b border-secondary-50 flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="text-sm font-black text-secondary-900 uppercase tracking-widest">Fiche métier RH</CardTitle>
+                                <CardDescription className="text-xs text-secondary-400">Attribuer le métier et le grade de référence</CardDescription>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setIsJobRoleModalOpen(false)} className="rounded-full h-8 w-8">
+                                <X className="w-4 h-4" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <form onSubmit={handleSaveJobRole} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Fiche métier <span className="text-rose-500">*</span></Label>
+                                    <Select
+                                        value={jobRoleForm.jobRoleId}
+                                        onChange={e => setJobRoleForm(p => ({ ...p, jobRoleId: e.target.value }))}
+                                        required
+                                    >
+                                        <option value="">Sélectionner...</option>
+                                        {jobRoles.map(r => (
+                                            <option key={r.id} value={r.id}>{r.title}{r.code ? ` (${r.code})` : ''}</option>
+                                        ))}
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Grade</Label>
+                                    <Select
+                                        value={jobRoleForm.gradeId}
+                                        onChange={e => setJobRoleForm(p => ({ ...p, gradeId: e.target.value }))}
+                                    >
+                                        <option value="">Aucun grade</option>
+                                        {grades.map(g => (
+                                            <option key={g.id} value={g.id}>{g.name}</option>
+                                        ))}
+                                    </Select>
+                                </div>
+                                <div className="pt-4 flex justify-end gap-2">
+                                    <Button type="button" variant="ghost" onClick={() => setIsJobRoleModalOpen(false)} disabled={isJobRoleSaving}>Annuler</Button>
+                                    <Button type="submit" disabled={isJobRoleSaving} className="bg-primary-600 hover:bg-primary-700 text-white gap-2">
+                                        {isJobRoleSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        Enregistrer
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
             {/* Skill Modal */}
             {isSkillModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-                    <Card className="w-full max-w-sm border-none shadow-2xl bg-white rounded-3xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <Card className="w-full max-w-sm border-none shadow-2xl bg-white rounded-xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <CardHeader className="p-6 border-b border-secondary-50 flex flex-row items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
@@ -1388,14 +1235,31 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                         <CardContent className="p-6">
                             <form onSubmit={handleAddSkill} className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Nom de la compétence</Label>
-                                    <Input value={skillForm.name} onChange={e => setSkillForm({ ...skillForm, name: e.target.value })} placeholder="ex: Management de projet" required />
+                                    <Label>Compétence du référentiel</Label>
+                                    <Select
+                                        value={skillForm.skillId}
+                                        onChange={e => setSkillForm({ ...skillForm, skillId: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Sélectionnez une compétence...</option>
+                                        {skillsCatalog
+                                            .filter(s => !assignedSkillIds.has(s.id))
+                                            .map(s => (
+                                                <option key={s.id} value={s.id}>
+                                                    {s.name}{s.code ? ` (${s.code})` : ''}
+                                                </option>
+                                            ))}
+                                    </Select>
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Niveau de maîtrise</Label>
-                                    <Select value={skillForm.level} onChange={e => setSkillForm({ ...skillForm, level: e.target.value })} required>
-                                        {Object.entries(SKILL_LEVEL).map(([k, v]) => (
-                                            <option key={k} value={v}>{v}</option>
+                                    <Select
+                                        value={skillForm.level}
+                                        onChange={e => setSkillForm({ ...skillForm, level: e.target.value as SkillLevel })}
+                                        required
+                                    >
+                                        {Object.entries(SKILL_LEVEL_LABELS).map(([k, label]) => (
+                                            <option key={k} value={k}>{label}</option>
                                         ))}
                                     </Select>
                                 </div>
@@ -1414,7 +1278,7 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
 
             {previewDocUrl && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPreviewDocUrl(null)}>
-                    <div className="relative w-full max-w-4xl h-[80vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="relative w-full max-w-4xl h-[80vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-secondary-100 flex items-center justify-between bg-secondary-50">
                             <h3 className="font-bold text-secondary-900 flex items-center gap-2"><Eye className="w-4 h-4 text-indigo-600" /> Aperçu du document</h3>
                             <Button variant="ghost" size="icon" onClick={() => setPreviewDocUrl(null)} className="rounded-full h-8 w-8 hover:bg-rose-100 hover:text-rose-600">
@@ -1442,7 +1306,7 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
             {/* Assign Manager Modal */}
             {isAssignModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <Card className="w-full max-w-md border-none shadow-2xl rounded-[32px] overflow-hidden bg-white animate-in zoom-in-95 duration-300">
+                    <Card className="w-full max-w-md border-none shadow-2xl rounded-xl overflow-hidden bg-white animate-in zoom-in-95 duration-300">
                         <CardHeader className="p-8 border-b border-secondary-50 bg-secondary-50/30">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
@@ -1512,10 +1376,10 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
             {/* Custom Confirmation Modal */}
             {confirmModal.isOpen && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-md animate-in fade-in duration-300">
-                    <Card className="w-full max-w-sm border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] rounded-[32px] overflow-hidden bg-white animate-in zoom-in-95 duration-300">
+                    <Card className="w-full max-w-sm border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] rounded-xl overflow-hidden bg-white animate-in zoom-in-95 duration-300">
                         <CardContent className="p-8 text-center space-y-6">
                             <div className={cn(
-                                "w-20 h-20 rounded-3xl flex items-center justify-center mx-auto shadow-sm",
+                                "w-20 h-20 rounded-xl flex items-center justify-center mx-auto shadow-sm",
                                 confirmModal.variant === 'danger' ? "bg-rose-50 text-rose-500" :
                                 confirmModal.variant === 'warning' ? "bg-amber-50 text-amber-500" :
                                 confirmModal.variant === 'success' ? "bg-emerald-50 text-emerald-500" :
@@ -1555,27 +1419,7 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                     </Card>
                 </div>
             )}
-        </div>
+        </PageShell>
     );
 }
 
-function DetailItem({ icon: Icon, label, value, isEmail }: any) {
-    return (
-        <div className="space-y-2 group">
-            <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-secondary-50 flex items-center justify-center border border-secondary-100/50 group-hover:bg-primary-50 group-hover:border-primary-100 transition-all">
-                    <Icon className="w-4 h-4 text-primary-600" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] font-black text-secondary-400 uppercase tracking-[0.15em] leading-none mb-1">{label}</span>
-                    <p className={cn(
-                        "text-[13px] font-black text-secondary-900 truncate uppercase tracking-tight",
-                        isEmail && "lowercase text-secondary-700 font-bold"
-                    )}>
-                        {value || '-'}
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-}

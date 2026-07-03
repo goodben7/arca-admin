@@ -18,6 +18,11 @@ import { getAllPositions, createPosition, openPosition, closePosition } from '@/
 import { getDepartments } from '@/lib/api/employee';
 import { Department } from '@/types/employee';
 import { Power, PowerOff, ShieldCheck } from 'lucide-react';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { FilterBar } from '@/components/layout/FilterBar';
+import { DataPanel } from '@/components/layout/DataPanel';
+import { PageKpiStrip } from '@/components/layout/PageKpi';
 
 export default function PositionsPage() {
     const [positions, setPositions] = useState<Position[]>([]);
@@ -137,7 +142,7 @@ export default function PositionsPage() {
     };
 
     return (
-        <div className="space-y-6 pb-12">
+        <PageShell className="pb-12">
             {/* Toast */}
             {toast && (
                 <div className={cn(
@@ -149,42 +154,39 @@ export default function PositionsPage() {
                 </div>
             )}
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-secondary-900 uppercase tracking-tighter flex items-center gap-3">
-                        <Briefcase className="w-8 h-8 text-primary-600" /> Postes & Fonctions
-                    </h1>
-                    <p className="text-secondary-500 font-medium mt-1">Répertoire des métiers et gestion de la nomenclature des postes.</p>
+            <PageHeader
+                title="Postes & Fonctions"
+                description="Répertoire des métiers et gestion de la nomenclature des postes."
+                actions={
+                    <Button onClick={openCreate} variant="pill" size="sm" className="gap-2">
+                        <Plus className="w-4 h-4" /> Nouveau poste
+                    </Button>
+                }
+            />
+
+            <PageKpiStrip
+                items={[
+                    { label: 'Métiers référencés', value: stats.total, icon: Briefcase, tone: 'primary', detail: 'Fiches poste actives' },
+                    { label: 'Postes ouverts', value: stats.active, icon: Target, tone: 'success', detail: 'Recrutement possible' },
+                    { label: 'Recrutements en cours', value: stats.open, icon: TrendingUp, tone: 'warning', detail: 'Ouvertures à pourvoir' },
+                    { label: 'Taux d\'ouverture', value: stats.total ? `${Math.round((stats.active / stats.total) * 100)}%` : '0%', icon: Building2, tone: 'info', detail: 'Postes disponibles' },
+                ]}
+            />
+
+            <FilterBar>
+                <div className="relative flex-1 group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 group-focus-within:text-primary-500 transition-colors" />
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Rechercher par intitulé..."
+                        className="w-full h-10 pl-10 pr-4 bg-white border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-secondary-400"
+                    />
                 </div>
-                <Button onClick={openCreate} className="gap-2 shadow-xl shadow-primary-200 py-6 px-8 rounded-2xl font-bold uppercase tracking-widest text-xs">
-                    <Plus className="w-5 h-5" /> Nouveau Poste
-                </Button>
-            </div>
+            </FilterBar>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <SummaryBox label="Métiers référencés" value={stats.total} icon={Briefcase} />
-                <SummaryBox label="Postes ouverts" value={stats.active} icon={Target} />
-                <SummaryBox label="Recrutements en cours" value={stats.open} icon={TrendingUp} />
-                <SummaryBox label="Classification" value="Standard" icon={Building2} />
-            </div>
-
-            {/* Table Card */}
-            <Card className="overflow-hidden border-none shadow-2xl shadow-secondary-200/50 rounded-3xl bg-white">
-                <div className="p-4 border-b border-secondary-100 bg-secondary-50/20 flex flex-col md:flex-row gap-4 justify-between items-center">
-                    <div className="relative w-full md:w-80 group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Rechercher par intitulé..."
-                            className="w-full pl-10 pr-4 h-11 bg-white border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-bold"
-                        />
-                    </div>
-                </div>
-
+            <DataPanel title="Liste des postes" contentClassName="p-0">
                 {isLoading ? (
                     <div className="h-64 flex flex-col items-center justify-center gap-4 text-secondary-400">
                         <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
@@ -199,26 +201,25 @@ export default function PositionsPage() {
                     <>
                         <Table>
                             <TableHeader>
-                                <TableRow className="hover:bg-transparent uppercase tracking-wider text-[11px] font-black">
-                                    <TableHead>Intitulé du Poste</TableHead>
-                                    <TableHead>Département</TableHead>
-                                    <TableHead>Niveau / Grade</TableHead>
-                                    <TableHead className="text-center">Effectif Actuel</TableHead>
-                                    <TableHead className="text-center">Ouvertures</TableHead>
-                                    <TableHead className="text-center">Statut</TableHead>
-                                    <TableHead className="text-right pr-6">Actions</TableHead>
+                                <TableRow className="hover:bg-secondary-100">
+                                    <TableHead className="px-6">Intitulé du poste</TableHead>
+                                    <TableHead className="px-6">Département</TableHead>
+                                    <TableHead className="px-6">Niveau</TableHead>
+                                    <TableHead className="px-6">Effectif</TableHead>
+                                    <TableHead className="px-6">Ouvertures</TableHead>
+                                    <TableHead className="px-6">Statut</TableHead>
+                                    <TableHead className="px-6 text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filtered.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-48 text-center text-secondary-400 font-medium italic">
+                                        <TableCell colSpan={7} className="h-48 text-center text-muted-foreground">
                                             Aucun poste ne correspond à votre recherche.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     filtered.map((pos) => {
-                                        // Attempt to nicely format department name
                                         let deptName = pos.department;
                                         if (deptName && deptName.includes('/api/departments/')) {
                                             const depId = deptName.split('/').pop();
@@ -227,90 +228,70 @@ export default function PositionsPage() {
                                         }
 
                                         return (
-                                            <TableRow key={pos.id} className="group hover:bg-secondary-50 transition-colors">
-                                                <TableCell className="font-bold text-secondary-900 text-sm">{pos.title}</TableCell>
-                                                <TableCell>
-                                                    {pos.department ? (
-                                                        <span className="text-xs font-black text-secondary-600 px-2.5 py-1 bg-secondary-50 rounded-xl border border-secondary-100 uppercase tracking-widest">
-                                                            {deptName}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-xs text-secondary-400 italic">Non assigné</span>
-                                                    )}
+                                            <TableRow key={pos.id} className="group">
+                                                <TableCell className="px-6 font-semibold text-secondary-900">{pos.title}</TableCell>
+                                                <TableCell className="px-6">
+                                                    <div className="flex items-center gap-2">
+                                                        <Building2 className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                                                        <span className="text-secondary-700">{deptName || '—'}</span>
+                                                    </div>
                                                 </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="secondary" className="text-[10px] font-black uppercase bg-primary-50 text-primary-700 border-primary-100 border">
+                                                <TableCell className="px-6">
+                                                    <Badge variant="outline">
                                                         {POSITION_LEVEL_LABELS[pos.level] || pos.level || '—'}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-center">
-                                                    <div className="inline-flex w-8 h-8 rounded-full bg-secondary-50 items-center justify-center font-black text-secondary-700 shadow-inner">
-                                                        {pos.headcount || 0}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-center">
+                                                <TableCell className="px-6 font-medium tabular-nums">{pos.headcount || 0}</TableCell>
+                                                <TableCell className="px-6">
                                                     {pos.openPositions > 0 ? (
-                                                        <Badge className="bg-amber-100 text-amber-700 border-amber-200 border text-[10px] font-black tracking-widest px-2 py-0.5">
-                                                            +{pos.openPositions}
-                                                        </Badge>
+                                                        <Badge variant="warning">+{pos.openPositions}</Badge>
                                                     ) : (
-                                                        <span className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest bg-secondary-50 px-2 py-0.5 rounded-lg border border-secondary-100">
-                                                            Complet
-                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">Complet</span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-center">
-                                                    <Badge className={cn("text-[10px] font-black tracking-widest uppercase px-2 py-0.5 border",
-                                                        pos.status === 'OPEN' ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-rose-50 text-rose-600 border-rose-200"
-                                                    )}>
+                                                <TableCell className="px-6">
+                                                    <Badge variant={pos.status === 'OPEN' ? 'success' : 'destructive'}>
                                                         {POSITION_STATUS_LABELS[pos.status] || pos.status}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-right pr-6">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {pos.status === 'OPEN' ? (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleToggleStatus(pos)}
-                                                                className="h-8 rounded-lg border-rose-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-rose-500 gap-1.5 px-3 font-bold text-[10px] uppercase transition-all"
-                                                            >
-                                                                <PowerOff className="w-3.5 h-3.5" />
-                                                                Fermer
-                                                            </Button>
-                                                        ) : (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleToggleStatus(pos)}
-                                                                className="h-8 rounded-lg border-emerald-100 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 text-emerald-500 gap-1.5 px-3 font-bold text-[10px] uppercase transition-all"
-                                                            >
-                                                                <Power className="w-3.5 h-3.5" />
-                                                                Ouvrir
-                                                            </Button>
+                                                <TableCell className="px-6 text-right">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleToggleStatus(pos)}
+                                                        className={cn(
+                                                            'h-9 gap-1.5',
+                                                            pos.status === 'OPEN'
+                                                                ? 'text-rose-600 border-rose-200 hover:bg-rose-50'
+                                                                : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
                                                         )}
-                                                    </div>
+                                                    >
+                                                        {pos.status === 'OPEN' ? (
+                                                            <><PowerOff className="w-3.5 h-3.5" /> Fermer</>
+                                                        ) : (
+                                                            <><Power className="w-3.5 h-3.5" /> Ouvrir</>
+                                                        )}
+                                                    </Button>
                                                 </TableCell>
-
                                             </TableRow>
                                         );
                                     })
                                 )}
                             </TableBody>
                         </Table>
-                        <div className="px-6 py-3 border-t border-secondary-50 bg-secondary-50/20">
-                            <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest">
-                                {filtered.length} postes trouvés
+                        <div className="p-6 border-t border-primary-100/40 table-footer-wash">
+                            <p className="text-sm text-secondary-600">
+                                <span className="font-semibold text-secondary-900">{filtered.length}</span> poste{filtered.length > 1 ? 's' : ''} affiché{filtered.length > 1 ? 's' : ''}
                             </p>
                         </div>
                     </>
                 )}
-            </Card>
+            </DataPanel>
 
             {/* Create Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-                    <Card className="w-full max-w-2xl border-none shadow-3xl bg-white rounded-[40px] overflow-hidden animate-in zoom-in-95 duration-200 mb-8">
+                    <Card className="w-full max-w-2xl border-none shadow-3xl bg-white rounded-xl overflow-hidden animate-in zoom-in-95 duration-200 mb-8">
                         <CardHeader className="p-8 border-b border-secondary-50 flex flex-row items-center justify-between bg-primary-50/30">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-100">
@@ -435,20 +416,6 @@ export default function PositionsPage() {
                     </Card>
                 </div>
             )}
-        </div>
-    );
-}
-
-function SummaryBox({ label, value, icon: Icon }: any) {
-    return (
-        <Card className="p-5 border border-secondary-100 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-100/20 transition-all duration-300 rounded-[24px] bg-white flex flex-col gap-3 group">
-            <div className="w-12 h-12 rounded-2xl bg-secondary-50 group-hover:bg-primary-50 flex items-center justify-center text-secondary-400 group-hover:text-primary-600 transition-colors">
-                <Icon className="w-6 h-6" />
-            </div>
-            <div>
-                <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest leading-none mb-1.5">{label}</p>
-                <h3 className="text-2xl font-black text-secondary-900 leading-none">{value}</h3>
-            </div>
-        </Card>
+        </PageShell>
     );
 }

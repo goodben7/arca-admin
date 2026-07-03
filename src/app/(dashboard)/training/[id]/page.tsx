@@ -39,6 +39,8 @@ import {
     STATUS_PENDING,
     STATUS_REJECTED,
 } from '@/types/training';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 function normalizeId(v?: string) {
     if (!v) return '';
@@ -352,56 +354,39 @@ export default function TrainingRequestDetailPage() {
                 isLoading={isActioning}
             />
 
-            <div className="max-w-5xl mx-auto space-y-6">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <Button
-                            variant="ghost"
-                            onClick={() => router.back()}
-                            className="p-0 hover:bg-transparent text-secondary-500 hover:text-secondary-900 transition-colors group"
-                        >
-                            <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-all">
-                                <ArrowLeft className="w-5 h-5" />
-                            </div>
-                        </Button>
-                        <div>
-                            <div className="flex items-center gap-3 flex-wrap">
-                                <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">
-                                    {request.title}
-                                </h1>
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusStyle.className}`}>
-                                    {getStatusLabel(request.status)}
-                                </span>
-                            </div>
-                            <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest italic mt-1">
-                                Demande de formation · {request.createdAt
-                                    ? format(new Date(request.createdAt), 'dd MMMM yyyy', { locale: fr })
-                                    : '—'}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Actions */}
-                    {isPending && (
-                        <div className="flex items-center gap-3 shrink-0">
-                            <Button
-                                onClick={() => setShowRejectModal(true)}
-                                className="rounded-2xl px-6 py-5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black uppercase tracking-widest text-xs flex items-center gap-2 transition-all"
-                            >
-                                <XCircle className="w-4 h-4" />
-                                Refuser
-                            </Button>
-                            <Button
-                                onClick={() => setShowApproveModal(true)}
-                                className="rounded-2xl px-6 py-5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all"
-                            >
-                                <CheckCircle2 className="w-4 h-4" />
-                                Approuver
-                            </Button>
-                        </div>
-                    )}
-                </div>
+            <PageShell className="max-w-5xl mx-auto">
+                <PageHeader
+                    title={request.title}
+                    description={`Demande de formation · ${request.createdAt
+                        ? format(new Date(request.createdAt), 'dd MMMM yyyy', { locale: fr })
+                        : '—'}`}
+                    backHref="/training"
+                    actions={
+                        <>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusStyle.className}`}>
+                                {getStatusLabel(request.status)}
+                            </span>
+                            {isPending && (
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <Button
+                                        onClick={() => setShowRejectModal(true)}
+                                        className="rounded-2xl px-6 py-5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black uppercase tracking-widest text-xs flex items-center gap-2 transition-all"
+                                    >
+                                        <XCircle className="w-4 h-4" />
+                                        Refuser
+                                    </Button>
+                                    <Button
+                                        onClick={() => setShowApproveModal(true)}
+                                        className="rounded-2xl px-6 py-5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        Approuver
+                                    </Button>
+                                </div>
+                            )}
+                        </>
+                    }
+                />
 
                 {actionError && (
                     <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-2xl text-destructive text-sm font-bold flex items-center gap-3">
@@ -572,7 +557,7 @@ export default function TrainingRequestDetailPage() {
                         </Card>
                     </div>
                 </div>
-            </div>
+            </PageShell>
         </>
     );
 }

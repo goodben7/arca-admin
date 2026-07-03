@@ -32,6 +32,11 @@ import { LeaveRequest, LEAVE_STATUS, LEAVE_TYPE } from '@/types/leave';
 import { Employee } from '@/types/employee';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { FilterBar } from '@/components/layout/FilterBar';
+import { DataPanel } from '@/components/layout/DataPanel';
+import { PageKpiStrip } from '@/components/layout/PageKpi';
 
 // ─── Rejection Modal ───────────────────────────────────────────────────────────
 function RejectModal({
@@ -51,7 +56,7 @@ function RejectModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <Card className="w-full max-w-md border-none shadow-3xl bg-white rounded-[40px] overflow-hidden animate-in zoom-in-95 duration-200">
+            <Card className="w-full max-w-md border-none shadow-3xl bg-white rounded-xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <CardHeader className="p-8 bg-accent-red-50/50 border-b border-accent-red-100 flex flex-row items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-accent-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-accent-red-100">
@@ -137,7 +142,7 @@ function ApproveModal({
 }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <Card className="w-full max-w-md border-none shadow-3xl bg-white rounded-[40px] overflow-hidden animate-in zoom-in-95 duration-200">
+            <Card className="w-full max-w-md border-none shadow-3xl bg-white rounded-xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <CardHeader className="p-8 bg-emerald-50/50 border-b border-emerald-100 flex flex-row items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">
@@ -206,6 +211,7 @@ export default function LeaveManagementPage() {
     const [approveTarget, setApproveTarget] = useState<LeaveRequest | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
     const [avatarsMap, setAvatarsMap] = useState<Record<string, string>>({});
+    const [search, setSearch] = useState('');
 
     async function fetchData() {
         try {
@@ -277,6 +283,22 @@ export default function LeaveManagementPage() {
         }
     }
 
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case LEAVE_STATUS.APPROVED: return 'Approuvé';
+            case LEAVE_STATUS.PENDING: return 'En attente';
+            case LEAVE_STATUS.REJECTED: return 'Refusé';
+            case LEAVE_STATUS.CANCELLED: return 'Annulé';
+            default: return status;
+        }
+    };
+
+    const filteredRequests = requests.filter((req) => {
+        if (!search.trim()) return true;
+        const name = (employees[req.employee] || req.employee).toLowerCase();
+        return name.includes(search.toLowerCase());
+    });
+
     const getStatusVariant = (status: string) => {
         switch (status) {
             case LEAVE_STATUS.APPROVED: return 'success';
@@ -289,11 +311,11 @@ export default function LeaveManagementPage() {
 
     const getLeaveLabel = (type: string) => {
         switch (type) {
-            case LEAVE_TYPE.ANNUAL: return 'Congé Annuel';
+            case LEAVE_TYPE.ANNUAL: return 'Congé annuel';
             case LEAVE_TYPE.SICK: return 'Maladie';
             case LEAVE_TYPE.MATERNITY: return 'Maternité';
             case LEAVE_TYPE.PATERNITY: return 'Paternité';
-            case LEAVE_TYPE.UNPAID: return 'Congé Sabatique';
+            case LEAVE_TYPE.UNPAID: return 'Congé sabatique';
             default: return 'Autre';
         }
     };
@@ -310,15 +332,17 @@ export default function LeaveManagementPage() {
 
     if (isLoading) {
         return (
-            <div className="p-20 flex flex-col items-center justify-center gap-4 text-secondary-400">
-                <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
-                <p className="font-bold animate-pulse uppercase tracking-[0.2em] text-[10px]">Chargement des demandes...</p>
-            </div>
+            <PageShell>
+                <div className="p-20 flex flex-col items-center justify-center gap-4 text-secondary-400">
+                    <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
+                    <p className="font-bold animate-pulse uppercase tracking-[0.2em] text-[10px]">Chargement des demandes...</p>
+                </div>
+            </PageShell>
         );
     }
 
     return (
-        <div className="space-y-6">
+        <PageShell>
             {/* Reject modal */}
             {rejectTarget && (
                 <RejectModal
@@ -355,112 +379,109 @@ export default function LeaveManagementPage() {
                 </div>
             )}
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">Gestion des Congés</h1>
-                    <p className="text-secondary-500 font-medium italic">Validez les demandes et suivez les absences de vos collaborateurs.</p>
-                </div>
-                <Link href="/leave/create">
-                    <Button className="gap-2 shadow-xl shadow-primary-200 py-6 px-8 rounded-2xl transition-all active:scale-[0.98]">
-                        <Plus className="w-5 h-5" />
-                        <span className="font-bold uppercase tracking-tight">Nouvelle Demande</span>
-                    </Button>
-                </Link>
-            </div>
+            <PageHeader
+                title="Gestion des Congés"
+                description="Validez les demandes et suivez les absences de vos collaborateurs."
+                actions={
+                    <Link href="/leave/create">
+                        <Button variant="pill" size="sm" className="gap-2">
+                            <Plus className="w-4 h-4" />
+                            Nouvelle demande
+                        </Button>
+                    </Link>
+                }
+            />
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <SummaryCard title="En attente" count={stats.pending} icon={Clock} color="text-amber-600" bg="bg-amber-50" border="border-amber-100" />
-                <SummaryCard title="Approuvées" count={stats.approved} icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50" border="border-emerald-100" />
-                <SummaryCard title="Refusées" count={stats.rejected} icon={XCircle} color="text-accent-red-600" bg="bg-accent-red-50" border="border-accent-red-100" />
-                <SummaryCard title="Effectifs absents" count={stats.absent} icon={User} color="text-primary-600" bg="bg-primary-50" border="border-primary-100" />
-            </div>
+            <PageKpiStrip
+                items={[
+                    { label: 'En attente', value: stats.pending, icon: Clock, tone: 'warning', detail: 'À valider' },
+                    { label: 'Approuvées', value: stats.approved, icon: CheckCircle2, tone: 'success', detail: 'Demandes acceptées' },
+                    { label: 'Refusées', value: stats.rejected, icon: XCircle, tone: 'danger', detail: 'Demandes rejetées' },
+                    { label: 'Absents aujourd\'hui', value: stats.absent, icon: User, tone: 'primary', detail: 'Congés en cours' },
+                ]}
+            />
 
-            {/* Table */}
-            <Card className="overflow-hidden border-none shadow-2xl shadow-secondary-200/50 rounded-3xl bg-white">
-                <div className="p-4 border-b border-secondary-100 bg-secondary-50/20 flex flex-col md:flex-row gap-4 justify-between items-center">
-                    <div className="relative w-full md:w-80 group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
-                        <input
-                            type="text"
-                            placeholder="Rechercher un collaborateur..."
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium"
-                        />
-                    </div>
+            <FilterBar>
+                <div className="relative flex-1 group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 group-focus-within:text-primary-500 transition-colors" />
+                    <input
+                        type="text"
+                        placeholder="Rechercher un collaborateur..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full h-10 pl-10 pr-4 bg-white border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-secondary-400"
+                    />
                 </div>
+            </FilterBar>
+
+            <DataPanel title="Demandes de congé" contentClassName="p-0">
                 <Table>
                     <TableHeader>
-                        <TableRow className="hover:bg-transparent uppercase tracking-wider text-[11px] font-black">
-                            <TableHead>Collaborateur</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Période</TableHead>
-                            <TableHead>Durée</TableHead>
-                            <TableHead>Statut</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                        <TableRow className="hover:bg-secondary-100">
+                            <TableHead className="px-6">Collaborateur</TableHead>
+                            <TableHead className="px-6">Type</TableHead>
+                            <TableHead className="px-6">Période</TableHead>
+                            <TableHead className="px-6">Durée</TableHead>
+                            <TableHead className="px-6">Statut</TableHead>
+                            <TableHead className="px-6 text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {requests.length === 0 ? (
+                        {filteredRequests.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="h-48 text-center text-secondary-400 font-medium italic">
-                                    Aucune demande de congé enregistrée.
+                                <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">
+                                    Aucune demande de congé pour ce critère.
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            requests.map((req) => {
+                            filteredRequests.map((req) => {
                                 const empId = req.employee?.split('/').pop() || '';
                                 const employeeName = employees[req.employee] || req.employee;
                                 const initials = employeeName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
                                 const isActing = actionLoading === req.id;
 
                                 return (
-                                    <TableRow key={req.id} className="group hover:bg-secondary-50/50 transition-colors">
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary-50 to-secondary-100 flex items-center justify-center font-black text-xs text-secondary-600 border border-secondary-200 shadow-sm overflow-hidden">
+                                    <TableRow key={req.id} className="group">
+                                        <TableCell className="px-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-11 h-11 rounded-xl bg-secondary-100 border border-secondary-200 flex items-center justify-center overflow-hidden shrink-0">
                                                     {avatarsMap[empId] ? (
-                                                        <img src={avatarsMap[empId]} alt="Avatar" className="w-full h-full object-cover" />
+                                                        <img src={avatarsMap[empId]} alt="" className="w-full h-full object-cover" />
                                                     ) : (
-                                                        initials
+                                                        <span className="text-sm font-semibold text-secondary-600 uppercase">{initials}</span>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-secondary-900 uppercase text-xs">{employeeName}</span>
-                                                    <span className="text-[10px] text-secondary-400 font-medium">ARCA Personnel</span>
+                                                <div className="min-w-0">
+                                                    <p className="font-semibold text-secondary-900 truncate">{employeeName}</p>
+                                                    <span className="text-xs font-medium text-primary-600">ARCA Personnel</span>
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest border-secondary-200 bg-white">
-                                                {getLeaveLabel(req.type)}
-                                            </Badge>
+                                        <TableCell className="px-6">
+                                            <Badge variant="outline">{getLeaveLabel(req.type)}</Badge>
                                         </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col text-[11px] font-bold text-secondary-600">
-                                                <span>Du {format(new Date(req.startDate), 'dd MMM yyyy', { locale: fr })}</span>
-                                                <span className="text-secondary-400">Au {format(new Date(req.endDate), 'dd MMM yyyy', { locale: fr })}</span>
+                                        <TableCell className="px-6">
+                                            <div className="text-sm text-secondary-800">
+                                                <p>{format(new Date(req.startDate), 'dd MMM yyyy', { locale: fr })}</p>
+                                                <p className="text-muted-foreground text-xs">→ {format(new Date(req.endDate), 'dd MMM yyyy', { locale: fr })}</p>
                                             </div>
                                         </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1.5 bg-primary-50 px-3 py-1 rounded-full w-fit border border-primary-100">
-                                                <Calendar className="w-3 h-3 text-primary-600" />
-                                                <span className="font-black text-primary-700 text-[10px]">{req.numberOfDays} JOURS</span>
-                                            </div>
+                                        <TableCell className="px-6">
+                                            <span className="text-sm font-medium text-foreground tabular-nums">{req.numberOfDays} jours</span>
                                         </TableCell>
-                                        <TableCell>
-                                            <Badge variant={getStatusVariant(req.status)} className="font-black text-[10px] uppercase py-1 px-3 rounded-full">
-                                                {req.status}
+                                        <TableCell className="px-6">
+                                            <Badge variant={getStatusVariant(req.status)}>
+                                                {getStatusLabel(req.status)}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="px-6 text-right">
                                             {req.status === LEAVE_STATUS.PENDING ? (
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Button
                                                         size="sm"
                                                         disabled={isActing}
                                                         onClick={() => setApproveTarget(req)}
-                                                        className="h-9 px-4 font-bold rounded-xl text-xs uppercase tracking-tight gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-sm shadow-emerald-100 text-white"
+                                                        className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                                                     >
                                                         <CheckCircle2 className="w-3.5 h-3.5" /> Approuver
                                                     </Button>
@@ -469,13 +490,13 @@ export default function LeaveManagementPage() {
                                                         variant="outline"
                                                         disabled={isActing}
                                                         onClick={() => setRejectTarget(req)}
-                                                        className="h-9 px-4 text-accent-red-600 border-accent-red-100 bg-accent-red-50 hover:bg-accent-red-600 hover:text-white font-bold transition-all rounded-xl text-xs uppercase tracking-tight gap-1.5"
+                                                        className="h-9 gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50"
                                                     >
                                                         <XCircle className="w-3.5 h-3.5" /> Refuser
                                                     </Button>
                                                 </div>
                                             ) : (
-                                                <Button variant="ghost" size="icon" className="h-10 w-10 text-secondary-400 hover:text-secondary-900 hover:bg-secondary-100 rounded-xl">
+                                                <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
                                                     <MoreVertical className="w-4 h-4" />
                                                 </Button>
                                             )}
@@ -486,21 +507,12 @@ export default function LeaveManagementPage() {
                         )}
                     </TableBody>
                 </Table>
-            </Card>
-        </div>
-    );
-}
-
-function SummaryCard({ title, count, icon: Icon, color, bg, border }: any) {
-    return (
-        <Card className={cn("p-6 border shadow-sm flex items-center gap-5 rounded-[24px] bg-white transition-all hover:shadow-md", border)}>
-            <div className={cn("p-4 rounded-2xl shrink-0 shadow-sm", bg)}>
-                <Icon className={cn("w-6 h-6", color)} />
-            </div>
-            <div>
-                <p className="text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em] leading-none mb-2">{title}</p>
-                <h3 className="text-3xl font-black text-secondary-900 leading-none">{count}</h3>
-            </div>
-        </Card>
+                <div className="p-6 border-t border-primary-100/40 table-footer-wash">
+                    <p className="text-sm text-secondary-600">
+                        Affichage de <span className="font-semibold text-secondary-900">{filteredRequests.length}</span> sur <span className="font-semibold text-secondary-900">{requests.length}</span> demandes
+                    </p>
+                </div>
+            </DataPanel>
+        </PageShell>
     );
 }

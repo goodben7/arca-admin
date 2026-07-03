@@ -27,6 +27,8 @@ import { Label } from '@/components/ui/Input';
 import { Input } from '@/components/ui/Input';
 import { getDepartments, getEmployeeById } from '@/lib/api/employee';
 import { getAllPositions } from '@/lib/api/position';
+import { getUserById } from '@/lib/api/profile';
+import { extractId } from '@/lib/api-iri';
 import {
     approveRecruitmentRequest,
     getRecruitmentRequestById,
@@ -34,11 +36,12 @@ import {
     updateRecruitmentRequest
 } from '@/lib/api/recruitment';
 import { RecruitmentRequest, RECRUITMENT_REQUEST_STATUS, STATUS_APPROVED, STATUS_PENDING, STATUS_REJECTED } from '@/types/recruitment';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
-function normalizeId(v?: string) {
-    if (!v) return '';
-    const parts = v.split('/').filter(Boolean);
-    return parts[parts.length - 1] || v;
+function IdSubtext({ id }: { id?: string }) {
+    if (!id) return null;
+    return <p className="text-[10px] font-mono text-secondary-400 mt-0.5 truncate">{id}</p>;
 }
 
 function getStatusVariant(status: string) {
@@ -71,7 +74,7 @@ function ApproveModal({
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-secondary-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <Card className="w-full max-w-md border-none shadow-3xl bg-white rounded-[40px] overflow-hidden">
+            <Card className="w-full max-w-md border-none shadow-3xl bg-white rounded-xl overflow-hidden">
                 <CardHeader className="p-8 bg-emerald-50/50 border-b border-emerald-100 flex flex-row items-center justify-between">
                     <div className="flex items-center gap-4 min-w-0">
                         <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100 shrink-0">
@@ -160,7 +163,7 @@ function RejectModal({
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-secondary-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <Card className="w-full max-w-md border-none shadow-3xl bg-white rounded-[40px] overflow-hidden">
+            <Card className="w-full max-w-md border-none shadow-3xl bg-white rounded-xl overflow-hidden">
                 <CardHeader className="p-8 bg-accent-red-50/50 border-b border-accent-red-100 flex flex-row items-center justify-between">
                     <div className="flex items-center gap-4 min-w-0">
                         <div className="w-10 h-10 bg-accent-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-accent-red-100 shrink-0">
@@ -272,12 +275,16 @@ export default function RecruitmentDetailsPage() {
                 });
                 setPositionsMap(pMap);
 
-                // Requester label
-                const requesterIriOrId = reqData.requestedBy;
-                if (requesterIriOrId) {
-                    const requesterId = normalizeId(requesterIriOrId);
-                    const emp = await getEmployeeById(requesterId).catch(() => null);
-                    if (emp) setRequesterName(`${(emp as any).firstName} ${(emp as any).lastName}`.trim());
+                // Requester label (utilisateur ou employé)
+                const requesterId = extractId(reqData.requestedBy);
+                if (requesterId) {
+                    const user = await getUserById(requesterId).catch(() => null);
+                    if (user) {
+                        setRequesterName((user as { displayName?: string; email?: string }).displayName || user.email || requesterId);
+                    } else {
+                        const emp = await getEmployeeById(requesterId).catch(() => null);
+                        if (emp) setRequesterName(`${(emp as { firstName: string }).firstName} ${(emp as { lastName: string }).lastName}`.trim());
+                    }
                 }
             } catch (e: any) {
                 setError(e?.message || "Erreur lors du chargement de la demande.");
@@ -289,15 +296,19 @@ export default function RecruitmentDetailsPage() {
         if (recruitmentRequestId) fetchData();
     }, [recruitmentRequestId]);
 
+    const departmentId = request ? (extractId(request.department) || request.department) : '';
+    const positionId = request ? (extractId(request.position) || request.position) : '';
+    const requesterId = request ? (extractId(request.requestedBy) || request.requestedBy) : '';
+
     const departmentLabel = useMemo(() => {
         if (!request) return '';
-        return departmentsMap[request.department] || departmentsMap[normalizeId(request.department)] || request.department;
-    }, [departmentsMap, request]);
+        return departmentsMap[request.department] || departmentsMap[departmentId] || departmentId;
+    }, [departmentsMap, request, departmentId]);
 
     const positionLabel = useMemo(() => {
         if (!request) return '';
-        return positionsMap[request.position] || positionsMap[normalizeId(request.position)] || request.position;
-    }, [positionsMap, request]);
+        return positionsMap[request.position] || positionsMap[positionId] || positionId;
+    }, [positionsMap, request, positionId]);
 
     function showToast(msg: string, type: 'success' | 'error') {
         setToast({ msg, type });
@@ -363,7 +374,7 @@ export default function RecruitmentDetailsPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <PageShell>
             {toast && (
                 <div
                     className={`fixed top-6 right-6 z-[70] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-sm font-bold animate-in slide-in-from-right duration-300 ${
@@ -379,37 +390,24 @@ export default function RecruitmentDetailsPage() {
                 </div>
             )}
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        className="h-12 px-4 rounded-2xl font-black uppercase text-[10px] tracking-widest"
-                        onClick={() => router.push('/recruitment')}
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Retour
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">
-                            Détails demande
-                        </h1>
-                        <p className="text-secondary-500 font-medium italic">
-                            Validation du recrutement.
-                        </p>
-                    </div>
-                </div>
-                {statusInfo && (
-                    <Badge
-                        variant={statusInfo.variant as any}
-                        className={`font-black text-[10px] uppercase py-2 px-3 rounded-xl border shadow-sm ${statusInfo.className}`}
-                    >
-                        {request.status}
-                    </Badge>
-                )}
-            </div>
+            <PageHeader
+                title="Détails demande"
+                description={`Validation du recrutement · ${request.id}`}
+                backHref="/recruitment"
+                actions={
+                    statusInfo ? (
+                        <Badge
+                            variant={statusInfo.variant as any}
+                            className={`font-black text-[10px] uppercase py-2 px-3 rounded-xl border shadow-sm ${statusInfo.className}`}
+                        >
+                            {request.status}
+                        </Badge>
+                    ) : undefined
+                }
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[40px]">
+                <Card className="lg:col-span-2 border-none  shadow-sm-200/40 bg-white rounded-xl">
                     <CardHeader className="p-8 border-b border-secondary-50">
                         <div className="flex items-center justify-between gap-4">
                             <div>
@@ -436,8 +434,11 @@ export default function RecruitmentDetailsPage() {
                                     Département
                                 </Label>
                                 <div className="flex items-center gap-2 rounded-2xl border border-secondary-100 bg-secondary-50/30 px-4 py-3">
-                                    <Building2 className="w-4 h-4 text-secondary-400" />
-                                    <p className="font-black text-secondary-900 truncate">{departmentLabel}</p>
+                                    <Building2 className="w-4 h-4 text-secondary-400 shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="font-black text-secondary-900 truncate">{departmentLabel}</p>
+                                        <IdSubtext id={departmentId} />
+                                    </div>
                                 </div>
                             </div>
 
@@ -446,8 +447,11 @@ export default function RecruitmentDetailsPage() {
                                     Poste
                                 </Label>
                                 <div className="flex items-center gap-2 rounded-2xl border border-secondary-100 bg-secondary-50/30 px-4 py-3">
-                                    <Briefcase className="w-4 h-4 text-secondary-400" />
-                                    <p className="font-black text-secondary-900 truncate">{positionLabel}</p>
+                                    <Briefcase className="w-4 h-4 text-secondary-400 shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="font-black text-secondary-900 truncate">{positionLabel}</p>
+                                        <IdSubtext id={positionId} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -538,7 +542,7 @@ export default function RecruitmentDetailsPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[40px]">
+                <Card className="border-none  shadow-sm-200/40 bg-white rounded-xl">
                     <CardHeader className="p-8 border-b border-secondary-50">
                         <CardTitle className="text-lg font-black text-secondary-900 uppercase tracking-tight">
                             Actions
@@ -553,8 +557,16 @@ export default function RecruitmentDetailsPage() {
                                 Demandeur
                             </p>
                             <p className="font-black text-secondary-900">
-                                {requesterName || request.requestedBy}
+                                {requesterName || requesterId || '—'}
                             </p>
+                            {requesterId && <IdSubtext id={requesterId} />}
+                        </div>
+
+                        <div className="space-y-2 rounded-2xl border border-secondary-100 bg-secondary-50/30 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-secondary-400">
+                                Identifiant demande
+                            </p>
+                            <p className="font-mono text-sm text-secondary-700">{request.id}</p>
                         </div>
 
                         {request.status === STATUS_PENDING ? (
@@ -617,7 +629,7 @@ export default function RecruitmentDetailsPage() {
                 isLoading={actionLoading}
                 request={request}
             />
-        </div>
+        </PageShell>
     );
 }
 

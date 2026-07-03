@@ -1,4 +1,5 @@
 import { Employee, Department, WorkExperience, Skill } from '@/types/employee';
+import { toIri } from '@/lib/api-iri';
 import { request } from './client';
 
 export async function getAllEmployees(params: Record<string, any> = {}): Promise<any> {
@@ -149,12 +150,25 @@ export async function getSkillsByEmployee(employeeId: string): Promise<{ 'hydra:
 
 export async function updateEmployee(id: string, data: Partial<Employee>): Promise<Employee> {
     const path = id.startsWith('/') ? id : `/api/employees/${id}`;
+    const payload: Record<string, unknown> = { ...data };
+    if (data.jobRole !== undefined) {
+        payload.jobRole = data.jobRole ? toIri('job_roles', data.jobRole as string) : null;
+    }
+    if (data.grade !== undefined) {
+        payload.grade = data.grade ? toIri('grades', data.grade as string) : null;
+    }
+    if (data.department !== undefined) {
+        payload.department = data.department ? toIri('departments', data.department as string) : null;
+    }
+    if (data.position !== undefined) {
+        payload.position = data.position ? toIri('positions', data.position as string) : null;
+    }
     const response = await request(path, {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/merge-patch+json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -179,6 +193,49 @@ export async function assignManager(employeeId: string, managerId: string) {
         throw new Error(errorData.detail || errorData.message || 'Erreur lors de l\'assignation du manager.');
     }
 
+    return response.json();
+}
+
+export async function createEmployeeSkill(data: { employee: string; skill: string; level: string }) {
+    const response = await request('/api/employee_skills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || 'Erreur lors de l\'ajout de la compétence.');
+    }
+    return response.json();
+}
+
+export async function validateEmployeeSkill(employeeSkillId: string) {
+    const response = await request('/api/employee_skills/validations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeSkillId }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || 'Erreur lors de la validation de la compétence.');
+    }
+    const text = await response.text();
+    return text ? JSON.parse(text) : {};
+}
+
+export async function getEmployeeJourney(employeeId: string) {
+    const response = await request(`/api/employees/${employeeId}/journey?order[occurredAt]=desc`);
+    if (!response.ok) {
+        throw new Error('Impossible de charger le parcours de l\'employé.');
+    }
+    return response.json();
+}
+
+export async function checkPromotionEligibility(employeeId: string, targetJobRole: string) {
+    const response = await request(`/api/employees/${employeeId}/promotion-eligibility?targetJobRole=${targetJobRole}`);
+    if (!response.ok) {
+        throw new Error('Impossible de vérifier l\'éligibilité à la promotion.');
+    }
     return response.json();
 }
 

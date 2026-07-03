@@ -8,7 +8,7 @@ const Label = React.forwardRef<
     <label
         ref={ref}
         className={cn(
-            "text-sm font-bold leading-none text-secondary-900 peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block",
+            "text-sm font-semibold leading-none text-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block",
             className
         )}
         {...props}
@@ -22,7 +22,7 @@ const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLI
             <input
                 type={type}
                 className={cn(
-                    "flex h-11 w-full rounded-xl border border-secondary-200 bg-white px-4 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-secondary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/20 focus-visible:border-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all",
+                    "flex h-12 w-full rounded-2xl border border-input bg-surface px-4 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/25 focus-visible:border-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all",
                     className
                 )}
                 ref={ref}

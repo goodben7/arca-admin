@@ -68,7 +68,7 @@ export default async function OffreDetailPage({ params }: Props) {
             </div>
 
             {/* Hero de l'offre */}
-            <div className="relative overflow-hidden rounded-3xl bg-[#004b61] shadow-2xl shadow-primary-900/20">
+            <div className="relative overflow-hidden rounded-xl bg-primary-900 shadow-2xl shadow-primary-900/20">
                 {/* Déco */}
                 <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute top-[-30%] right-[-10%] w-[400px] h-[400px] bg-primary-400/10 rounded-full blur-[80px]" />
@@ -125,10 +125,10 @@ export default async function OffreDetailPage({ params }: Props) {
 
             {/* Description du poste */}
             {offer.description && (
-                <div className="bg-white rounded-3xl border border-secondary-100 shadow-sm p-8 space-y-4">
+                <div className="bg-white rounded-xl border border-secondary-100 shadow-sm p-8 space-y-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#004b61]/5 border border-[#004b61]/10 flex items-center justify-center">
-                            <FileText className="w-4 h-4 text-[#004b61]" />
+                        <div className="w-9 h-9 rounded-xl bg-primary-900/5 border border-primary-900/10 flex items-center justify-center">
+                            <FileText className="w-4 h-4 text-primary-900" />
                         </div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-secondary-400">Description du poste</p>
                     </div>
@@ -158,8 +158,8 @@ function InfoCard({
 }) {
     return (
         <div className="bg-white rounded-2xl border border-secondary-100 shadow-sm p-5 flex flex-col gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#004b61]/5 border border-[#004b61]/10 flex items-center justify-center">
-                <Icon className="w-4 h-4 text-[#004b61]" />
+            <div className="w-9 h-9 rounded-xl bg-primary-900/5 border border-primary-900/10 flex items-center justify-center">
+                <Icon className="w-4 h-4 text-primary-900" />
             </div>
             <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-secondary-400">{label}</p>

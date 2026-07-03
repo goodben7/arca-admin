@@ -7,7 +7,6 @@ import {
     Filter, X, Briefcase, Mail, Phone, Calendar,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getAllApplications } from '@/lib/api/application';
@@ -16,6 +15,9 @@ import { Application, APPLICATION_STATUS, APPLICATION_STATUS_LABELS, APPLICATION
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { DataPanel } from '@/components/layout/DataPanel';
 
 function normalizeOffers(data: any) {
     if (Array.isArray(data)) return data;
@@ -106,17 +108,16 @@ export default function ApplicationsPage() {
     }, [applications, offersMap]);
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">Candidatures</h1>
-                    <p className="text-secondary-500 font-medium italic">Gestion et suivi de toutes les candidatures reçues</p>
-                </div>
-                <Badge className="font-black bg-primary-50 text-primary-600 border-primary-100 px-3 py-1 rounded-lg text-[10px] tracking-widest">
-                    {applications.length} candidature(s)
-                </Badge>
-            </div>
+        <PageShell>
+            <PageHeader
+                title="Candidatures"
+                description="Gestion et suivi de toutes les candidatures reçues"
+                actions={
+                    <Badge className="font-black bg-primary-50 text-primary-600 border-primary-100 px-3 py-1 rounded-lg text-[10px] tracking-widest">
+                        {applications.length} candidature(s)
+                    </Badge>
+                }
+            />
 
             {/* Compteurs statuts */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -137,16 +138,10 @@ export default function ApplicationsPage() {
                 ))}
             </div>
 
-            <Card className="overflow-hidden border-none shadow-xl shadow-secondary-200/50">
-                <CardHeader className="border-b border-secondary-100 bg-white">
-                    <CardTitle className="text-secondary-900 font-black uppercase tracking-tight text-lg">
-                        Liste des candidatures
-                    </CardTitle>
-                    <CardDescription className="text-secondary-500 font-medium italic">
-                        Cliquez sur une candidature pour voir les détails et agir
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
+            <DataPanel
+                title="Liste des candidatures"
+                description="Cliquez sur une candidature pour voir les détails et agir"
+            >
                     {/* Filtres */}
                     <div className="mb-6 flex flex-col md:flex-row gap-3">
                         <div className="relative flex-1 max-w-sm">
@@ -281,8 +276,7 @@ export default function ApplicationsPage() {
                             </table>
                         </div>
                     )}
-                </CardContent>
-            </Card>
-        </div>
+            </DataPanel>
+        </PageShell>
     );
 }

@@ -36,6 +36,11 @@ import { Input, Label } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { FilterBar } from '@/components/layout/FilterBar';
+import { DataPanel } from '@/components/layout/DataPanel';
+import { PageKpiStrip, PageInsightPanel } from '@/components/layout/PageKpi';
 
 type DepartmentForm = {
     name: string;
@@ -234,6 +239,7 @@ export default function DepartmentsPage() {
     const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
     const [drawerSubmitting, setDrawerSubmitting] = useState(false);
     const [drawerError, setDrawerError] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
 
     const drawerInitialForm: DepartmentForm = useMemo(() => {
         return {
@@ -300,20 +306,34 @@ export default function DepartmentsPage() {
         .filter(d => d.managerId && employeeMap[d.managerId])
         .slice(0, 2);
 
+    const withManager = departments.filter(d => d.managerId).length;
+    const filteredDepartments = departments.filter((dept) => {
+        if (!search.trim()) return true;
+        const q = search.toLowerCase();
+        const managerName = dept.managerId ? (employeeMap[dept.managerId] || '') : '';
+        return (
+            dept.name.toLowerCase().includes(q) ||
+            (dept.code || '').toLowerCase().includes(q) ||
+            managerName.toLowerCase().includes(q)
+        );
+    });
+
     if (isLoading) {
         return (
-            <div className="h-[70vh] flex flex-col items-center justify-center gap-6">
-                <div className="relative">
-                    <div className="w-16 h-16 border-4 border-primary-100 rounded-full"></div>
-                    <div className="w-16 h-16 border-4 border-primary-600 rounded-full border-t-transparent animate-spin absolute top-0 left-0"></div>
+            <PageShell>
+                <div className="h-[70vh] flex flex-col items-center justify-center gap-6">
+                    <div className="relative">
+                        <div className="w-16 h-16 border-4 border-primary-100 rounded-full"></div>
+                        <div className="w-16 h-16 border-4 border-primary-600 rounded-full border-t-transparent animate-spin absolute top-0 left-0"></div>
+                    </div>
+                    <p className="font-black text-secondary-400 uppercase tracking-[0.3em] text-xs">Synchronisation structurelle...</p>
                 </div>
-                <p className="font-black text-secondary-400 uppercase tracking-[0.3em] text-xs">Synchronisation structurelle...</p>
-            </div>
+            </PageShell>
         );
     }
 
     return (
-        <div className="space-y-6">
+        <PageShell>
             <DepartmentDrawer
                 open={drawerOpen}
                 onClose={() => {
@@ -350,21 +370,21 @@ export default function DepartmentsPage() {
                 }}
             />
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">Départements</h1>
-                    <p className="text-secondary-500 font-medium italic">Structure organisationnelle et gestion des pôles de compétences.</p>
-                </div>
-                <Link href="/departments/create">
-                    <Button className="gap-2 shadow-xl shadow-primary-200 py-6 px-8 rounded-2xl transition-all active:scale-[0.98]">
-                        <Plus className="w-5 h-5" />
-                        <span className="font-bold uppercase tracking-tight">Nouveau Département</span>
-                    </Button>
-                </Link>
-            </div>
+            <PageHeader
+                title="Départements"
+                description="Structure organisationnelle et gestion des pôles de compétences."
+                actions={
+                    <Link href="/departments/create">
+                        <Button variant="pill" size="sm" className="gap-2">
+                            <Plus className="w-4 h-4" />
+                            Nouveau département
+                        </Button>
+                    </Link>
+                }
+            />
 
             {error ? (
-                <div className="bg-destructive/10 border border-destructive/20 p-8 rounded-3xl flex flex-col items-center gap-4 text-center">
+                <div className="bg-destructive/10 border border-destructive/20 p-8 rounded-xl flex flex-col items-center gap-4 text-center">
                     <AlertCircle className="w-12 h-12 text-destructive" />
                     <div>
                         <h3 className="text-lg font-bold text-secondary-900 uppercase">Erreur de chargement</h3>
@@ -374,189 +394,176 @@ export default function DepartmentsPage() {
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                        {/* Featured Departments Stats */}
-                        <Card className="lg:col-span-2 border-none shadow-xl shadow-secondary-200/50 overflow-hidden bg-white">
-                            <CardHeader className="bg-secondary-50/30 border-b border-secondary-100/50 flex flex-row items-center justify-between p-6">
-                                <div>
-                                    <CardTitle className="text-secondary-900 font-black uppercase tracking-tight">Répartition des Effectifs</CardTitle>
-                                    <CardDescription className="font-medium italic">Poids relatif par pôle organisationnel</CardDescription>
-                                </div>
-                                <Badge className="font-black bg-primary-600 text-white border-none py-1.5 px-3 rounded-lg text-[10px] tracking-widest">
-                                    {totalEmployees} EMPLOYÉS ACTIFS
-                                </Badge>
-                            </CardHeader>
-                            <CardContent className="p-8">
-                                <div className="space-y-6">
-                                    {departments.length === 0 ? (
-                                        <p className="text-center text-secondary-400 py-10 italic">Aucune donnée départementale.</p>
-                                    ) : (
-                                        departments.slice(0, 4).map((dept) => {
-                                            const count = deptCounts[dept.id] || deptCounts[dept['@id'] || ''] || 0;
-                                            const percentage = totalEmployees > 0 ? (count / totalEmployees) * 100 : 0;
-                                            return (
-                                                <div key={dept.id} className="space-y-2 group">
-                                                    <div className="flex justify-between items-end">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-xs font-black text-secondary-400 uppercase tracking-widest mb-0.5">{dept.code}</span>
-                                                            <span className="text-sm font-bold text-secondary-900 group-hover:text-primary-600 transition-colors uppercase">{dept.name}</span>
-                                                        </div>
-                                                        <div className="flex flex-col items-end">
-                                                            <span className="text-xs font-black text-primary-600 transition-all">{Math.round(percentage)}%</span>
-                                                            <span className="text-[10px] font-bold text-secondary-400 uppercase">{count} membres</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="w-full bg-secondary-50 h-3 rounded-full overflow-hidden border border-secondary-100/50">
-                                                        <div
-                                                            className="bg-gradient-to-r from-primary-500 to-primary-700 h-full rounded-full transition-all duration-1000 shadow-sm"
-                                                            style={{ width: `${percentage}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
+                    <PageKpiStrip
+                        items={[
+                            { label: 'Départements', value: departments.length, icon: Building2, tone: 'primary', detail: 'Pôles organisationnels' },
+                            { label: 'Effectifs actifs', value: totalEmployees, icon: Users, tone: 'success', detail: 'Collaborateurs rattachés' },
+                            { label: 'Avec manager', value: withManager, icon: Shield, tone: 'info', detail: 'Pôles encadrés' },
+                            { label: 'Sans manager', value: departments.length - withManager, icon: User, tone: 'warning', detail: 'À assigner' },
+                        ]}
+                    />
 
-                        <Card className="border-none shadow-xl shadow-secondary-200/50 bg-gradient-to-br from-secondary-900 to-black text-white p-2">
-                            <CardContent className="p-6 space-y-6">
-                                <div className="space-y-1">
-                                    <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center mb-4">
-                                        <Shield className="w-6 h-6 text-white" />
-                                    </div>
-                                    <h3 className="text-xl font-black uppercase tracking-tighter">Gouvernance</h3>
-                                    <p className="text-secondary-400 text-xs font-medium italic">Validation des piliers structurels</p>
-                                </div>
-                                <div className="space-y-3">
-                                    {recentManagers.length === 0 ? (
-                                        <p className="text-xs text-secondary-500 italic py-4">Structure managériale en cours de définition.</p>
-                                    ) : (
-                                        recentManagers.map((dept) => {
-                                            const managerName = employeeMap[dept.managerId!] || 'N/A';
-                                            const initials = managerName.split(' ').map(n => n[0]).join('').toUpperCase();
-                                            return (
-                                                <div key={dept.id} className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all group">
-                                                    <div className="w-12 h-12 rounded-xl bg-primary-600/20 text-primary-400 flex items-center justify-center font-black group-hover:scale-110 transition-transform">
-                                                        {initials}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <PageInsightPanel
+                            className="lg:col-span-2"
+                            title="Répartition des effectifs"
+                            description="Poids relatif par pôle organisationnel"
+                            badge={
+                                <Badge variant="default" className="bg-primary-500 text-white border-none">
+                                    {totalEmployees} employés
+                                </Badge>
+                            }
+                        >
+                            <div className="space-y-5">
+                                {departments.length === 0 ? (
+                                    <p className="text-center text-muted-foreground py-6">Aucune donnée départementale.</p>
+                                ) : (
+                                    departments.slice(0, 5).map((dept) => {
+                                        const count = deptCounts[dept.id] || deptCounts[dept['@id'] || ''] || 0;
+                                        const percentage = totalEmployees > 0 ? (count / totalEmployees) * 100 : 0;
+                                        return (
+                                            <div key={dept.id} className="space-y-2">
+                                                <div className="flex justify-between items-end gap-4">
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-medium text-muted-foreground">{dept.code || '—'}</p>
+                                                        <p className="text-sm font-semibold text-foreground truncate">{dept.name}</p>
                                                     </div>
-                                                    <div className="overflow-hidden">
-                                                        <p className="text-sm font-black truncate">{managerName}</p>
-                                                        <p className="text-[9px] uppercase font-bold tracking-[0.2em] text-primary-500/80">Manage {dept.name}</p>
+                                                    <div className="text-right shrink-0">
+                                                        <p className="text-sm font-semibold text-primary-600">{Math.round(percentage)}%</p>
+                                                        <p className="text-xs text-muted-foreground">{count} membre{count > 1 ? 's' : ''}</p>
                                                     </div>
-                                                    <ArrowUpRight className="w-4 h-4 ml-auto text-secondary-500" />
                                                 </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                                <Button variant="ghost" className="w-full text-white hover:bg-white/10 border-white/10 font-bold uppercase tracking-widest text-[10px] mt-2 transition-all" size="sm">
-                                    Organigramme Dynamique
-                                </Button>
-                            </CardContent>
-                        </Card>
+                                                <div className="h-2.5 bg-secondary-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full bg-gradient-to-r from-primary-500 to-primary-400 transition-all duration-700"
+                                                        style={{ width: `${percentage}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </PageInsightPanel>
+
+                        <PageInsightPanel
+                            title="Gouvernance"
+                            description="Responsables des pôles"
+                        >
+                            <div className="space-y-3">
+                                {recentManagers.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground py-4">Structure managériale en cours de définition.</p>
+                                ) : (
+                                    recentManagers.map((dept) => {
+                                        const managerName = employeeMap[dept.managerId!] || 'N/A';
+                                        const initials = managerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                                        return (
+                                            <div key={dept.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30">
+                                                <div className="w-10 h-10 rounded-lg bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold shrink-0">
+                                                    {initials}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-semibold text-foreground truncate">{managerName}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">{dept.name}</p>
+                                                </div>
+                                                <ArrowUpRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </PageInsightPanel>
                     </div>
 
-                    <Card className="overflow-hidden border-none shadow-xl shadow-secondary-200/50 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                        <div className="p-6 bg-white flex flex-col md:flex-row gap-6 justify-between items-center">
-                            <div className="relative w-full md:w-96 group">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-secondary-300 group-focus-within:text-primary-600 transition-colors" />
-                                <input
-                                    type="text"
-                                    placeholder="Indexer un pôle, un manager ou un code..."
-                                    className="w-full pl-12 pr-4 py-3.5 bg-secondary-50 border-none rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:bg-white transition-all font-bold placeholder:text-secondary-300"
-                                />
-                            </div>
+                    <FilterBar>
+                        <div className="relative flex-1 group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 group-focus-within:text-primary-500 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Rechercher un pôle, un manager ou un code..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full h-10 pl-10 pr-4 bg-white border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-secondary-400"
+                            />
                         </div>
+                    </FilterBar>
 
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader className="bg-secondary-50/50">
-                                    <TableRow className="hover:bg-transparent border-y border-secondary-100/50">
-                                        <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest pl-8">Structure & Code</TableHead>
-                                        <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest">Responsable (Manager)</TableHead>
-                                        <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest">Effectif</TableHead>
-                                        <TableHead className="py-5 font-black uppercase text-[10px] tracking-widest text-right pr-8 px-6">Action</TableHead>
+                    <DataPanel title="Liste des départements" contentClassName="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="hover:bg-secondary-100">
+                                    <TableHead className="px-6">Structure</TableHead>
+                                    <TableHead className="px-6">Responsable</TableHead>
+                                    <TableHead className="px-6">Effectif</TableHead>
+                                    <TableHead className="px-6 text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredDepartments.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-48 text-center text-muted-foreground">
+                                            Aucun département trouvé.
+                                        </TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {departments.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="h-64 text-center">
-                                                <div className="flex flex-col items-center gap-2 opacity-50">
-                                                    <Building2 className="w-12 h-12 text-secondary-200" />
-                                                    <p className="text-secondary-400 font-bold uppercase tracking-widest text-xs italic">Néant structurel</p>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        departments.map((dept) => {
-                                            const managerName = dept.managerId ? (employeeMap[dept.managerId] || "Manager Non Assigné") : "Responsable Non Défini";
-                                            const count = deptCounts[dept.id] || deptCounts[dept['@id'] || ''] || 0;
-                                            const initials = managerName !== "N/A" ? managerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "?";
+                                ) : (
+                                    filteredDepartments.map((dept) => {
+                                        const managerName = dept.managerId ? (employeeMap[dept.managerId] || 'Non assigné') : 'Non défini';
+                                        const count = deptCounts[dept.id] || deptCounts[dept['@id'] || ''] || 0;
+                                        const initials = managerName !== 'Non défini' ? managerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
 
-                                            return (
-                                                <TableRow key={dept.id} className="group hover:bg-secondary-50/50 transition-colors">
-                                                    <TableCell className="pl-8 py-5">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-12 h-12 bg-secondary-100 rounded-2xl flex items-center justify-center group-hover:bg-primary-50 transition-colors relative overflow-hidden">
-                                                                <Building2 className="w-6 h-6 text-secondary-400 group-hover:text-primary-600 transition-colors" />
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-black text-secondary-900 uppercase tracking-tighter text-sm">{dept.name}</p>
-                                                                <p className="text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">{dept.code || 'NO-CODE'}</p>
-                                                            </div>
+                                        return (
+                                            <TableRow key={dept.id} className="group">
+                                                <TableCell className="px-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-11 h-11 bg-secondary-100 border border-secondary-200 rounded-xl flex items-center justify-center shrink-0">
+                                                            <Building2 className="w-5 h-5 text-primary-500" />
                                                         </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-xl bg-primary-100 flex items-center justify-center text-[10px] font-black text-primary-700 shadow-sm uppercase">
-                                                                {initials}
-                                                            </div>
-                                                            <span className="text-xs font-bold text-secondary-700 uppercase tracking-tight">{managerName}</span>
+                                                        <div>
+                                                            <p className="font-semibold text-secondary-900">{dept.name}</p>
+                                                            <p className="text-xs font-medium text-primary-600">{dept.code || '—'}</p>
                                                         </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2.5">
-                                                            <div className="p-1.5 bg-secondary-100 rounded-lg">
-                                                                <Users className="w-3.5 h-3.5 text-secondary-500" />
-                                                            </div>
-                                                            <span className="font-black tabular-nums text-secondary-900">{count}</span>
-                                                            <span className="text-[10px] font-bold text-secondary-400 uppercase tracking-wider">Membres</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="px-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center text-[10px] font-bold text-primary-700 uppercase">
+                                                            {initials}
                                                         </div>
-                                                    </TableCell>
-
-                                                    <TableCell className="text-right pr-8 px-6">
-                                                        <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-all gap-1 translate-x-4 group-hover:translate-x-0 transform">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-9 w-9 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl"
-                                                                title="Modifier"
-                                                                onClick={() => {
-                                                                    setSelectedDepartment(dept);
-                                                                    setDrawerError(null);
-                                                                    setDrawerOpen(true);
-                                                                }}
-                                                            >
-                                                                <Pencil className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-secondary-400 hover:text-secondary-900 hover:bg-secondary-100 rounded-xl">
-                                                                <MoreVertical className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })
-                                    )}
-                                </TableBody>
-                            </Table>
+                                                        <span className="text-sm text-secondary-700">{managerName}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="px-6">
+                                                    <span className="font-medium tabular-nums text-foreground">{count}</span>
+                                                    <span className="text-xs text-muted-foreground ml-1">membre{count > 1 ? 's' : ''}</span>
+                                                </TableCell>
+                                                <TableCell className="px-6 text-right">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-9 gap-1.5 text-primary-500 hover:bg-primary-50"
+                                                        onClick={() => {
+                                                            setSelectedDepartment(dept);
+                                                            setDrawerError(null);
+                                                            setDrawerOpen(true);
+                                                        }}
+                                                    >
+                                                        <Pencil className="w-4 h-4" /> Modifier
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
+                                )}
+                            </TableBody>
+                        </Table>
+                        <div className="p-6 border-t border-primary-100/40 table-footer-wash">
+                            <p className="text-sm text-secondary-600">
+                                <span className="font-semibold text-secondary-900">{filteredDepartments.length}</span> département{filteredDepartments.length > 1 ? 's' : ''}
+                            </p>
                         </div>
-                    </Card>
+                    </DataPanel>
                 </>
             )}
-        </div>
+        </PageShell>
     );
 }

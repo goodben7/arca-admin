@@ -16,6 +16,9 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { getAllEmployees, createDepartment } from '@/lib/api/employee';
 import { Employee } from '@/types/employee';
+import { ContentPanel } from '@/components/layout/ContentPanel';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function CreateDepartmentPage() {
     const router = useRouter();
@@ -68,37 +71,27 @@ export default function CreateDepartmentPage() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex items-center gap-4">
-                <Button
-                    variant="ghost"
-                    onClick={() => router.back()}
-                    className="p-0 hover:bg-transparent text-secondary-500 hover:text-secondary-900 transition-colors group"
-                >
-                    <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-all">
-                        <ChevronLeft className="w-5 h-5" />
-                    </div>
-                </Button>
-                <div>
-                    <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">Nouveau Département</h1>
-                    <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest italic">Définition structurelle & assignation managériale</p>
-                </div>
-            </div>
+        <PageShell className="max-w-4xl mx-auto">
+            <PageHeader
+                title="Nouveau Département"
+                description="Définition structurelle & assignation managériale"
+                backHref="/departments"
+            />
 
-            <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <Card className="border-none shadow-2xl shadow-secondary-200/50 overflow-hidden rounded-3xl">
-                    <CardHeader className="bg-secondary-50/50 border-b border-secondary-100 p-8">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-primary-600 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-200">
-                                <Building2 className="w-8 h-8 text-white" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl font-black text-secondary-900 uppercase tracking-tight">Identité du Pôle</CardTitle>
-                                <CardDescription className="font-medium">Informations fondamentales & code structurel</CardDescription>
-                            </div>
+            <ContentPanel>
+            <form onSubmit={handleSubmit} className="divide-y divide-border">
+                <div className="p-6 md:p-8 panel-header-wash border-b">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-primary-500 rounded-xl flex items-center justify-center">
+                            <Building2 className="w-6 h-6 text-white" />
                         </div>
-                    </CardHeader>
-                    <CardContent className="p-8 space-y-6">
+                        <div>
+                            <h2 className="text-base font-semibold text-foreground">Identité du pôle</h2>
+                            <p className="text-sm text-muted-foreground">Informations fondamentales et code structurel</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-6 md:p-8 space-y-6">
                         {error && (
                             <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-2xl text-destructive text-sm font-bold flex items-center gap-3">
                                 <X className="w-5 h-5" />
@@ -174,22 +167,21 @@ export default function CreateDepartmentPage() {
                                 className="w-full px-6 py-4 bg-secondary-50 border-none rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary-500/10 focus:bg-white transition-all placeholder:text-secondary-300 resize-none"
                             />
                         </div>
-                    </CardContent>
-                </Card>
+                </div>
 
-                <div className="flex items-center justify-end gap-4 overflow-hidden p-2">
+                <div className="flex items-center justify-end gap-3 p-6 md:p-8 border-t border-border bg-muted/20">
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         onClick={() => router.back()}
-                        className="px-8 py-6 rounded-2xl font-bold uppercase tracking-widest text-xs text-secondary-400 hover:text-secondary-900 transition-all"
                     >
                         Annuler
                     </Button>
                     <Button
                         disabled={isLoading}
                         type="submit"
-                        className="px-10 py-6 rounded-2xl bg-primary-600 hover:bg-primary-700 text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-primary-200 transition-all active:scale-[0.98] flex items-center gap-3"
+                        variant="pill"
+                        className="gap-2"
                     >
                         {isLoading ? (
                             <>
@@ -199,12 +191,13 @@ export default function CreateDepartmentPage() {
                         ) : (
                             <>
                                 <Save className="w-4 h-4" />
-                                Valider la Structure
+                                Créer le département
                             </>
                         )}
                     </Button>
                 </div>
             </form>
-        </div>
+            </ContentPanel>
+        </PageShell>
     );
 }

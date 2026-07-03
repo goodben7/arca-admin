@@ -21,7 +21,6 @@ import {
     MoreVertical,
     ChevronLeft,
     FileText,
-    Calendar,
     User,
     Loader2,
     AlertCircle,
@@ -29,7 +28,6 @@ import {
     Plus,
     Upload,
     FileCheck,
-    Clock,
     Shield,
     X,
     FolderOpen,
@@ -54,6 +52,11 @@ import { DOCUMENT_TYPE, DocumentRecord, HOLDER_TYPE } from '@/types/document';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ContentPanel } from '@/components/layout/ContentPanel';
+import { ProfileField } from '@/components/employees/ProfileField';
+import { EMPLOYEE_TAB_TRIGGER } from '@/components/employees/employeeProfileTabs';
 import { BASE_URL } from '@/lib/api/client';
 
 
@@ -355,16 +358,6 @@ export default function ContractDetailsPage({ params }: PageProps) {
         }
     };
 
-    const getTypeStyles = (type: string) => {
-        switch (type.toUpperCase()) {
-            case CONTRACT_TYPE.CDI: return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-            case CONTRACT_TYPE.CDD: return 'bg-blue-50 text-blue-700 border-blue-100';
-            case CONTRACT_TYPE.INTERNSHIP: return 'bg-amber-50 text-amber-700 border-amber-100';
-            case CONTRACT_TYPE.CONSULTANT: return 'bg-purple-50 text-purple-700 border-purple-100';
-            default: return 'bg-secondary-50 text-secondary-700 border-secondary-100';
-        }
-    };
-
     if (isLoading) {
         return (
             <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-secondary-400">
@@ -390,84 +383,78 @@ export default function ContractDetailsPage({ params }: PageProps) {
     }
 
     return (
-        <div className="space-y-8 pb-12 animate-in fade-in duration-700">
-            {/* Preview Modal */}
+        <PageShell className="pb-12 animate-in fade-in duration-700">
             {previewDoc && <PreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />}
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-5">
-                    <Button variant="outline" size="icon" onClick={() => router.back()}
-                        className="h-12 w-12 border-none bg-white shadow-xl shadow-secondary-200/50 hover:scale-110 active:scale-95 transition-all rounded-2xl">
-                        <ChevronLeft className="w-6 h-6 text-secondary-600" />
-                    </Button>
-                    <div>
-                        <div className="flex flex-wrap items-center gap-3 mb-1">
-                            <h1 className="text-3xl font-black text-secondary-900 uppercase tracking-tighter">Contrat #{contract.id.slice(0, 8)}</h1>
-                            <div className={cn("px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest flex items-center gap-2", getStatusStyles(contract.status).bg)}>
-                                <div className={cn("w-1.5 h-1.5 rounded-full", contract.status === CONTRACT_STATUS.ACTIVE ? "animate-pulse" : "", getStatusStyles(contract.status).dot)} />
-                                {getStatusStyles(contract.status).label}
-                            </div>
-                            <Badge variant="outline" className={cn("font-black border px-3 py-1.5 rounded-xl tracking-widest uppercase text-[10px]", getTypeStyles(contract.type))}>
-                                {contract.type === CONTRACT_TYPE.INTERNSHIP ? 'STAGE' : contract.type}
-                            </Badge>
-                        </div>
-                        <p className="text-secondary-500 font-bold italic flex items-center gap-2">
-                            <User className="w-4 h-4" />
-                            {employee ? `${employee.firstName} ${employee.lastName}` : '…'}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <Button
-                            onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
-                            className={cn(
-                                "flex items-center gap-2 border shadow-sm transition-all rounded-2xl h-12 px-5 font-black uppercase text-[10px] tracking-widest",
-                                isStatusMenuOpen ? "bg-secondary-50 border-secondary-200 text-secondary-900" : "bg-white border-secondary-100 text-secondary-600 hover:bg-secondary-50"
-                            )}
-                        >
-                            <Activity className="w-4 h-4 text-secondary-400" />
-                            Actions Statut
-                            <ChevronDown className={cn("w-4 h-4 transition-transform", isStatusMenuOpen && "rotate-180")} />
-                        </Button>
+            <PageHeader
+                title={`Contrat #${contract.id.slice(0, 8)}`}
+                description={employee ? `${employee.firstName} ${employee.lastName}` : '…'}
+                backHref="/contracts"
+                actions={
+                    <>
+                        <Badge variant={contract.status === CONTRACT_STATUS.ACTIVE ? 'success' : contract.status === CONTRACT_STATUS.PENDING ? 'warning' : 'secondary'}>
+                            {getStatusStyles(contract.status).label}
+                        </Badge>
+                        <Badge variant="outline">{contract.type === CONTRACT_TYPE.INTERNSHIP ? 'Stage' : contract.type}</Badge>
+                        <div className="relative">
+                            <Button
+                                onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                            >
+                                <Activity className="w-4 h-4" />
+                                Statut
+                                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isStatusMenuOpen && "rotate-180")} />
+                            </Button>
 
-                        {isStatusMenuOpen && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setIsStatusMenuOpen(false)} />
-                                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-3xl shadow-xl border border-secondary-100 p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="px-3 py-2 text-[10px] font-black tracking-widest uppercase text-secondary-400 border-b border-secondary-100 mb-2">
-                                        Transitions disponibles
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        {(contract.status === CONTRACT_STATUS.PENDING || contract.status === CONTRACT_STATUS.ENDED || contract.status === CONTRACT_STATUS.CANCELLED) && (
-                                            <button
-                                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                                onClick={() => handleStatusChange('activations')}
-                                            >
-                                                {isChangingStatus === 'activations' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                                                Activer le Contrat
-                                            </button>
-                                        )}
-
-                                        {contract.status === CONTRACT_STATUS.ACTIVE && (
-                                            <>
+                            {isStatusMenuOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsStatusMenuOpen(false)} />
+                                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-secondary-100 p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="px-3 py-2 text-[10px] font-black tracking-widest uppercase text-secondary-400 border-b border-secondary-100 mb-2">
+                                            Transitions disponibles
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            {(contract.status === CONTRACT_STATUS.PENDING || contract.status === CONTRACT_STATUS.ENDED || contract.status === CONTRACT_STATUS.CANCELLED) && (
                                                 <button
-                                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
-                                                    onClick={() => handleStatusChange('endings')}
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                                    onClick={() => handleStatusChange('activations')}
                                                 >
-                                                    {isChangingStatus === 'endings' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
-                                                    Terminer le Contrat
+                                                    {isChangingStatus === 'activations' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                                                    Activer le Contrat
                                                 </button>
-                                                
-                                                <button
-                                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-amber-600 hover:bg-amber-50 transition-colors"
-                                                    onClick={() => handleStatusChange('pendings')}
-                                                >
-                                                    {isChangingStatus === 'pendings' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClockIcon className="w-4 h-4" />}
-                                                    Mettre en Attente
-                                                </button>
+                                            )}
 
+                                            {contract.status === CONTRACT_STATUS.ACTIVE && (
+                                                <>
+                                                    <button
+                                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+                                                        onClick={() => handleStatusChange('endings')}
+                                                    >
+                                                        {isChangingStatus === 'endings' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
+                                                        Terminer le Contrat
+                                                    </button>
+                                                    
+                                                    <button
+                                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-amber-600 hover:bg-amber-50 transition-colors"
+                                                        onClick={() => handleStatusChange('pendings')}
+                                                    >
+                                                        {isChangingStatus === 'pendings' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClockIcon className="w-4 h-4" />}
+                                                        Mettre en Attente
+                                                    </button>
+
+                                                    <button
+                                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+                                                        onClick={() => handleStatusChange('cancellations')}
+                                                    >
+                                                        {isChangingStatus === 'cancellations' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                                                        Annuler le Contrat
+                                                    </button>
+                                                </>
+                                            )}
+                                            
+                                            {contract.status === CONTRACT_STATUS.PENDING && (
                                                 <button
                                                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
                                                     onClick={() => handleStatusChange('cancellations')}
@@ -475,89 +462,54 @@ export default function ContractDetailsPage({ params }: PageProps) {
                                                     {isChangingStatus === 'cancellations' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
                                                     Annuler le Contrat
                                                 </button>
-                                            </>
-                                        )}
-                                        
-                                        {contract.status === CONTRACT_STATUS.PENDING && (
-                                            <button
-                                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
-                                                onClick={() => handleStatusChange('cancellations')}
-                                            >
-                                                {isChangingStatus === 'cancellations' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
-                                                Annuler le Contrat
-                                            </button>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                    <div className="w-px h-8 bg-secondary-200" />
-                    <Button variant="outline" className="gap-2 border-none bg-white shadow-xl shadow-secondary-100 rounded-2xl font-bold uppercase tracking-widest text-[10px] py-6 px-6">
-                        <Download className="w-4 h-4" /> Générer PDF
-                    </Button>
-                    <Button
-                        onClick={() => setIsUploadOpen(true)}
-                        className="gap-2 shadow-2xl shadow-primary-200 py-6 rounded-2xl font-black uppercase tracking-widest text-xs px-8 bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100"
-                    >
-                        <Plus className="w-4 h-4" /> Ajouter un document
-                    </Button>
-                </div>
-            </div>
+                                </>
+                            )}
+                        </div>
+                        <Button variant="outline" size="sm" className="gap-2">
+                            <Download className="w-4 h-4" /> Générer PDF
+                        </Button>
+                        <Button onClick={() => setIsUploadOpen(true)} variant="pill" size="sm" className="gap-2">
+                            <Plus className="w-4 h-4" /> Ajouter un document
+                        </Button>
+                    </>
+                }
+            />
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Sidebar */}
-                <div className="lg:col-span-1 space-y-6">
-                    <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[32px] overflow-hidden">
-                        <div className={cn("h-3 w-full",
-                            contract.status === CONTRACT_STATUS.ACTIVE ? "bg-emerald-500" :
-                            contract.status === CONTRACT_STATUS.PENDING ? "bg-amber-400" :
-                            contract.status === CONTRACT_STATUS.CANCELLED ? "bg-rose-500" :
-                            "bg-slate-400"
-                        )} />
-                        <CardContent className="p-8 space-y-6">
-                            <div className="space-y-1">
-                                <Label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest">Rémunération Mensuelle</Label>
-                                <p className="text-3xl font-black text-emerald-700 tabular-nums">
-                                    {parseInt(contract.salary || '0').toLocaleString()} <span className="text-xs font-bold text-secondary-400 ml-1">CDF</span>
-                                </p>
-                            </div>
-                            <div className="pt-6 border-t border-secondary-50 grid grid-cols-1 gap-6">
-                                <InfoItem icon={Calendar} label="Début"
-                                    value={format(new Date(contract.startDate), 'dd MMMM yyyy', { locale: fr })} />
-                                <InfoItem icon={Calendar} label="Fin"
-                                    value={contract.endDate ? format(new Date(contract.endDate), 'dd MMMM yyyy', { locale: fr }) : 'Indéterminé'} />
-                                <InfoItem icon={Clock} label="Créé le"
-                                    value={format(new Date(contract.createdAt), 'dd/MM/yyyy')} />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+            <ContentPanel>
+            <dl className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 md:p-8 border-b border-border">
+                <ProfileField
+                    label="Rémunération mensuelle"
+                    value={`${parseInt(contract.salary || '0').toLocaleString()} CDF`}
+                />
+                <ProfileField
+                    label="Date de début"
+                    value={format(new Date(contract.startDate), 'd MMMM yyyy', { locale: fr })}
+                />
+                <ProfileField
+                    label="Date de fin"
+                    value={contract.endDate ? format(new Date(contract.endDate), 'd MMMM yyyy', { locale: fr }) : 'Indéterminé'}
+                />
+                <ProfileField
+                    label="Créé le"
+                    value={format(new Date(contract.createdAt), 'd MMMM yyyy', { locale: fr })}
+                />
+            </dl>
 
-                {/* Main Content Area with Tabs */}
-                <div className="lg:col-span-3">
-                    <TabsProvider defaultValue="documents">
-                        <TabsList className="bg-transparent border-none gap-6 mb-8 p-0">
-                            <TabsTrigger value="documents" className="px-0 py-2 border-b-2 border-transparent data-[state=active]:border-primary-600 data-[state=active]:bg-transparent rounded-none shadow-none h-auto gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-secondary-100 flex items-center justify-center group-data-[state=active]:border-primary-100">
-                                    <FileIcon className="w-4 h-4 text-secondary-400 group-data-[state=active]:text-primary-600" />
-                                </div>
-                                <span className="font-black text-[10px] uppercase tracking-widest text-secondary-400 data-[state=active]:text-secondary-900">Documents</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="history" className="px-0 py-2 border-b-2 border-transparent data-[state=active]:border-primary-600 data-[state=active]:bg-transparent rounded-none shadow-none h-auto gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-secondary-100 flex items-center justify-center group-data-[state=active]:border-primary-100">
-                                    <History className="w-4 h-4 text-secondary-400 group-data-[state=active]:text-primary-600" />
-                                </div>
-                                <span className="font-black text-[10px] uppercase tracking-widest text-secondary-400 data-[state=active]:text-secondary-900">Historique</span>
-                            </TabsTrigger>
-                        </TabsList>
+            <TabsProvider defaultIndex={0}>
+                <TabsList className="w-full justify-start rounded-none bg-transparent border-b border-border p-0 h-auto gap-0 px-6">
+                    <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Documents</TabsTrigger>
+                    <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Historique</TabsTrigger>
+                </TabsList>
 
-                        <TabsPanels>
-                            <TabsContent>
-                                <Card className="border-none shadow-2xl shadow-secondary-200/30 bg-white rounded-[32px] overflow-hidden">
+                <TabsPanels>
+                    <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
+                                <Card className="border-none  shadow-sm-200/30 bg-white rounded-xl overflow-hidden">
                                     <CardHeader className="p-8 border-b border-secondary-50">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-secondary-100 border border-secondary-100">
+                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm-100 border border-secondary-100">
                                                 <FolderOpen className="w-6 h-6 text-primary-600" />
                                             </div>
                                             <div>
@@ -636,7 +588,7 @@ export default function ContractDetailsPage({ params }: PageProps) {
                                                                     </td>
                                                                     <td className="px-8 py-5 text-right">
                                                                         <div
-                                                                            className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                            className="flex items-center justify-end gap-2 opacity-100 transition-opacity"
                                                                             onClick={e => e.stopPropagation()}
                                                                         >
                                                                             {canPreview && (
@@ -679,11 +631,11 @@ export default function ContractDetailsPage({ params }: PageProps) {
                                 </Card>
                             </TabsContent>
 
-                            <TabsContent>
-                                <Card className="border-none shadow-2xl shadow-secondary-200/30 bg-white rounded-[40px] overflow-hidden">
+                            <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
+                                <Card className="border-none  shadow-sm-200/30 bg-white rounded-xl overflow-hidden">
                                     <CardHeader className="p-8 border-b border-secondary-50">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-secondary-100 border border-secondary-100">
+                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm-100 border border-secondary-100">
                                                 <History className="w-6 h-6 text-primary-600" />
                                             </div>
                                             <div>
@@ -709,7 +661,7 @@ export default function ContractDetailsPage({ params }: PageProps) {
                                                             <ev.icon className="w-5 h-5 text-white" />
                                                         </div>
                                                     </div>
-                                                    <div className={cn("flex-1 p-5 rounded-3xl border shadow-sm group-hover:shadow-md transition-all duration-300 bg-gradient-to-br from-white to-white", ev.lightBg.replace('bg-', 'from-'))}>
+                                                    <div className={cn("flex-1 p-5 rounded-xl border shadow-sm group-hover:shadow-md transition-all duration-300 bg-gradient-to-br from-white to-white", ev.lightBg.replace('bg-', 'from-'))}>
                                                         <div className="flex items-start justify-between gap-4 mb-3">
                                                             <div>
                                                                 <p className="text-xs font-black text-secondary-900 uppercase tracking-widest">{ev.label}</p>
@@ -750,14 +702,13 @@ export default function ContractDetailsPage({ params }: PageProps) {
                                 </Card>
                             </TabsContent>
                         </TabsPanels>
-                    </TabsProvider>
-                </div>
-            </div>
+            </TabsProvider>
+            </ContentPanel>
 
             {/* Upload Modal */}
             {isUploadOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <Card className="w-full max-w-lg border-none shadow-3xl bg-white rounded-[40px] overflow-hidden animate-in zoom-in-95 duration-300">
+                    <Card className="w-full max-w-lg border-none shadow-3xl bg-white rounded-xl overflow-hidden animate-in zoom-in-95 duration-300">
                         <CardHeader className="p-8 border-b border-secondary-50 flex flex-row items-center justify-between bg-indigo-50/30">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
@@ -800,7 +751,7 @@ export default function ContractDetailsPage({ params }: PageProps) {
                                         <input type="file" required
                                             onChange={e => setUploadData({ ...uploadData, file: e.target.files?.[0] || null })}
                                             className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full" />
-                                        <div className="w-full h-32 border-2 border-dashed border-secondary-200 rounded-3xl flex flex-col items-center justify-center gap-2 group-hover:border-primary-400 transition-colors bg-secondary-50/50">
+                                        <div className="w-full h-32 border-2 border-dashed border-secondary-200 rounded-xl flex flex-col items-center justify-center gap-2 group-hover:border-primary-400 transition-colors bg-secondary-50/50">
                                             {uploadData.file ? (
                                                 <>
                                                     <FileCheck className="w-8 h-8 text-emerald-500" />
@@ -831,10 +782,10 @@ export default function ContractDetailsPage({ params }: PageProps) {
             {/* Custom Confirmation Modal */}
             {confirmModal.isOpen && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-md animate-in fade-in duration-300">
-                    <Card className="w-full max-w-sm border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] rounded-[32px] overflow-hidden bg-white animate-in zoom-in-95 duration-300">
+                    <Card className="w-full max-w-sm border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] rounded-xl overflow-hidden bg-white animate-in zoom-in-95 duration-300">
                         <CardContent className="p-8 text-center space-y-6">
                             <div className={cn(
-                                "w-20 h-20 rounded-3xl flex items-center justify-center mx-auto shadow-sm",
+                                "w-20 h-20 rounded-xl flex items-center justify-center mx-auto shadow-sm",
                                 confirmModal.variant === 'danger' ? "bg-rose-50 text-rose-500" :
                                 confirmModal.variant === 'warning' ? "bg-amber-50 text-amber-500" :
                                 confirmModal.variant === 'success' ? "bg-emerald-50 text-emerald-500" :
@@ -874,17 +825,6 @@ export default function ContractDetailsPage({ params }: PageProps) {
                     </Card>
                 </div>
             )}
-        </div>
-    );
-}
-
-function InfoItem({ icon: Icon, label, value }: any) {
-    return (
-        <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-[10px] font-black text-secondary-400 uppercase tracking-widest">
-                <Icon className="w-3.5 h-3.5 text-primary-500" /> {label}
-            </div>
-            <p className="text-sm font-bold text-secondary-900 uppercase">{value}</p>
-        </div>
+        </PageShell>
     );
 }

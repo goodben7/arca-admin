@@ -12,7 +12,6 @@ import {
     Plus,
     BookOpen,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
@@ -22,6 +21,9 @@ import { TrainingRequest, STATUS_APPROVED, STATUS_PENDING, STATUS_REJECTED } fro
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { getDepartments } from '@/lib/api/employee';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { DataPanel } from '@/components/layout/DataPanel';
 
 function normalizeList(data: any): TrainingRequest[] {
     if (Array.isArray(data)) return data as TrainingRequest[];
@@ -101,39 +103,30 @@ export default function TrainingRequestsPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">Formations</h1>
-                    <p className="text-secondary-500 font-medium italic">
-                        Demandes de formation et validation RH.
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Link href="/training/create">
-                        <Button className="gap-2 shadow-xl shadow-primary-200 py-3 px-5 rounded-2xl transition-all active:scale-[0.98]">
-                            <Plus className="w-4 h-4" />
-                            <span className="font-bold uppercase tracking-widest text-[10px]">Nouvelle demande</span>
-                        </Button>
-                    </Link>
-                    <Badge className="font-black bg-primary-50 text-primary-600 border-primary-100 px-3 py-1 rounded-lg text-[10px] tracking-widest">
-                        {requests.length} demande(s)
-                    </Badge>
-                </div>
-            </div>
+        <PageShell>
+            <PageHeader
+                title="Formations"
+                description="Demandes de formation et validation RH."
+                actions={
+                    <>
+                        <Link href="/training/create">
+                            <Button className="gap-2 shadow-xl shadow-primary-200 py-3 px-5 rounded-2xl transition-all active:scale-[0.98]">
+                                <Plus className="w-4 h-4" />
+                                <span className="font-bold uppercase tracking-widest text-[10px]">Nouvelle demande</span>
+                            </Button>
+                        </Link>
+                        <Badge className="font-black bg-primary-50 text-primary-600 border-primary-100 px-3 py-1 rounded-lg text-[10px] tracking-widest">
+                            {requests.length} demande(s)
+                        </Badge>
+                    </>
+                }
+            />
 
-            <Card className="overflow-hidden border-none shadow-xl shadow-secondary-200/50 animate-in fade-in">
-                <CardHeader className="border-b border-secondary-100 bg-white">
-                    <CardTitle className="text-secondary-900 font-black uppercase tracking-tight text-lg flex items-center gap-2">
-                        <BookOpen className="w-5 h-5 text-primary-600" />
-                        Demandes de formation
-                    </CardTitle>
-                    <CardDescription className="text-secondary-500 font-medium italic">
-                        Ouvrez une demande pour approuver ou refuser.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent className="p-6">
+            <DataPanel
+                title="Demandes de formation"
+                description="Ouvrez une demande pour approuver ou refuser."
+                badge={<BookOpen className="w-5 h-5 text-primary-600" />}
+            >
                     <div className="mb-6 flex flex-col md:flex-row md:items-center gap-4 md:justify-between">
                         <div className="relative w-full md:w-96">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-secondary-300" />
@@ -243,8 +236,7 @@ export default function TrainingRequestsPage() {
                             </TableBody>
                         </Table>
                     )}
-                </CardContent>
-            </Card>
-        </div>
+            </DataPanel>
+        </PageShell>
     );
 }

@@ -34,6 +34,10 @@ import { BASE_URL } from '@/lib/api/client';
 import { DocumentRecord } from '@/types/document';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { FilterBar } from '@/components/layout/FilterBar';
+import { PageKpiStrip } from '@/components/layout/PageKpi';
 
 
 const HOLDER_TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
@@ -362,9 +366,12 @@ export default function DocumentManagementPage() {
     const nextPreview = useCallback(() => { if (previewIdx < previewable.length - 1) setPreviewDoc(previewable[previewIdx + 1]); }, [previewIdx, previewable]);
 
     const totalSize = useMemo(() => docs.reduce((acc, d) => acc + (d.fileSize || 0), 0), [docs]);
+    const previewableCount = useMemo(() => docs.filter(isPreviewable).length, [docs]);
+    const employeeDocs = useMemo(() => docs.filter(d => d.holderType === 'EMPLOYEE').length, [docs]);
+    const contractDocs = useMemo(() => docs.filter(d => d.holderType === 'CONTRACT').length, [docs]);
 
     return (
-        <div className="space-y-8 pb-12">
+        <PageShell className="pb-12">
             {/* Preview modal */}
             {previewDoc && (
                 <PreviewModal
@@ -378,27 +385,26 @@ export default function DocumentManagementPage() {
                 />
             )}
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-secondary-900 uppercase tracking-tighter">Gestion Documentaire</h1>
-                    <p className="text-secondary-500 font-medium mt-1">Archive sécurisée de tous les documents administratifs.</p>
-                </div>
-                <div className="flex items-center gap-2 bg-white border border-secondary-100 shadow-xl shadow-secondary-100 rounded-2xl px-5 py-3">
-                    <HardDrive className="w-4 h-4 text-primary-500" />
-                    <span className="text-xs font-black text-secondary-900 uppercase">{formatBytes(totalSize)}</span>
-                    <span className="text-xs font-medium text-secondary-400">utilisés</span>
-                    <span className="ml-3 text-xs font-black text-secondary-900">{docs.length}</span>
-                    <span className="text-xs font-medium text-secondary-400">documents</span>
-                </div>
-            </div>
+            <PageHeader
+                title="Gestion Documentaire"
+                description="Archive sécurisée de tous les documents administratifs."
+            />
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <PageKpiStrip
+                items={[
+                    { label: 'Documents archivés', value: docs.length, icon: FileText, tone: 'primary', detail: 'Total dans l\'archive' },
+                    { label: 'Espace utilisé', value: formatBytes(totalSize), icon: HardDrive, tone: 'info', detail: 'Stockage consommé' },
+                    { label: 'Employés', value: employeeDocs, icon: User, tone: 'success', detail: 'Pièces RH' },
+                    { label: 'Prévisualisables', value: previewableCount, icon: Eye, tone: 'warning', detail: `${contractDocs} contrat${contractDocs > 1 ? 's' : ''}` },
+                ]}
+            />
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Sidebar */}
-                <div className="lg:col-span-1 space-y-6">
-                    <Card className="border-none shadow-xl shadow-secondary-100/60 overflow-hidden rounded-[28px]">
-                        <CardHeader className="px-6 py-5 bg-secondary-50/30 border-b border-secondary-100">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary-400 flex items-center gap-2">
+                <div className="lg:col-span-1 space-y-4">
+                    <Card className="panel-surface panel-accent-top border-none shadow-card overflow-hidden rounded-2xl">
+                        <CardHeader className="px-5 py-4 panel-header-wash border-b">
+                            <CardTitle className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
                                 <Layers className="w-3.5 h-3.5" /> Par entité
                             </CardTitle>
                         </CardHeader>
@@ -422,9 +428,9 @@ export default function DocumentManagementPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-none shadow-xl shadow-secondary-100/60 overflow-hidden rounded-[28px]">
-                        <CardHeader className="px-6 py-5 bg-secondary-50/30 border-b border-secondary-100">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary-400 flex items-center gap-2">
+                    <Card className="panel-surface panel-accent-top border-none shadow-card overflow-hidden rounded-2xl">
+                        <CardHeader className="px-5 py-4 panel-header-wash border-b">
+                            <CardTitle className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
                                 <Filter className="w-3.5 h-3.5" /> Par type de pièce
                             </CardTitle>
                         </CardHeader>
@@ -445,22 +451,23 @@ export default function DocumentManagementPage() {
 
                 {/* Main */}
                 <div className="lg:col-span-3 space-y-4">
-                    {/* Search */}
-                    <div className="flex items-center gap-4 bg-white p-2 pl-5 rounded-2xl shadow-sm border border-secondary-100">
-                        <Search className="w-4 h-4 text-secondary-400 shrink-0" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder="Rechercher par titre, référence ou titulaire..."
-                            className="flex-1 text-sm bg-transparent border-none focus:ring-0 outline-none font-medium text-secondary-700 placeholder-secondary-400"
-                        />
+                    <FilterBar>
+                        <div className="relative flex-1 group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 group-focus-within:text-primary-500 transition-colors" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                placeholder="Rechercher par titre, référence ou titulaire..."
+                                className="w-full h-10 pl-10 pr-4 bg-white border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all placeholder:text-secondary-400"
+                            />
+                        </div>
                         {search && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSearch('')}>
-                                <X className="w-4 h-4" />
+                            <Button variant="ghost" size="sm" onClick={() => setSearch('')}>
+                                Réinitialiser
                             </Button>
                         )}
-                    </div>
+                    </FilterBar>
 
                     {/* Active filter chips */}
                     {(activeHolderType !== 'ALL' || activeDocType !== 'ALL') && (
@@ -491,22 +498,22 @@ export default function DocumentManagementPage() {
                             <p className="text-xs font-black uppercase tracking-widest animate-pulse">Chargement des documents...</p>
                         </div>
                     ) : error ? (
-                        <Card className="border-none shadow-lg rounded-3xl">
+                        <Card className="border-none shadow-lg rounded-xl">
                             <CardContent className="p-12 flex flex-col items-center gap-4">
                                 <AlertCircle className="w-14 h-14 text-destructive/20" />
                                 <p className="text-secondary-400 font-bold italic">{error}</p>
                             </CardContent>
                         </Card>
                     ) : filtered.length === 0 ? (
-                        <Card className="border-none shadow-lg rounded-3xl">
+                        <Card className="border-none shadow-lg rounded-xl">
                             <CardContent className="p-16 flex flex-col items-center gap-4">
                                 <FolderSearch className="w-16 h-16 text-secondary-100" />
                                 <p className="text-secondary-400 font-bold italic uppercase text-sm">Aucun document trouvé</p>
                             </CardContent>
                         </Card>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {filtered.map(doc => {
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {filtered.map((doc, index) => {
                                 const Icon = getFileIcon(doc);
                                 const holderMeta = HOLDER_TYPE_LABELS[doc.holderType];
                                 const contentUrl = doc.contentUrl ? `${BASE_URL}${doc.contentUrl}` : null;
@@ -516,12 +523,12 @@ export default function DocumentManagementPage() {
                                 return (
                                     <Card
                                         key={doc.id}
-                                        className="group border border-secondary-100 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-100/30 transition-all duration-300 rounded-[24px] overflow-hidden"
+                                        className="group panel-surface border-none shadow-card hover:shadow-float hover:-translate-y-0.5 transition-all duration-300 rounded-xl overflow-hidden enter-grid-item"
+                                        style={{ animationDelay: `${Math.min(index, 24) * 35}ms` }}
                                     >
-                                        {/* Thumbnail / Icon header */}
                                         {fileType === 'image' && contentUrl ? (
                                             <div
-                                                className="relative w-full h-36 bg-secondary-50 overflow-hidden cursor-pointer"
+                                                className="relative w-full h-24 bg-secondary-50 overflow-hidden cursor-pointer"
                                                 onClick={() => openPreview(doc)}
                                             >
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -530,94 +537,53 @@ export default function DocumentManagementPage() {
                                                     alt={doc.title || ''}
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                 />
-                                                <div className="absolute inset-0 bg-secondary-900/0 group-hover:bg-secondary-900/40 transition-all flex items-center justify-center">
-                                                    <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity scale-75 group-hover:scale-100 duration-300" />
+                                                <div className="absolute inset-0 bg-secondary-900/0 group-hover:bg-secondary-900/35 transition-all flex items-center justify-center">
+                                                    <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 </div>
                                             </div>
                                         ) : fileType === 'pdf' ? (
                                             <div
-                                                className="relative w-full h-36 bg-rose-50 flex items-center justify-center cursor-pointer overflow-hidden"
+                                                className="relative w-full h-24 bg-rose-50 flex items-center justify-center cursor-pointer overflow-hidden"
                                                 onClick={() => openPreview(doc)}
                                             >
-                                                <div className="absolute inset-0 bg-gradient-to-br from-rose-100/60 to-rose-50" />
-                                                <FileText className="w-14 h-14 text-rose-300 group-hover:text-rose-400 transition-colors z-10" />
-                                                <div className="absolute inset-0 bg-secondary-900/0 group-hover:bg-secondary-900/30 transition-all flex items-center justify-center">
-                                                    <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity scale-75 group-hover:scale-100 duration-300 z-20" />
-                                                </div>
-                                                <span className="absolute bottom-2 right-3 text-[9px] font-black text-rose-400 uppercase tracking-widest z-10">PDF</span>
+                                                <FileText className="w-8 h-8 text-rose-300 group-hover:text-rose-400 transition-colors z-10" />
+                                                <span className="absolute top-1.5 right-2 text-[8px] font-bold text-rose-500 uppercase">PDF</span>
                                             </div>
-                                        ) : null}
+                                        ) : (
+                                            <div className="w-full h-24 bg-primary-50/50 flex items-center justify-center">
+                                                <Icon className="w-8 h-8 text-primary-400" />
+                                            </div>
+                                        )}
 
-                                        <CardContent className="p-5 flex flex-col gap-3">
-                                            <div className="flex items-start justify-between gap-2">
-                                                {fileType === 'other' && (
-                                                    <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-all flex items-center justify-center shrink-0">
-                                                        <Icon className="w-5 h-5" />
-                                                    </div>
-                                                )}
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="font-black text-secondary-900 uppercase tracking-tight text-sm truncate" title={doc.title || doc.id}>
-                                                        {doc.title || 'Sans titre'}
-                                                    </h4>
-                                                    <div className="flex items-center gap-2 mt-0.5 text-[10px] font-bold text-secondary-400">
-                                                        <span>Réf: {doc.documentRefNumber || 'N/A'}</span>
-                                                        <span>·</span>
-                                                        <span>{formatBytes(doc.fileSize)}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-1.5 shrink-0">
-                                                    {holderMeta && (
-                                                        <Badge className={cn("text-[8px] font-black uppercase border-none px-2 py-0.5 rounded-lg", holderMeta.color)}>
-                                                            {holderMeta.label}
-                                                        </Badge>
-                                                    )}
-                                                    <Badge variant="outline" className="text-[8px] font-black uppercase px-2 py-0.5 rounded-lg">
-                                                        {DOC_TYPE_LABELS[doc.type] || doc.type}
+                                        <CardContent className="p-3 flex flex-col gap-2">
+                                            <h4 className="font-semibold text-secondary-900 text-xs leading-snug line-clamp-2 min-h-[2.5rem]" title={doc.title || doc.id}>
+                                                {doc.title || 'Sans titre'}
+                                            </h4>
+                                            <div className="flex flex-wrap gap-1">
+                                                {holderMeta && (
+                                                    <Badge className={cn('text-[8px] px-1.5 py-0 border-none', holderMeta.color)}>
+                                                        {holderMeta.label}
                                                     </Badge>
-                                                </div>
+                                                )}
+                                                <Badge variant="outline" className="text-[8px] px-1.5 py-0">
+                                                    {DOC_TYPE_LABELS[doc.type] || doc.type}
+                                                </Badge>
                                             </div>
-
-                                            <div className="text-[10px] font-bold text-secondary-400 uppercase flex items-center gap-1.5">
-                                                <Building2 className="w-3 h-3 shrink-0" />
-                                                <span className="truncate">{doc.holderId}</span>
-                                            </div>
-
-                                            {/* Footer */}
-                                            <div className="pt-3 border-t border-secondary-50 flex items-center justify-between">
-                                                <span className="text-[10px] text-secondary-400 font-medium">{formatDate(doc)}</span>
-                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                            <div className="flex items-center justify-between gap-1 pt-1 border-t border-border/60">
+                                                <span className="text-[10px] text-muted-foreground truncate">{formatDate(doc)}</span>
+                                                <div className="flex shrink-0">
                                                     {canPreview && (
-                                                        <Button
-                                                            variant="ghost" size="icon"
-                                                            onClick={() => openPreview(doc)}
-                                                            className="h-8 w-8 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all active:scale-90"
-                                                            title="Aperçu"
-                                                        >
-                                                            <Eye className="w-4 h-4" />
+                                                        <Button variant="ghost" size="icon" onClick={() => openPreview(doc)} className="h-7 w-7" title="Aperçu">
+                                                            <Eye className="w-3.5 h-3.5" />
                                                         </Button>
                                                     )}
                                                     {contentUrl && (
-                                                        <Button
-                                                            variant="ghost" size="icon"
-                                                            onClick={() => window.open(contentUrl, '_blank')}
-                                                            className="h-8 w-8 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all active:scale-90"
-                                                            title="Télécharger"
-                                                        >
-                                                            <Download className="w-4 h-4" />
+                                                        <Button variant="ghost" size="icon" onClick={() => window.open(contentUrl, '_blank')} className="h-7 w-7" title="Télécharger">
+                                                            <Download className="w-3.5 h-3.5" />
                                                         </Button>
                                                     )}
-                                                    <Button
-                                                        variant="ghost" size="icon"
-                                                        onClick={() => handleDelete(doc.id, doc.title)}
-                                                        disabled={isDeleting === doc.id}
-                                                        className="h-8 w-8 text-secondary-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-90"
-                                                        title="Supprimer"
-                                                    >
-                                                        {isDeleting === doc.id ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
-                                                        ) : (
-                                                            <Trash2 className="w-4 h-4" />
-                                                        )}
+                                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(doc.id, doc.title)} disabled={isDeleting === doc.id} className="h-7 w-7 text-destructive" title="Supprimer">
+                                                        {isDeleting === doc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                                                     </Button>
                                                 </div>
                                             </div>
@@ -635,7 +601,7 @@ export default function DocumentManagementPage() {
                     )}
                 </div>
             </div>
-        </div>
+        </PageShell>
     );
 }
 
