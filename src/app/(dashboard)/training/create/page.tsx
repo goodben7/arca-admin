@@ -21,6 +21,8 @@ import { Label } from '@/components/ui/Input';
 import { getDepartments } from '@/lib/api/employee';
 import { createTrainingRequest } from '@/lib/api/training';
 import { Department } from '@/types/employee';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 const PRIORITIES = [
     { value: 'LOW',    label: 'Faible' },
@@ -92,27 +94,12 @@ export default function CreateTrainingRequestPage() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <Button
-                    variant="ghost"
-                    onClick={() => router.back()}
-                    className="p-0 hover:bg-transparent text-secondary-500 hover:text-secondary-900 transition-colors group"
-                >
-                    <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-all">
-                        <ChevronLeft className="w-5 h-5" />
-                    </div>
-                </Button>
-                <div>
-                    <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">
-                        Nouvelle demande de formation
-                    </h1>
-                    <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest italic">
-                        Proposez une formation et justifiez votre besoin
-                    </p>
-                </div>
-            </div>
+        <PageShell className="max-w-4xl mx-auto">
+            <PageHeader
+                title="Nouvelle demande de formation"
+                description="Proposez une formation et justifiez votre besoin"
+                backHref="/training"
+            />
 
             {error && (
                 <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-2xl text-destructive text-sm font-bold flex items-center gap-3">
@@ -122,7 +109,7 @@ export default function CreateTrainingRequestPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <Card className="border-none shadow-2xl shadow-secondary-200/50 overflow-hidden rounded-3xl">
+                <Card className="border-none  shadow-sm-200/50 overflow-hidden rounded-xl">
                     <CardHeader className="bg-secondary-50/50 border-b border-secondary-100 p-8">
                         <div className="flex items-center gap-4">
                             <div className="w-14 h-14 bg-primary-600 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-200">
@@ -275,6 +262,6 @@ export default function CreateTrainingRequestPage() {
                     </Button>
                 </div>
             </form>
-        </div>
+        </PageShell>
     );
 }

@@ -76,3 +76,19 @@ export async function changeContractStatus(action: string, contractId: string) {
     const text = await response.text();
     return text ? JSON.parse(text) : {};
 }
+
+export async function activateContract(contractId: string) {
+    return changeContractStatus('activations', contractId);
+}
+
+export async function endContract(contractId: string) {
+    return changeContractStatus('ends', contractId);
+}
+
+export async function cancelContract(contractId: string) {
+    return changeContractStatus('cancellations', contractId);
+}
+
+export async function setPendingContract(contractId: string) {
+    return changeContractStatus('pendings', contractId);
+}

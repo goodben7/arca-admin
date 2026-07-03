@@ -3,20 +3,21 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-    "inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2",
+    "inline-flex items-center rounded-lg px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
     {
         variants: {
             variant: {
-                default: "bg-primary-50 text-primary-700 border border-primary-100",
-                secondary: "bg-secondary-100 text-secondary-700 border border-secondary-200",
-                success: "bg-emerald-50 text-emerald-700 border border-emerald-100",
-                warning: "bg-amber-50 text-amber-700 border border-amber-100",
-                destructive: "bg-rose-50 text-rose-700 border border-rose-100",
-                outline: "text-secondary-600 border border-secondary-200 bg-white",
+                default: "bg-primary-100 text-primary-800 border border-primary-300",
+                secondary: "bg-secondary-100 text-secondary-700 border border-secondary-300",
+                success: "bg-emerald-100 text-emerald-800 border border-emerald-300",
+                warning: "bg-amber-100 text-amber-800 border border-amber-300",
+                destructive: "bg-rose-100 text-rose-800 border border-rose-300",
+                info: "bg-sky-100 text-sky-800 border border-sky-300",
+                outline: "text-secondary-700 border border-secondary-300 bg-white",
             },
             size: {
                 sm: "px-2 py-0.5 text-[10px]",
-                default: "px-2.5 py-1 text-xs",
+                default: "px-2.5 py-0.5 text-[11px]",
             }
         },
         defaultVariants: {
@@ -27,12 +28,12 @@ const badgeVariants = cva(
 )
 
 export interface BadgeProps
-    extends React.HTMLAttributes<HTMLDivElement>,
+    extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> { }
 
 function Badge({ className, variant, size, ...props }: BadgeProps) {
     return (
-        <div className={cn(badgeVariants({ variant, size }), className)} {...props} />
+        <span className={cn(badgeVariants({ variant, size }), className)} {...props} />
     )
 }
 

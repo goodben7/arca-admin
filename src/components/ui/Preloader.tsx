@@ -15,15 +15,25 @@ export function Preloader({ message = 'Chargement…', visible }: PreloaderProps
         if (visible) setMounted(true);
     }, [visible]);
 
+    useEffect(() => {
+        if (!visible && mounted) {
+            const t = window.setTimeout(() => setMounted(false), 600);
+            return () => window.clearTimeout(t);
+        }
+    }, [visible, mounted]);
+
     if (!mounted) return null;
 
     return (
         <div
             className={cn(
-                'fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#004b61] transition-opacity duration-500',
+                'fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#003649] transition-opacity duration-500',
                 visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
             )}
             onTransitionEnd={() => { if (!visible) setMounted(false); }}
+            role="status"
+            aria-live="polite"
+            aria-busy={visible}
         >
             {/* Halos ambiant */}
             <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-white/5 blur-[120px] pointer-events-none" />
@@ -60,8 +70,8 @@ export function Preloader({ message = 'Chargement…', visible }: PreloaderProps
                         <span className="text-5xl font-black tracking-tighter text-[#C1272D]">CA</span>
                         <span className="w-2.5 h-2.5 rounded-full bg-[#FDB913] mb-1 ml-0.5 animate-pulse" />
                     </div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40">
-                        Système d'Information RH
+                    <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/50">
+                        Système d&apos;Information RH
                     </p>
                 </div>
 
@@ -70,7 +80,7 @@ export function Preloader({ message = 'Chargement…', visible }: PreloaderProps
                     <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
                         <div className="h-full rounded-full bg-gradient-to-r from-[#007398] via-[#C1272D] to-[#FDB913] animate-[preloader-bar_1.6s_ease-in-out_infinite]" />
                     </div>
-                    <p className="text-center text-[11px] font-black uppercase tracking-[0.25em] text-white/30">
+                    <p className="text-center text-[11px] font-black uppercase tracking-[0.25em] text-white/50">
                         {message}
                     </p>
                 </div>

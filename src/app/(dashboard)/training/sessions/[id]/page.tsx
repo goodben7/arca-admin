@@ -59,6 +59,8 @@ import {
     ENROLLMENT_STATUS_ABSENT,
 } from '@/types/trainingEnrollment';
 import { Employee } from '@/types/employee';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function normalizeId(v?: string) {
@@ -516,50 +518,39 @@ export default function TrainingSessionDetailPage() {
                 icon={<UserMinus className="w-7 h-7 text-rose-600" />}
             />
 
-            <div className="max-w-5xl mx-auto space-y-6">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" onClick={() => router.back()} className="p-0 hover:bg-transparent group">
-                            <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-all">
-                                <ArrowLeft className="w-5 h-5 text-secondary-500" />
+            <PageShell className="max-w-5xl mx-auto">
+                <PageHeader
+                    title={session.title}
+                    description={`Session de formation · ${session.startDate ? format(new Date(session.startDate), 'dd MMMM yyyy', { locale: fr }) : '—'}`}
+                    backHref="/training/sessions"
+                    actions={
+                        <>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusClass}`}>
+                                {getStatusLabel(session.status)}
+                            </span>
+                            <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                                {(isPlanned || isOngoing) && (
+                                    <Button onClick={() => setShowCancelModal(true)}
+                                        className="rounded-2xl px-5 py-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black uppercase tracking-widest text-xs flex items-center gap-2">
+                                        <X className="w-4 h-4" /> Annuler
+                                    </Button>
+                                )}
+                                {isPlanned && (
+                                    <Button onClick={() => setShowStartModal(true)}
+                                        className="rounded-2xl px-5 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-amber-200">
+                                        <Play className="w-4 h-4" /> Démarrer
+                                    </Button>
+                                )}
+                                {isOngoing && (
+                                    <Button onClick={() => setShowCompleteModal(true)}
+                                        className="rounded-2xl px-5 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-emerald-200">
+                                        <CheckSquare className="w-4 h-4" /> Terminer
+                                    </Button>
+                                )}
                             </div>
-                        </Button>
-                        <div>
-                            <div className="flex items-center gap-3 flex-wrap">
-                                <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">{session.title}</h1>
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusClass}`}>
-                                    {getStatusLabel(session.status)}
-                                </span>
-                            </div>
-                            <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest italic mt-1">
-                                Session de formation · {session.startDate ? format(new Date(session.startDate), 'dd MMMM yyyy', { locale: fr }) : '—'}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-3 shrink-0 flex-wrap">
-                        {(isPlanned || isOngoing) && (
-                            <Button onClick={() => setShowCancelModal(true)}
-                                className="rounded-2xl px-5 py-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black uppercase tracking-widest text-xs flex items-center gap-2">
-                                <X className="w-4 h-4" /> Annuler
-                            </Button>
-                        )}
-                        {isPlanned && (
-                            <Button onClick={() => setShowStartModal(true)}
-                                className="rounded-2xl px-5 py-4 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-amber-200">
-                                <Play className="w-4 h-4" /> Démarrer
-                            </Button>
-                        )}
-                        {isOngoing && (
-                            <Button onClick={() => setShowCompleteModal(true)}
-                                className="rounded-2xl px-5 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-emerald-200">
-                                <CheckSquare className="w-4 h-4" /> Terminer
-                            </Button>
-                        )}
-                    </div>
-                </div>
+                        </>
+                    }
+                />
 
                 {actionError && (
                     <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-2xl text-destructive text-sm font-bold flex items-center gap-3">
@@ -861,7 +852,7 @@ export default function TrainingSessionDetailPage() {
                         </TabsContent>
                     </TabsPanels>
                 </TabsProvider>
-            </div>
+            </PageShell>
         </>
     );
 }

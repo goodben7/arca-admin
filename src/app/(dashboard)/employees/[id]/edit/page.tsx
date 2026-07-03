@@ -18,14 +18,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input, Label } from '@/components/ui/Input';
 import Link from 'next/link';
 import { getEmployeeById, updateEmployee, getDepartments } from '@/lib/api/employee';
+import { getJobRoles, getGrades } from '@/lib/api/jobArchitecture';
 import { getAllPositions } from '@/lib/api/position';
+import { extractId } from '@/lib/api-iri';
 import { Employee, Department } from '@/types/employee';
+import { JobRole, Grade } from '@/types/jobArchitecture';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function EditEmployeePage({ params }: { params: { id: string } }) {
     const router = useRouter();
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [departments, setDepartments] = useState<Department[]>([]);
     const [positions, setPositions] = useState<any[]>([]);
+    const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
+    const [grades, setGrades] = useState<Grade[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -37,21 +44,27 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
         phone: '',
         department: '',
         position: '',
+        jobRole: '',
+        grade: '',
         hireDate: ''
     });
 
     useEffect(() => {
         async function loadData() {
             try {
-                const [empData, deptsData, posData] = await Promise.all([
+                const [empData, deptsData, posData, rolesData, gradesData] = await Promise.all([
                     getEmployeeById(params.id),
                     getDepartments(),
-                    getAllPositions()
+                    getAllPositions(),
+                    getJobRoles().catch(() => []),
+                    getGrades().catch(() => []),
                 ]);
 
                 setEmployee(empData);
                 setDepartments(Array.isArray(deptsData) ? deptsData : (deptsData as any)['hydra:member'] || []);
                 setPositions(Array.isArray(posData) ? posData : (posData as any)['hydra:member'] || []);
+                setJobRoles(rolesData);
+                setGrades(gradesData);
 
                 setFormData({
                     firstName: empData.firstName || '',
@@ -60,6 +73,8 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
                     phone: empData.phone || '',
                     department: (empData.department as any)?.['@id'] || empData.department || '',
                     position: (empData.position as any)?.['@id'] || empData.position || '',
+                    jobRole: extractId(empData.jobRole) || '',
+                    grade: extractId(empData.grade) || '',
                     hireDate: empData.hireDate ? empData.hireDate.split('T')[0] : ''
                 });
             } catch (err: any) {
@@ -101,19 +116,12 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
     }
 
     return (
-        <div className="space-y-8 pb-10 max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => router.back()} className="h-10 w-10 flex items-center justify-center rounded-xl bg-white shadow-sm border border-secondary-100 hover:scale-110 active:scale-95 transition-all text-secondary-600">
-                        <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-secondary-900 uppercase tracking-tighter">Modifier : {formData.firstName} {formData.lastName}</h1>
-                        <p className="text-secondary-500 font-medium italic">ID: {params.id}</p>
-                    </div>
-                </div>
-            </div>
+        <PageShell className="max-w-4xl mx-auto">
+            <PageHeader
+                title={`Modifier : ${formData.firstName} ${formData.lastName}`}
+                description={`ID: ${params.id}`}
+                backHref={`/employees/${params.id}`}
+            />
 
             <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {error && (
@@ -132,7 +140,7 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
                         <h2 className="text-lg font-bold text-secondary-900 uppercase tracking-tight">Informations Personnelles</h2>
                     </div>
 
-                    <Card className="border-none shadow-xl shadow-secondary-200/50 overflow-hidden rounded-[32px] bg-white">
+                    <Card className="border-none shadow-sm-200/50 overflow-hidden rounded-xl bg-white">
                         <CardContent className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="firstName" className="text-[10px] font-black uppercase text-secondary-400 tracking-widest ml-1">Prénom</Label>
@@ -163,7 +171,7 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
                         <h2 className="text-lg font-bold text-secondary-900 uppercase tracking-tight">Détails Professionnels</h2>
                     </div>
 
-                    <Card className="border-none shadow-xl shadow-secondary-200/50 overflow-hidden rounded-[32px] bg-white">
+                    <Card className="border-none shadow-sm-200/50 overflow-hidden rounded-xl bg-white">
                         <CardContent className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="department" className="text-[10px] font-black uppercase text-secondary-400 tracking-widest ml-1">Département</Label>
@@ -201,6 +209,36 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
                                 <Label htmlFor="hireDate" className="text-[10px] font-black uppercase text-secondary-400 tracking-widest ml-1">Date d'embauche</Label>
                                 <Input id="hireDate" name="hireDate" type="date" value={formData.hireDate} onChange={handleChange} required className="h-12 rounded-xl" />
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="jobRole" className="text-[10px] font-black uppercase text-secondary-400 tracking-widest ml-1">Fiche métier RH</Label>
+                                <select
+                                    id="jobRole"
+                                    name="jobRole"
+                                    value={formData.jobRole}
+                                    onChange={handleChange}
+                                    className="w-full h-12 px-4 bg-secondary-50 border border-secondary-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all appearance-none cursor-pointer"
+                                >
+                                    <option value="">Aucune fiche métier</option>
+                                    {jobRoles.map(r => (
+                                        <option key={r.id} value={r.id}>{r.title}{r.code ? ` (${r.code})` : ''}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="grade" className="text-[10px] font-black uppercase text-secondary-400 tracking-widest ml-1">Grade</Label>
+                                <select
+                                    id="grade"
+                                    name="grade"
+                                    value={formData.grade}
+                                    onChange={handleChange}
+                                    className="w-full h-12 px-4 bg-secondary-50 border border-secondary-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 transition-all appearance-none cursor-pointer"
+                                >
+                                    <option value="">Aucun grade</option>
+                                    {grades.map(g => (
+                                        <option key={g.id} value={g.id}>{g.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </CardContent>
                     </Card>
                 </section>
@@ -216,6 +254,6 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
                     </Button>
                 </div>
             </form>
-        </div>
+        </PageShell>
     );
 }

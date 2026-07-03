@@ -88,7 +88,7 @@ export default function CandidatureForm({ jobOfferId, jobOfferTitle }: Props) {
 
     if (status === 'success') {
         return (
-            <div className="bg-white rounded-3xl border border-secondary-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-secondary-100 shadow-sm overflow-hidden">
                 <div className="px-8 py-12 flex flex-col items-center text-center gap-5">
                     <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
                         <CheckCircle2 className="w-8 h-8 text-emerald-600" />
@@ -114,7 +114,7 @@ export default function CandidatureForm({ jobOfferId, jobOfferTitle }: Props) {
     }
 
     return (
-        <div className="bg-white rounded-3xl border border-secondary-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-secondary-100 shadow-sm overflow-hidden">
             {/* Header */}
             <div className="px-8 py-6 border-b border-secondary-100 flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-accent-red-50 border border-accent-red-100 flex items-center justify-center">

@@ -1,17 +1,11 @@
+import { getToken, clearToken } from '@/lib/auth-token';
 
 export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.arca.ereborhub.cloud';
-
-function getToken() {
-    if (typeof window === 'undefined') return null;
-    const match = document.cookie.match(new RegExp('(^| )token=([^;]+)'));
-    if (match) return match[2];
-    return null;
-}
 
 function handleLogout(errorMessage?: string) {
     if (typeof window === 'undefined') return;
 
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    clearToken();
 
     const url = errorMessage
         ? `/login?error=${encodeURIComponent(errorMessage)}`

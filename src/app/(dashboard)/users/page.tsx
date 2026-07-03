@@ -16,6 +16,9 @@ import { getAllUsers } from '@/lib/api/profile';
 import { AppUser, PERSON_TYPE_LABELS } from '@/types/profile';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { DataPanel } from '@/components/layout/DataPanel';
 
 const PERSON_TYPE_COLORS: Record<string, string> = {
     SPADM: 'bg-indigo-50 text-indigo-700 border-indigo-100',
@@ -74,15 +77,8 @@ export default function UsersPage() {
         return matchSearch && matchType && matchLocked;
     }), [users, search, filterType, filterLocked]);
 
-    const stats = {
-        total: users.length,
-        active: users.filter(u => !u.locked && !u.deleted).length,
-        locked: users.filter(u => u.locked).length,
-        unconfirmed: users.filter(u => !u.confirmed).length,
-    };
-
     return (
-        <div className="space-y-8 pb-12">
+        <PageShell className="pb-12">
             {/* Detail panel */}
             {detailUser && (
                 <div className="fixed inset-0 z-50 flex items-start justify-end bg-secondary-900/40 backdrop-blur-sm animate-in fade-in duration-300"
@@ -99,8 +95,8 @@ export default function UsersPage() {
                                 </Button>
                             </div>
                             <div className="absolute -bottom-10 left-8">
-                                <div className="w-24 h-24 rounded-3xl bg-white p-1.5 shadow-2xl shadow-primary-900/20">
-                                    <div className="w-full h-full rounded-[20px] bg-gradient-to-br from-secondary-100 to-white flex items-center justify-center border border-secondary-50 uppercase shadow-inner">
+                                <div className="w-24 h-24 rounded-xl bg-white p-1.5 shadow-2xl shadow-primary-900/20">
+                                    <div className="w-full h-full rounded-lg bg-gradient-to-br from-secondary-100 to-white flex items-center justify-center border border-secondary-50 uppercase shadow-inner">
                                         <span className="text-3xl font-black text-secondary-300">
                                             {getInitials(detailUser.email)}
                                         </span>
@@ -147,7 +143,7 @@ export default function UsersPage() {
                                         {detailUser.roles.filter(r => r !== 'ROLE_USER' && !r.startsWith('ROLE_SUPER')).length}
                                     </Badge>
                                 </div>
-                                <div className="bg-secondary-50/50 rounded-3xl p-5 border border-secondary-100 shadow-inner">
+                                <div className="bg-secondary-50/50 rounded-xl p-5 border border-secondary-100 shadow-inner">
                                     <div className="space-y-3">
                                         {detailUser.roles.filter(r => r.startsWith('ROLE_') && r !== 'ROLE_USER' && r !== 'ROLE_SUPER_ADMIN').map(role => (
                                             <div key={role} className="flex items-center gap-3">
@@ -170,23 +166,10 @@ export default function UsersPage() {
                 </div>
             )}
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-secondary-900 uppercase tracking-tighter flex items-center gap-3">
-                        <UserCog className="w-8 h-8 text-primary-600" /> Utilisateurs
-                    </h1>
-                    <p className="text-secondary-500 font-medium mt-1">Gérez les comptes d'accès à la plateforme ARCA SIRH.</p>
-                </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard label="Total" value={stats.total} color="text-indigo-600" bg="bg-indigo-50 border-indigo-100" />
-                <StatCard label="Actifs" value={stats.active} color="text-emerald-600" bg="bg-emerald-50 border-emerald-100" />
-                <StatCard label="Verrouillés" value={stats.locked} color="text-rose-600" bg="bg-rose-50 border-rose-100" />
-                <StatCard label="Non confirmés" value={stats.unconfirmed} color="text-amber-600" bg="bg-amber-50 border-amber-100" />
-            </div>
+            <PageHeader
+                title="Utilisateurs"
+                description="Gérez les comptes d'accès à la plateforme ARCA SIRH."
+            />
 
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-4 bg-secondary-50/50 p-3 rounded-[28px] border border-secondary-100">
@@ -230,14 +213,14 @@ export default function UsersPage() {
                     <p className="text-xs font-black uppercase tracking-widest animate-pulse">Chargement...</p>
                 </div>
             ) : error ? (
-                <Card className="border-none shadow-lg rounded-3xl">
+                <Card className="border-none shadow-lg rounded-xl">
                     <CardContent className="p-12 flex flex-col items-center gap-4">
                         <AlertCircle className="w-14 h-14 text-destructive/20" />
                         <p className="text-secondary-400 font-bold italic">{error}</p>
                     </CardContent>
                 </Card>
             ) : (
-                <Card className="overflow-hidden border-none shadow-2xl shadow-secondary-200/50 rounded-3xl bg-white">
+                <DataPanel contentClassName="p-0">
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent uppercase tracking-wider text-[11px] font-black">
@@ -318,7 +301,7 @@ export default function UsersPage() {
                                             <Button
                                                 variant="ghost" size="icon"
                                                 onClick={() => setDetailUser(user)}
-                                                className="h-9 w-9 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                                                className="h-9 w-9 text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl opacity-100 transition-all"
                                             >
                                                 <Eye className="w-4 h-4" />
                                             </Button>
@@ -335,32 +318,15 @@ export default function UsersPage() {
                             </p>
                         </div>
                     )}
-                </Card>
+                </DataPanel>
             )}
-        </div>
-    );
-}
-
-function StatCard({ label, value, color, bg }: { label: string; value: number; color: string; bg: string }) {
-    return (
-        <Card className="p-6 border-none shadow-sm shadow-secondary-100/50 rounded-[32px] bg-white flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-secondary-50/50 to-transparent rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
-            <div className="relative z-10 flex items-center justify-between">
-                <div>
-                    <span className={cn("text-4xl font-black leading-none", color)}>{value}</span>
-                    <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mt-2">{label}</p>
-                </div>
-                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center border shadow-inner", bg, color)}>
-                    <UserCog className="w-6 h-6 opacity-80" />
-                </div>
-            </div>
-        </Card>
+        </PageShell>
     );
 }
 
 function InfoBox({ icon: Icon, label, value, color = "text-primary-600", bg = "bg-primary-50" }: { icon: any; label: string; value: string; color?: string; bg?: string }) {
     return (
-        <div className="bg-white rounded-3xl p-5 border border-secondary-100 shadow-sm shadow-secondary-100/30 flex items-start gap-4 hover:border-primary-100 transition-colors group">
+        <div className="bg-white rounded-xl p-5 border border-secondary-100 shadow-sm shadow-secondary-100/30 flex items-start gap-4 hover:border-primary-100 transition-colors group">
             <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border border-white shadow-sm transition-transform group-hover:scale-110", bg, color)}>
                 <Icon className="w-4 h-4" />
             </div>

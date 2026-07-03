@@ -15,6 +15,8 @@ import { getAllProfiles, createProfile, updateProfile, getAllPermissions } from 
 import { Profile, Permission, PERSON_TYPE, PERSON_TYPE_LABELS } from '@/types/profile';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 // ─── Searchable Multi-Select for Permissions ───────────────────────────────────
 function PermissionMultiSelect({
@@ -279,7 +281,7 @@ export default function ProfilesPage() {
     ), [profiles, search]);
 
     return (
-        <div className="space-y-8 pb-12">
+        <PageShell className="pb-12">
             {/* Toast */}
             {toast && (
                 <div className={cn(
@@ -291,18 +293,15 @@ export default function ProfilesPage() {
                 </div>
             )}
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-secondary-900 uppercase tracking-tighter flex items-center gap-3">
-                        <ShieldCheck className="w-8 h-8 text-primary-600" /> Gestion des Profils
-                    </h1>
-                    <p className="text-secondary-500 font-medium mt-1">Définissez les rôles et permissions d'accès à la plateforme.</p>
-                </div>
-                <Button onClick={openCreate} className="gap-2 shadow-xl shadow-primary-200 py-6 px-8 rounded-2xl font-bold uppercase tracking-widest text-xs">
-                    <Plus className="w-5 h-5" /> Nouveau Profil
-                </Button>
-            </div>
+            <PageHeader
+                title="Gestion des Profils"
+                description="Définissez les rôles et permissions d'accès à la plateforme."
+                actions={
+                    <Button onClick={openCreate} className="gap-2 shadow-xl shadow-primary-200 py-6 px-8 rounded-2xl font-bold uppercase tracking-widest text-xs">
+                        <Plus className="w-5 h-5" /> Nouveau Profil
+                    </Button>
+                }
+            />
 
             {/* Search */}
             <div className="flex items-center gap-3 bg-white p-2 pl-5 rounded-2xl shadow-sm border border-secondary-100 max-w-md">
@@ -320,7 +319,7 @@ export default function ProfilesPage() {
                     <p className="text-xs font-black uppercase tracking-widest animate-pulse">Chargement...</p>
                 </div>
             ) : error ? (
-                <Card className="border-none shadow-lg rounded-3xl">
+                <Card className="border-none shadow-lg rounded-xl">
                     <CardContent className="p-12 flex flex-col items-center gap-4">
                         <AlertCircle className="w-14 h-14 text-destructive/20" />
                         <p className="text-secondary-400 font-bold italic">{error}</p>
@@ -399,7 +398,7 @@ export default function ProfilesPage() {
             {/* Modal Create/Edit */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-                    <Card className="w-full max-w-xl border-none shadow-3xl bg-white rounded-[40px] overflow-hidden animate-in zoom-in-95 duration-200 mb-8">
+                    <Card className="w-full max-w-xl border-none shadow-3xl bg-white rounded-xl overflow-hidden animate-in zoom-in-95 duration-200 mb-8">
                         <CardHeader className="p-8 border-b border-secondary-50 flex flex-row items-center justify-between bg-primary-50/30">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-100">
@@ -471,6 +470,6 @@ export default function ProfilesPage() {
                     </Card>
                 </div>
             )}
-        </div>
+        </PageShell>
     );
 }

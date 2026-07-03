@@ -23,6 +23,8 @@ import { createContract } from '@/lib/api/contract';
 import { Employee } from '@/types/employee';
 import { CONTRACT_TYPE } from '@/types/contract';
 import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function CreateContractPage() {
     const router = useRouter();
@@ -84,31 +86,20 @@ export default function CreateContractPage() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 py-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Header Section */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                    <button
-                        onClick={() => router.back()}
-                        className="w-12 h-12 rounded-2xl bg-white shadow-xl shadow-secondary-200/50 flex items-center justify-center text-secondary-400 hover:text-primary-600 hover:scale-110 transition-all active:scale-95 group"
-                    >
-                        <ChevronLeft className="w-6 h-6 group-hover:-translate-x-0.5 transition-transform" />
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-black text-secondary-900 uppercase tracking-tighter">Établir un contrat</h1>
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
-                            <p className="text-[10px] font-black text-secondary-400 uppercase tracking-[0.2em]">Enregistrement administratif</p>
-                        </div>
-                    </div>
-                </div>
-                <Badge variant="outline" className="border-secondary-100 bg-white text-secondary-500 font-black px-4 py-1.5 rounded-full uppercase text-[9px] tracking-widest shadow-sm">
-                    Mode Création
-                </Badge>
-            </div>
+        <PageShell className="max-w-4xl mx-auto py-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <PageHeader
+                title="Établir un contrat"
+                description="Enregistrement administratif"
+                backHref="/contracts"
+                actions={
+                    <Badge variant="outline" className="border-secondary-100 bg-white text-secondary-500 font-black px-4 py-1.5 rounded-full uppercase text-[9px] tracking-widest shadow-sm">
+                        Mode Création
+                    </Badge>
+                }
+            />
 
             <form onSubmit={handleSubmit} className="space-y-8">
-                <Card className="border-none shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] overflow-hidden rounded-[40px] bg-white">
+                <Card className="border-none shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] overflow-hidden rounded-xl bg-white">
                     <div className="p-10 space-y-10">
                         {error && (
                             <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs font-black uppercase tracking-widest flex items-center gap-3">
@@ -131,7 +122,7 @@ export default function CreateContractPage() {
                                         name="employee"
                                         value={formData.employee}
                                         onChange={handleChange}
-                                        className="w-full h-14 pl-6 pr-12 bg-secondary-50/50 border border-secondary-100 rounded-[20px] text-sm font-bold text-secondary-900 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:bg-white focus:border-primary-500 transition-all appearance-none cursor-pointer"
+                                        className="w-full h-14 pl-6 pr-12 bg-secondary-50/50 border border-secondary-100 rounded-lg text-sm font-bold text-secondary-900 focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:bg-white focus:border-primary-500 transition-all appearance-none cursor-pointer"
                                     >
                                         <option value="">Sélectionnez l'employé...</option>
                                         {employees.map((emp) => (
@@ -152,7 +143,7 @@ export default function CreateContractPage() {
                                     <Briefcase className="w-3 h-3 text-primary-500" />
                                     Nature du contrat
                                 </label>
-                                <div className="flex p-1.5 bg-secondary-50/80 rounded-[20px] border border-secondary-100/50">
+                                <div className="flex p-1.5 bg-secondary-50/80 rounded-lg border border-secondary-100/50">
                                     {Object.values(CONTRACT_TYPE).map((type) => (
                                         <button
                                             key={type}
@@ -185,7 +176,7 @@ export default function CreateContractPage() {
                                     name="startDate"
                                     value={formData.startDate}
                                     onChange={handleChange}
-                                    className="w-full h-14 px-6 bg-secondary-50/50 border border-secondary-100 rounded-[20px] text-sm font-bold focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:bg-white focus:border-primary-500 transition-all cursor-pointer"
+                                    className="w-full h-14 px-6 bg-secondary-50/50 border border-secondary-100 rounded-lg text-sm font-bold focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:bg-white focus:border-primary-500 transition-all cursor-pointer"
                                 />
                             </div>
 
@@ -201,7 +192,7 @@ export default function CreateContractPage() {
                                     value={formData.endDate}
                                     onChange={handleChange}
                                     className={cn(
-                                        "w-full h-14 px-6 border border-secondary-100 rounded-[20px] text-sm font-bold focus:outline-none transition-all cursor-pointer",
+                                        "w-full h-14 px-6 border border-secondary-100 rounded-lg text-sm font-bold focus:outline-none transition-all cursor-pointer",
                                         formData.type === 'CDI' 
                                             ? "bg-secondary-100 opacity-40 cursor-not-allowed border-dashed" 
                                             : "bg-secondary-50/50 focus:ring-4 focus:ring-primary-500/5 focus:bg-white focus:border-primary-500"
@@ -222,7 +213,7 @@ export default function CreateContractPage() {
                                         value={formData.salary}
                                         onChange={handleChange}
                                         placeholder="Montant brut"
-                                        className="w-full h-14 pl-6 pr-14 bg-secondary-50/50 border border-secondary-100 rounded-[20px] text-sm font-bold focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:bg-white focus:border-primary-500 transition-all placeholder:text-secondary-300"
+                                        className="w-full h-14 pl-6 pr-14 bg-secondary-50/50 border border-secondary-100 rounded-lg text-sm font-bold focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:bg-white focus:border-primary-500 transition-all placeholder:text-secondary-300"
                                     />
                                     <span className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-secondary-400 uppercase">CDF</span>
                                 </div>
@@ -290,6 +281,6 @@ export default function CreateContractPage() {
                     </Button>
                 </div>
             </form>
-        </div>
+        </PageShell>
     );
 }

@@ -22,6 +22,8 @@ import {
     TableRow
 } from '@/components/ui/Table';
 import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 const ATTENDANCE = [
     { id: 1, employee: 'Jean Dupont', date: 'Mardi 10 Mars 2026', timeIn: '08:52', timeOut: '17:45', status: 'Présent', mode: 'Bureau' },
@@ -33,21 +35,21 @@ const ATTENDANCE = [
 
 export default function AttendancePage() {
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-secondary-900">Suivi des Présences</h1>
-                    <p className="text-secondary-500 font-medium">Contrôlez les entrées/sorties et le télétravail en temps réel.</p>
-                </div>
-                <div className="flex items-center gap-2 bg-white p-1 rounded-xl shadow-sm border border-secondary-100">
-                    <Button variant="ghost" size="icon" className="h-8 w-8"><ChevronLeft className="w-4 h-4" /></Button>
-                    <div className="px-3 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-primary-600" />
-                        <span className="text-sm font-bold text-secondary-900 leading-none">Aujourd'hui, 10 Mars</span>
+        <PageShell>
+            <PageHeader
+                title="Suivi des Présences"
+                description="Contrôlez les entrées/sorties et le télétravail en temps réel."
+                actions={
+                    <div className="flex items-center gap-2 bg-white p-1 rounded-xl shadow-sm border border-secondary-100">
+                        <Button variant="ghost" size="icon" className="h-8 w-8"><ChevronLeft className="w-4 h-4" /></Button>
+                        <div className="px-3 flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-primary-600" />
+                            <span className="text-sm font-bold text-secondary-900 leading-none">Aujourd'hui, 10 Mars</span>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8"><ChevronRight className="w-4 h-4" /></Button>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8"><ChevronRight className="w-4 h-4" /></Button>
-                </div>
-            </div>
+                }
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <AttendanceStat label="Taux de présence" value="92%" icon={UserCheck} color="text-emerald-600" />
@@ -55,7 +57,7 @@ export default function AttendancePage() {
                 <AttendanceStat label="Retards signalés" value="2" icon={Clock} color="text-amber-600" />
             </div>
 
-            <Card className="overflow-hidden border-none shadow-xl shadow-secondary-200/50">
+            <Card className="overflow-hidden border-none shadow-sm-200/50">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -92,7 +94,7 @@ export default function AttendancePage() {
                     </TableBody>
                 </Table>
             </Card>
-        </div>
+        </PageShell>
     );
 }
 

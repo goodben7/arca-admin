@@ -22,6 +22,8 @@ import { Application, APPLICATION_STATUS_LABELS, APPLICATION_STATUS_STYLES } fro
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 function normalizeId(v?: string) {
     if (!v) return '';
@@ -204,8 +206,7 @@ export default function JobOfferDetailsPage() {
     const canDraft = status !== STATUS_DRAFT;
 
     return (
-        <div className="space-y-6">
-            {/* Toast */}
+        <PageShell>
             {toast && (
                 <div className={`fixed top-6 right-6 z-[70] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-sm font-bold animate-in slide-in-from-right duration-300 ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-accent-red-600 text-white'}`}>
                     {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
@@ -213,23 +214,18 @@ export default function JobOfferDetailsPage() {
                 </div>
             )}
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <Button variant="outline" className="h-12 px-4 rounded-2xl font-black uppercase text-[10px] tracking-widest" onClick={() => router.push('/job-offers')}>
-                        <ArrowLeft className="w-4 h-4 mr-2" />Retour
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">Détails offre</h1>
-                        <p className="text-secondary-500 font-medium italic">{jobOffer.title}</p>
-                    </div>
-                </div>
-                {statusBadge && (
-                    <Badge variant={statusBadge.variant as any} className={`font-black text-[10px] uppercase py-2 px-3 rounded-xl border shadow-sm ${statusBadge.className}`}>
-                        {jobOffer.status}
-                    </Badge>
-                )}
-            </div>
+            <PageHeader
+                title="Détails offre"
+                description={jobOffer.title}
+                backHref="/job-offers"
+                actions={
+                    statusBadge ? (
+                        <Badge variant={statusBadge.variant as any} className={`font-black text-[10px] uppercase py-2 px-3 rounded-xl border shadow-sm ${statusBadge.className}`}>
+                            {jobOffer.status}
+                        </Badge>
+                    ) : undefined
+                }
+            />
 
             {/* Onglets */}
             <div className="flex items-center gap-1 border-b border-secondary-100">
@@ -256,7 +252,7 @@ export default function JobOfferDetailsPage() {
             {/* Contenu onglet Info */}
             {activeTab === 'info' && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-2 border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[40px]">
+                    <Card className="lg:col-span-2 border-none  shadow-sm-200/40 bg-white rounded-xl">
                         <CardHeader className="p-8 border-b border-secondary-50">
                             <CardTitle className="text-xl font-black text-secondary-900 uppercase tracking-tight">Informations</CardTitle>
                             <CardDescription className="text-sm font-medium italic">Dépôt et contexte</CardDescription>
@@ -313,7 +309,7 @@ export default function JobOfferDetailsPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[40px]">
+                    <Card className="border-none  shadow-sm-200/40 bg-white rounded-xl">
                         <CardHeader className="p-8 border-b border-secondary-50">
                             <CardTitle className="text-lg font-black text-secondary-900 uppercase tracking-tight">Actions</CardTitle>
                             <CardDescription className="text-sm font-medium italic">
@@ -337,7 +333,7 @@ export default function JobOfferDetailsPage() {
 
             {/* Contenu onglet Candidatures */}
             {activeTab === 'applications' && (
-                <Card className="border-none shadow-xl shadow-secondary-200/50">
+                <Card className="border-none shadow-sm-200/50">
                     <CardHeader className="border-b border-secondary-100 bg-white">
                         <div className="flex items-center justify-between">
                             <div>
@@ -432,6 +428,6 @@ export default function JobOfferDetailsPage() {
                     finally { setDrawerSubmitting(false); }
                 }}
             />
-        </div>
+        </PageShell>
     );
 }

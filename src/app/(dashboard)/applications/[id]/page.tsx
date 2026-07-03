@@ -18,6 +18,8 @@ import { BASE_URL } from '@/lib/api/client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 function fmtDate(d?: string) {
     if (!d) return '—';
@@ -51,7 +53,7 @@ function PreviewModal({ doc, onClose }: { doc: DocumentRecord; onClose: () => vo
 
     return (
         <div className="fixed inset-0 z-[80] bg-secondary-950/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-            <div className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-6 py-4 border-b border-secondary-100">
                     <div>
                         <p className="font-black text-secondary-900 uppercase tracking-tighter text-sm">{getDocLabel(doc)}</p>
@@ -90,7 +92,7 @@ function RejectModal({ onConfirm, onClose, loading }: { onConfirm: (reason: stri
     const [reason, setReason] = useState('');
     return (
         <div className="fixed inset-0 z-[80] bg-secondary-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-5">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 space-y-5">
                 <div>
                     <p className="font-black text-secondary-900 uppercase tracking-tighter text-lg">Rejeter la candidature</p>
                     <p className="text-secondary-500 font-medium text-sm mt-1">Veuillez indiquer le motif du rejet</p>
@@ -185,8 +187,7 @@ export default function ApplicationDetailPage() {
     const jobOfferId = extractId(application.jobOffer);
 
     return (
-        <div className="space-y-6">
-            {/* Toast */}
+        <PageShell>
             {toast && (
                 <div className={`fixed top-6 right-6 z-[70] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-sm font-bold animate-in slide-in-from-right duration-300 ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-accent-red-600 text-white'}`}>
                     {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
@@ -206,26 +207,18 @@ export default function ApplicationDetailPage() {
                 />
             )}
 
-            {/* Header */}
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <Button variant="outline" className="h-12 px-4 rounded-2xl font-black uppercase text-[10px] tracking-widest" onClick={() => router.push('/applications')}>
-                            <ArrowLeft className="w-4 h-4 mr-2" />Retour
-                        </Button>
-                        <div>
-                            <h1 className="text-2xl font-black text-secondary-900 uppercase tracking-tighter">
-                                {application.firstName} {application.lastName}
-                            </h1>
-                            <p className="text-secondary-500 font-medium italic">Détail de la candidature</p>
-                        </div>
-                    </div>
+            <PageHeader
+                title={`${application.firstName} ${application.lastName}`}
+                description="Détail de la candidature"
+                backHref="/applications"
+                actions={
                     <span className={`inline-flex items-center text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border ${styleClass}`}>
                         {APPLICATION_STATUS_LABELS[status as keyof typeof APPLICATION_STATUS_LABELS] || status}
                     </span>
-                </div>
+                }
+            />
 
-                {/* Barre d'actions */}
+            {/* Barre d'actions */}
                 <div className="flex flex-wrap items-center gap-3 p-4 bg-white rounded-2xl border border-secondary-100 shadow-sm">
                     <span className="text-[10px] font-black uppercase tracking-widest text-secondary-400 mr-1">Actions :</span>
                     <Button
@@ -259,7 +252,6 @@ export default function ApplicationDetailPage() {
                     </Button>
                     {actionLoading && <Loader2 className="w-4 h-4 animate-spin text-secondary-400 ml-auto" />}
                 </div>
-            </div>
 
             {/* Onglets */}
             <div className="flex items-center gap-1 border-b border-secondary-100">
@@ -280,7 +272,7 @@ export default function ApplicationDetailPage() {
             {activeTab === 'info' && (
                 <div className="grid grid-cols-1 gap-6">
                     {/* Infos candidat */}
-                    <Card className="border-none shadow-2xl shadow-secondary-200/40 bg-white rounded-[40px]">
+                    <Card className="border-none  shadow-sm-200/40 bg-white rounded-xl">
                         <CardHeader className="p-8 border-b border-secondary-50">
                             <CardTitle className="text-xl font-black text-secondary-900 uppercase tracking-tight">Profil du candidat</CardTitle>
                         </CardHeader>
@@ -340,7 +332,7 @@ export default function ApplicationDetailPage() {
 
             {/* Onglet Documents */}
             {activeTab === 'documents' && (
-                <Card className="border-none shadow-xl shadow-secondary-200/50">
+                <Card className="border-none shadow-sm-200/50">
                     <CardHeader className="border-b border-secondary-100 bg-white">
                         <CardTitle className="text-secondary-900 font-black uppercase tracking-tight text-lg">Documents joints</CardTitle>
                         <CardDescription className="text-secondary-500 font-medium italic">CV et lettres de motivation</CardDescription>
@@ -395,7 +387,7 @@ export default function ApplicationDetailPage() {
                     </CardContent>
                 </Card>
             )}
-        </div>
+        </PageShell>
     );
 }
 

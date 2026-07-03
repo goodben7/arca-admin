@@ -48,6 +48,8 @@ export interface Employee {
     status: EmployeeStatus;
     department: string;
     position: string;
+    jobRole?: string;
+    grade?: string;
     profile?: string; // Profile IRI
     manager?: string; // For display
     managerId?: string; // For creation payload

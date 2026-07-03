@@ -8,7 +8,7 @@ const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HT
             <div className="relative">
                 <select
                     className={cn(
-                        "flex h-11 w-full appearance-none rounded-xl border border-secondary-200 bg-white px-4 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/20 focus-visible:border-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-secondary-900 font-medium",
+                        "flex h-12 w-full appearance-none rounded-2xl border border-input bg-surface px-4 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/25 focus-visible:border-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-foreground font-medium",
                         className
                     )}
                     ref={ref}
@@ -16,7 +16,7 @@ const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HT
                 >
                     {children}
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             </div>
         )
     }
