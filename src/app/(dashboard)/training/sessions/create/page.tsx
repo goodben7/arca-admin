@@ -258,7 +258,7 @@ function CreateTrainingSessionForm() {
                                         />
                                     </div>
                                 </div>
-                            </>
+                            </> 
                         )}
                     </CardContent>
                 </Card>
