@@ -18,6 +18,7 @@ export interface EvaluationCycle {
     '@id'?: string;
     id: string;
     name: string;
+    year?: number;
     description?: string;
     status: EvaluationCycleStatus | string;
     startDate?: string;
@@ -82,13 +83,40 @@ export interface Objective {
     id: string;
     employee: string;
     evaluationCycle?: string;
+    evaluationCycleId?: string;
     title: string;
     description?: string;
+    specific?: string;
+    measurable?: string;
+    targetValue?: string;
+    achievable?: string;
+    relevant?: string;
     status: ObjectiveStatus | string;
     dueDate?: string;
     completedAt?: string;
     createdAt?: string;
     updatedAt?: string;
+}
+
+export interface CreateObjectiveDto {
+    employee: string;
+    evaluationCycleId: string;
+    title: string;
+    description?: string;
+    specific: string;
+    measurable: string;
+    targetValue?: string;
+    achievable?: string;
+    relevant?: string;
+    dueDate?: string;
+}
+
+export interface CreateEvaluationCycleDto {
+    name: string;
+    year: number;
+    startDate?: string;
+    endDate?: string;
+    description?: string;
 }
 
 // ── Promotion Eligibility ─────────────────────────────────────────────────────

@@ -7,9 +7,26 @@ export interface TrainingCatalog {
     durationUnit?: string;
     provider?: string;
     format?: string;
+    cost?: string;
     skills?: string[];
     createdAt?: string;
     updatedAt?: string;
+}
+
+export interface CreateTrainingCatalogDto {
+    title: string;
+    description?: string;
+    provider?: string;
+    duration: number;
+    cost?: string;
+}
+
+export interface UpdateTrainingCatalogDto {
+    title?: string;
+    description?: string;
+    provider?: string;
+    duration?: number;
+    cost?: string;
 }
 
 export interface JobRoleRequiredTraining {

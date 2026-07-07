@@ -1,5 +1,6 @@
 import { request } from './client';
-import { CompensationHistory } from '@/types/compensation';
+import { extractId } from '@/lib/api-iri';
+import { CompensationHistory, RecordCompensationDto } from '@/types/compensation';
 
 function norm<T>(data: unknown): T[] {
     if (Array.isArray(data)) return data as T[];
@@ -17,22 +18,29 @@ function apiErr(e: Record<string, unknown>): string {
 }
 
 export async function getCompensationHistories(employeeId?: string): Promise<CompensationHistory[]> {
-    const url = employeeId ? `/api/compensation_histories?employee=${employeeId}` : '/api/compensation_histories';
+    const id = employeeId ? extractId(employeeId) || employeeId : undefined;
+    const url = id ? `/api/compensation_histories?employee=${id}` : '/api/compensation_histories';
     const res = await request(url);
     if (!res.ok) throw new Error('Impossible de charger l\'historique de compensation.');
     return norm<CompensationHistory>(await res.json());
 }
 
-export async function recordCompensation(data: {
-    employeeId: string;
-    newSalary: number;
-    effectiveDate: string;
-    reason?: string;
-}): Promise<CompensationHistory> {
+export async function recordCompensation(data: RecordCompensationDto): Promise<CompensationHistory> {
+    const toIso = (d: string) => {
+        if (!d) return d;
+        if (d.includes('T')) return new Date(d).toISOString();
+        return new Date(`${d}T00:00:00`).toISOString();
+    };
+    const payload = {
+        employee: extractId(data.employee) || data.employee,
+        newSalary: String(data.newSalary).trim(),
+        effectiveDate: toIso(data.effectiveDate),
+        reason: data.reason?.trim() || undefined,
+    };
     const res = await request('/api/compensation_histories/recordings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
     return res.json();

@@ -1,5 +1,6 @@
 import { request } from './client';
-import { EvaluationCycle, PerformanceReview, Objective, PromotionEligibility } from '@/types/performance';
+import { EvaluationCycle, PerformanceReview, Objective, PromotionEligibility, CreateObjectiveDto, CreateEvaluationCycleDto } from '@/types/performance';
+import { extractId } from '@/lib/api-iri';
 
 function norm<T>(data: unknown): T[] {
     if (Array.isArray(data)) return data as T[];
@@ -31,11 +32,18 @@ export async function getEvaluationCycleById(id: string): Promise<EvaluationCycl
     return res.json();
 }
 
-export async function createEvaluationCycle(data: Partial<EvaluationCycle>): Promise<EvaluationCycle> {
+export async function createEvaluationCycle(data: CreateEvaluationCycleDto): Promise<EvaluationCycle> {
+    const payload = {
+        name: data.name,
+        year: data.year,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        description: data.description,
+    };
     const res = await request('/api/evaluation_cycles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
     return res.json();
@@ -45,7 +53,7 @@ export async function openEvaluationCycle(cycleId: string): Promise<void> {
     const res = await request('/api/evaluation_cycles/opens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycleId }),
+        body: JSON.stringify({ evaluationCycleId: extractId(cycleId) || cycleId }),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
 }
@@ -54,7 +62,7 @@ export async function closeEvaluationCycle(cycleId: string): Promise<void> {
     const res = await request('/api/evaluation_cycles/closures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycleId }),
+        body: JSON.stringify({ evaluationCycleId: extractId(cycleId) || cycleId }),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
 }
@@ -109,11 +117,23 @@ export async function getObjectiveById(id: string): Promise<Objective> {
     return res.json();
 }
 
-export async function createObjective(data: Partial<Objective>): Promise<Objective> {
+export async function createObjective(data: CreateObjectiveDto): Promise<Objective> {
+    const payload = {
+        employee: extractId(data.employee) || data.employee,
+        evaluationCycleId: extractId(data.evaluationCycleId) || data.evaluationCycleId,
+        title: data.title,
+        description: data.description || undefined,
+        specific: data.specific,
+        measurable: data.measurable,
+        targetValue: data.targetValue || undefined,
+        achievable: data.achievable || undefined,
+        relevant: data.relevant || undefined,
+        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : undefined,
+    };
     const res = await request('/api/objectives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
     return res.json();
