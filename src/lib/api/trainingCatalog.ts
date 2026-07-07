@@ -1,5 +1,5 @@
 import { request } from './client';
-import { TrainingCatalog, JobRoleRequiredTraining } from '@/types/trainingCatalog';
+import { TrainingCatalog, JobRoleRequiredTraining, CreateTrainingCatalogDto, UpdateTrainingCatalogDto } from '@/types/trainingCatalog';
 
 function norm<T>(data: unknown): T[] {
     if (Array.isArray(data)) return data as T[];
@@ -30,22 +30,35 @@ export async function getTrainingCatalogById(id: string): Promise<TrainingCatalo
     return res.json();
 }
 
-export async function createTrainingCatalog(data: Partial<TrainingCatalog>): Promise<TrainingCatalog> {
+export async function createTrainingCatalog(data: CreateTrainingCatalogDto): Promise<TrainingCatalog> {
+    const payload = {
+        title: data.title.trim(),
+        description: data.description?.trim() || undefined,
+        provider: data.provider?.trim() || undefined,
+        duration: data.duration,
+        cost: data.cost?.trim() || undefined,
+    };
     const res = await request('/api/training_catalogs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
     return res.json();
 }
 
-export async function updateTrainingCatalog(id: string, data: Partial<TrainingCatalog>): Promise<TrainingCatalog> {
+export async function updateTrainingCatalog(id: string, data: UpdateTrainingCatalogDto): Promise<TrainingCatalog> {
     const path = id.startsWith('/') ? id : `/api/training_catalogs/${id}`;
+    const payload: Record<string, unknown> = {};
+    if (data.title !== undefined) payload.title = data.title.trim();
+    if (data.description !== undefined) payload.description = data.description.trim() || null;
+    if (data.provider !== undefined) payload.provider = data.provider.trim() || null;
+    if (data.duration !== undefined) payload.duration = data.duration;
+    if (data.cost !== undefined) payload.cost = data.cost.trim() || null;
     const res = await request(path, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/merge-patch+json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
     return res.json();

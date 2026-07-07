@@ -24,6 +24,8 @@ import {
     UserMinus,
     CheckCheck,
     Search,
+    Award,
+    PlayCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -41,7 +43,10 @@ import {
 import {
     getEnrollmentsBySession,
     createEnrollment,
+    confirmEnrollment,
+    startEnrollment,
     completeEnrollment,
+    certifyEnrollment,
     markEnrollmentAbsent,
 } from '@/lib/api/trainingEnrollment';
 import { getAllEmployees } from '@/lib/api/employee';
@@ -54,9 +59,13 @@ import {
 } from '@/types/trainingSession';
 import {
     TrainingEnrollment,
-    ENROLLMENT_STATUS_ENROLLED,
+    ENROLLMENT_STATUS_ASSIGNED,
+    ENROLLMENT_STATUS_IN_PROGRESS,
     ENROLLMENT_STATUS_COMPLETED,
+    ENROLLMENT_STATUS_CERTIFIED,
     ENROLLMENT_STATUS_ABSENT,
+    ENROLLMENT_STATUS_ENROLLED,
+    ENROLLMENT_STATUS_LABELS,
 } from '@/types/trainingEnrollment';
 import { Employee } from '@/types/employee';
 import { PageShell } from '@/components/layout/PageShell';
@@ -66,6 +75,17 @@ import { PageHeader } from '@/components/layout/PageHeader';
 function normalizeId(v?: string) {
     if (!v) return '';
     return v.split('/').filter(Boolean).pop() || v;
+}
+
+function safeFormatDate(value?: string | null, fmt = 'dd MMM yyyy') {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    try {
+        return format(d, fmt, { locale: fr });
+    } catch {
+        return '—';
+    }
 }
 
 function getStatusLabel(status: string) {
@@ -89,20 +109,24 @@ function getStatusClass(status: string) {
 }
 
 function getEnrollmentStatusLabel(status: string) {
-    switch (status) {
-        case ENROLLMENT_STATUS_ENROLLED:  return 'Enrollé';
-        case ENROLLMENT_STATUS_COMPLETED: return 'Complété';
-        case ENROLLMENT_STATUS_ABSENT:    return 'Absent';
-        default:                          return status;
-    }
+    return ENROLLMENT_STATUS_LABELS[status] || status;
 }
 
 function getEnrollmentStatusClass(status: string) {
     switch (status) {
-        case ENROLLMENT_STATUS_ENROLLED:  return 'bg-sky-50 text-sky-700 border border-sky-200';
-        case ENROLLMENT_STATUS_COMPLETED: return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-        case ENROLLMENT_STATUS_ABSENT:    return 'bg-rose-50 text-rose-700 border border-rose-200';
-        default:                          return 'bg-secondary-50 text-secondary-600 border border-secondary-200';
+        case ENROLLMENT_STATUS_ASSIGNED:
+        case ENROLLMENT_STATUS_ENROLLED:
+            return 'bg-sky-50 text-sky-700 border border-sky-200';
+        case ENROLLMENT_STATUS_IN_PROGRESS:
+            return 'bg-amber-50 text-amber-700 border border-amber-200';
+        case ENROLLMENT_STATUS_COMPLETED:
+            return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+        case ENROLLMENT_STATUS_CERTIFIED:
+            return 'bg-primary-50 text-primary-700 border border-primary-200';
+        case ENROLLMENT_STATUS_ABSENT:
+            return 'bg-rose-50 text-rose-700 border border-rose-200';
+        default:
+            return 'bg-secondary-50 text-secondary-600 border border-secondary-200';
     }
 }
 
@@ -175,6 +199,72 @@ function CancelModal({ open, onClose, onConfirm, isLoading }: {
                     <Button onClick={() => reason.trim() && onConfirm(reason)} disabled={isLoading || !reason.trim()} className="rounded-2xl px-8 bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-xs flex items-center gap-2">
                         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                         Confirmer l'annulation
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Certify Enrollment Modal ───────────────────────────────────────────────────
+function CertifyEnrollmentModal({ open, onClose, onConfirm, isLoading }: {
+    open: boolean;
+    onClose: () => void;
+    onConfirm: (score: number, certificate: string) => void;
+    isLoading: boolean;
+}) {
+    const [score, setScore] = useState('100');
+    const [certificate, setCertificate] = useState('');
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full mx-4 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center">
+                        <Award className="w-7 h-7 text-primary-600" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-black text-secondary-900 uppercase tracking-tight">Certifier la formation</h3>
+                        <p className="text-xs text-secondary-400 font-medium">Attribuer un score et une référence certificat</p>
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <Label className="uppercase tracking-widest text-[10px] font-black text-secondary-400">Score (0–100) *</Label>
+                        <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={score}
+                            onChange={(e) => setScore(e.target.value)}
+                            className="w-full h-11 px-4 border border-secondary-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="uppercase tracking-widest text-[10px] font-black text-secondary-400">Référence certificat</Label>
+                        <input
+                            type="text"
+                            value={certificate}
+                            onChange={(e) => setCertificate(e.target.value)}
+                            placeholder="Ex: CERT-2026-001"
+                            className="w-full h-11 px-4 border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                        />
+                    </div>
+                </div>
+                <div className="flex gap-3 justify-end">
+                    <Button variant="ghost" onClick={onClose} className="rounded-2xl px-6 font-bold uppercase tracking-widest text-xs">Annuler</Button>
+                    <Button
+                        onClick={() => {
+                            const n = Number(score);
+                            if (!Number.isFinite(n) || n < 0 || n > 100) return;
+                            onConfirm(n, certificate.trim());
+                        }}
+                        disabled={isLoading}
+                        className="rounded-2xl px-8 bg-primary-600 hover:bg-primary-700 text-white font-black uppercase tracking-widest text-xs flex items-center gap-2"
+                    >
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Award className="w-4 h-4" />}
+                        Certifier
                     </Button>
                 </div>
             </div>
@@ -310,6 +400,7 @@ export default function TrainingSessionDetailPage() {
     // Enrollment action confirm modals
     const [showCompleteEnrollmentModal, setShowCompleteEnrollmentModal] = useState<string | null>(null);
     const [showAbsentEnrollmentModal, setShowAbsentEnrollmentModal] = useState<string | null>(null);
+    const [showCertifyEnrollmentModal, setShowCertifyEnrollmentModal] = useState<string | null>(null);
 
     const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3500); };
 
@@ -417,6 +508,26 @@ export default function TrainingSessionDetailPage() {
         finally { setIsEnrolling(false); }
     };
 
+    const handleConfirmEnrollment = async (enrollmentId: string) => {
+        setEnrollmentActionId(enrollmentId); setEnrollmentError(null);
+        try {
+            await confirmEnrollment(enrollmentId);
+            showToast('Inscription confirmée.');
+            if (session) await reloadEnrollments(session.id);
+        } catch (e: unknown) { setEnrollmentError((e as Error)?.message || 'Erreur.'); }
+        finally { setEnrollmentActionId(null); }
+    };
+
+    const handleStartEnrollment = async (enrollmentId: string) => {
+        setEnrollmentActionId(enrollmentId); setEnrollmentError(null);
+        try {
+            await startEnrollment(enrollmentId);
+            showToast('Participation démarrée.');
+            if (session) await reloadEnrollments(session.id);
+        } catch (e: unknown) { setEnrollmentError((e as Error)?.message || 'Erreur.'); }
+        finally { setEnrollmentActionId(null); }
+    };
+
     const handleCompleteEnrollment = async (enrollmentId: string) => {
         setEnrollmentActionId(enrollmentId); setEnrollmentError(null);
         try {
@@ -434,6 +545,17 @@ export default function TrainingSessionDetailPage() {
             await markEnrollmentAbsent(enrollmentId);
             showToast('Participant marqué comme absent.');
             setShowAbsentEnrollmentModal(null);
+            if (session) await reloadEnrollments(session.id);
+        } catch (e: unknown) { setEnrollmentError((e as Error)?.message || 'Erreur.'); }
+        finally { setEnrollmentActionId(null); }
+    };
+
+    const handleCertifyEnrollment = async (enrollmentId: string, score: number, certificate: string) => {
+        setEnrollmentActionId(enrollmentId); setEnrollmentError(null);
+        try {
+            await certifyEnrollment({ trainingEnrollmentId: enrollmentId, score, certificate: certificate || undefined });
+            showToast('Formation certifiée.');
+            setShowCertifyEnrollmentModal(null);
             if (session) await reloadEnrollments(session.id);
         } catch (e: unknown) { setEnrollmentError((e as Error)?.message || 'Erreur.'); }
         finally { setEnrollmentActionId(null); }
@@ -517,11 +639,17 @@ export default function TrainingSessionDetailPage() {
                 confirmLabel="Confirmer" confirmClass="bg-rose-600 hover:bg-rose-700"
                 icon={<UserMinus className="w-7 h-7 text-rose-600" />}
             />
+            <CertifyEnrollmentModal
+                open={!!showCertifyEnrollmentModal}
+                onClose={() => setShowCertifyEnrollmentModal(null)}
+                onConfirm={(score, certificate) => showCertifyEnrollmentModal && handleCertifyEnrollment(showCertifyEnrollmentModal, score, certificate)}
+                isLoading={!!showCertifyEnrollmentModal && enrollmentActionId === showCertifyEnrollmentModal}
+            />
 
             <PageShell className="max-w-5xl mx-auto">
                 <PageHeader
                     title={session.title}
-                    description={`Session de formation · ${session.startDate ? format(new Date(session.startDate), 'dd MMMM yyyy', { locale: fr }) : '—'}`}
+                    description={`Session de formation · ${safeFormatDate(session.startDate, 'dd MMMM yyyy')}`}
                     backHref="/training/sessions"
                     actions={
                         <>
@@ -632,7 +760,7 @@ export default function TrainingSessionDetailPage() {
                                                     <div>
                                                         <p className="text-[10px] font-black uppercase tracking-widest text-secondary-400">Début</p>
                                                         <p className="text-sm font-bold text-secondary-900">
-                                                            {format(new Date(session.startDate), 'dd MMMM yyyy à HH:mm', { locale: fr })}
+                                                            {safeFormatDate(session.startDate, 'dd MMMM yyyy à HH:mm')}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -641,7 +769,7 @@ export default function TrainingSessionDetailPage() {
                                                     <div>
                                                         <p className="text-[10px] font-black uppercase tracking-widest text-secondary-400">Fin</p>
                                                         <p className="text-sm font-bold text-secondary-900">
-                                                            {format(new Date(session.endDate), 'dd MMMM yyyy à HH:mm', { locale: fr })}
+                                                            {safeFormatDate(session.endDate, 'dd MMMM yyyy à HH:mm')}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -700,7 +828,7 @@ export default function TrainingSessionDetailPage() {
                                                     <p className="text-sm font-bold text-secondary-900">{startedByName ?? '—'}</p>
                                                     {session.startedAt && (
                                                         <p className="text-xs text-secondary-400 font-medium">
-                                                            {format(new Date(session.startedAt), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                                            {safeFormatDate(session.startedAt, 'dd MMM yyyy à HH:mm')}
                                                         </p>
                                                     )}
                                                 </div>
@@ -711,7 +839,7 @@ export default function TrainingSessionDetailPage() {
                                                     <p className="text-sm font-bold text-secondary-900">{completedByName ?? '—'}</p>
                                                     {session.completedAt && (
                                                         <p className="text-xs text-secondary-400 font-medium">
-                                                            {format(new Date(session.completedAt), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                                            {safeFormatDate(session.completedAt, 'dd MMM yyyy à HH:mm')}
                                                         </p>
                                                     )}
                                                 </div>
@@ -722,7 +850,7 @@ export default function TrainingSessionDetailPage() {
                                                     <p className="text-sm font-bold text-secondary-900">{cancelledByName ?? '—'}</p>
                                                     {session.cancelledAt && (
                                                         <p className="text-xs text-secondary-400 font-medium">
-                                                            {format(new Date(session.cancelledAt), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                                            {safeFormatDate(session.cancelledAt, 'dd MMM yyyy à HH:mm')}
                                                         </p>
                                                     )}
                                                 </div>
@@ -788,7 +916,12 @@ export default function TrainingSessionDetailPage() {
                                             {enrollments.map((enrollment) => {
                                                 const empId = normalizeId(enrollment.employee);
                                                 const emp = employees.find((e) => normalizeId(e.id) === empId);
-                                                const isEnrolled = enrollment.status === ENROLLMENT_STATUS_ENROLLED;
+                                                const status = enrollment.status;
+                                                const canAct = isOngoing || isPlanned;
+                                                const isAssigned = status === ENROLLMENT_STATUS_ASSIGNED || status === ENROLLMENT_STATUS_ENROLLED;
+                                                const isInProgress = status === ENROLLMENT_STATUS_IN_PROGRESS;
+                                                const isCompleted = status === ENROLLMENT_STATUS_COMPLETED;
+                                                const acting = enrollmentActionId === enrollment.id;
 
                                                 return (
                                                     <div key={enrollment.id} className="flex items-center gap-4 p-5 hover:bg-secondary-50/50 transition-colors">
@@ -813,8 +946,11 @@ export default function TrainingSessionDetailPage() {
                                                                     <p className="text-xs text-secondary-400 font-medium truncate">{emp.email}</p>
                                                                 )}
                                                                 <p className="text-xs text-secondary-300 font-medium">
-                                                                    Enrollé le {format(new Date(enrollment.enrolledAt), 'dd MMM yyyy', { locale: fr })}
+                                                                    Enrollé le {safeFormatDate(enrollment.enrolledAt || enrollment.createdAt)}
                                                                 </p>
+                                                                {enrollment.score != null && (
+                                                                    <p className="text-xs text-primary-600 font-semibold">Score : {enrollment.score}/100</p>
+                                                                )}
                                                             </div>
                                                         </div>
 
@@ -823,23 +959,58 @@ export default function TrainingSessionDetailPage() {
                                                             {getEnrollmentStatusLabel(enrollment.status)}
                                                         </span>
 
-                                                        {/* Actions — uniquement si ENROLLED et session active */}
-                                                        {isEnrolled && isOngoing && (
-                                                            <div className="flex items-center gap-2 shrink-0">
-                                                                <button
-                                                                    onClick={() => setShowCompleteEnrollmentModal(enrollment.id)}
-                                                                    title="Marquer comme complété"
-                                                                    className="w-8 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center transition-colors group"
-                                                                >
-                                                                    <CheckCheck className="w-4 h-4 text-emerald-600" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setShowAbsentEnrollmentModal(enrollment.id)}
-                                                                    title="Marquer comme absent"
-                                                                    className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 flex items-center justify-center transition-colors group"
-                                                                >
-                                                                    <UserMinus className="w-4 h-4 text-rose-600" />
-                                                                </button>
+                                                        {/* Actions workflow */}
+                                                        {canAct && (isAssigned || isInProgress || isCompleted) && (
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                {isAssigned && (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => handleConfirmEnrollment(enrollment.id)}
+                                                                            disabled={!!enrollmentActionId}
+                                                                            title="Confirmer l'inscription"
+                                                                            className="w-8 h-8 rounded-xl bg-sky-50 hover:bg-sky-100 flex items-center justify-center transition-colors disabled:opacity-50"
+                                                                        >
+                                                                            {acting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" /> : <UserPlus className="w-4 h-4 text-sky-600" />}
+                                                                        </button>
+                                                                        {isOngoing && (
+                                                                            <button
+                                                                                onClick={() => handleStartEnrollment(enrollment.id)}
+                                                                                disabled={!!enrollmentActionId}
+                                                                                title="Démarrer la participation"
+                                                                                className="w-8 h-8 rounded-xl bg-amber-50 hover:bg-amber-100 flex items-center justify-center transition-colors disabled:opacity-50"
+                                                                            >
+                                                                                <PlayCircle className="w-4 h-4 text-amber-600" />
+                                                                            </button>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                                {isInProgress && isOngoing && (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => setShowCompleteEnrollmentModal(enrollment.id)}
+                                                                            title="Marquer comme complété"
+                                                                            className="w-8 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center transition-colors"
+                                                                        >
+                                                                            <CheckCheck className="w-4 h-4 text-emerald-600" />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => setShowAbsentEnrollmentModal(enrollment.id)}
+                                                                            title="Marquer comme absent"
+                                                                            className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 flex items-center justify-center transition-colors"
+                                                                        >
+                                                                            <UserMinus className="w-4 h-4 text-rose-600" />
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                                {isCompleted && (
+                                                                    <button
+                                                                        onClick={() => setShowCertifyEnrollmentModal(enrollment.id)}
+                                                                        title="Certifier la formation"
+                                                                        className="w-8 h-8 rounded-xl bg-primary-50 hover:bg-primary-100 flex items-center justify-center transition-colors"
+                                                                    >
+                                                                        <Award className="w-4 h-4 text-primary-600" />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>

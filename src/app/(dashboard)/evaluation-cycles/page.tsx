@@ -31,7 +31,7 @@ export default function EvaluationCyclesPage() {
     const [error, setError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [creating, setCreating] = useState(false);
-    const [form, setForm] = useState({ name: '', description: '', startDate: '', endDate: '' });
+    const [form, setForm] = useState({ name: '', year: String(new Date().getFullYear()), description: '', startDate: '', endDate: '' });
 
     const load = async () => {
         try {
@@ -56,12 +56,21 @@ export default function EvaluationCyclesPage() {
 
     const handleCreate = async () => {
         if (!form.name.trim()) return toast.error('Le nom est obligatoire.');
+        const year = Number(form.year);
+        if (!year || year < 2000 || year > 2100) return toast.error('Année invalide.');
+        const toIso = (d: string) => d ? new Date(d + 'T00:00:00').toISOString() : undefined;
         try {
             setCreating(true);
-            await createEvaluationCycle({ name: form.name, description: form.description || undefined, startDate: form.startDate || undefined, endDate: form.endDate || undefined });
+            await createEvaluationCycle({
+                name: form.name.trim(),
+                year,
+                description: form.description || undefined,
+                startDate: toIso(form.startDate),
+                endDate: toIso(form.endDate),
+            });
             toast.success('Cycle créé.');
             setIsModalOpen(false);
-            setForm({ name: '', description: '', startDate: '', endDate: '' });
+            setForm({ name: '', year: String(new Date().getFullYear()), description: '', startDate: '', endDate: '' });
             load();
         } catch (e: unknown) {
             toast.error(e instanceof Error ? e.message : 'Erreur.');
@@ -99,6 +108,7 @@ export default function EvaluationCyclesPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="px-6">Nom</TableHead>
+                                <TableHead className="px-6">Année</TableHead>
                                 <TableHead className="px-6">Statut</TableHead>
                                 <TableHead className="px-6">Début</TableHead>
                                 <TableHead className="px-6">Fin</TableHead>
@@ -107,10 +117,11 @@ export default function EvaluationCyclesPage() {
                         </TableHeader>
                         <TableBody>
                             {cycles.length === 0 ? (
-                                <TableRow><TableCell colSpan={5} className="h-48 text-center text-muted-foreground">Aucun cycle d'évaluation.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-48 text-center text-muted-foreground">Aucun cycle d'évaluation.</TableCell></TableRow>
                             ) : cycles.map(c => (
                                 <TableRow key={c.id}>
                                     <TableCell className="px-6 font-semibold">{c.name}</TableCell>
+                                    <TableCell className="px-6 text-secondary-600 tabular-nums">{c.year ?? '—'}</TableCell>
                                     <TableCell className="px-6"><Badge variant={statusVariant(c.status as string)}>{EVALUATION_CYCLE_STATUS_LABELS[c.status as EvaluationCycleStatus] || c.status}</Badge></TableCell>
                                     <TableCell className="px-6 text-secondary-500 tabular-nums">{c.startDate ? format(new Date(c.startDate), 'dd MMM yyyy', { locale: fr }) : '—'}</TableCell>
                                     <TableCell className="px-6 text-secondary-500 tabular-nums">{c.endDate ? format(new Date(c.endDate), 'dd MMM yyyy', { locale: fr }) : '—'}</TableCell>
@@ -144,6 +155,10 @@ export default function EvaluationCyclesPage() {
                                     <div>
                                         <label className="block text-sm font-medium text-secondary-700 mb-1.5">Nom <span className="text-rose-500">*</span></label>
                                         <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full h-10 px-3 border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500" placeholder="Ex: Évaluation S1 2026" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-secondary-700 mb-1.5">Année <span className="text-rose-500">*</span></label>
+                                        <input type="number" min={2000} max={2100} value={form.year} onChange={e => setForm(p => ({ ...p, year: e.target.value }))} className="w-full h-10 px-3 border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500" />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>

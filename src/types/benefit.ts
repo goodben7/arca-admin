@@ -31,22 +31,37 @@ export const EMPLOYEE_BENEFIT_STATUS_LABELS: Record<EmployeeBenefitStatus, strin
 export interface Benefit {
     '@id'?: string;
     id: string;
+    code: string;
     name: string;
     type: BenefitType | string;
     description?: string;
-    amount?: number;
     createdAt?: string;
     updatedAt?: string;
+}
+
+export interface CreateBenefitDto {
+    code: string;
+    name: string;
+    description?: string;
+    type: BenefitType | string;
 }
 
 export interface EmployeeBenefit {
     '@id'?: string;
     id: string;
     employee: string;
-    benefit: string;
-    status: EmployeeBenefitStatus | string;
+    benefit?: string;
+    benefitId?: string;
+    status?: EmployeeBenefitStatus | string;
     startDate?: string;
     endDate?: string;
     createdAt?: string;
     updatedAt?: string;
+}
+
+export interface CreateEmployeeBenefitDto {
+    employee: string;
+    benefitId: string;
+    startDate?: string;
+    endDate?: string;
 }

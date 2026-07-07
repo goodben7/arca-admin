@@ -10,12 +10,37 @@ import { FilterBar } from '@/components/layout/FilterBar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { PageKpiStrip } from '@/components/layout/PageKpi';
 import { getCompensationHistories, recordCompensation } from '@/lib/api/compensation';
+import { extractId } from '@/lib/api-iri';
 import { getAllEmployees } from '@/lib/api/employee';
-import { CompensationHistory } from '@/types/compensation';
+import { CompensationHistory, COMPENSATION_SOURCE_LABELS } from '@/types/compensation';
 import { Dialog, Transition } from '@headlessui/react';
 import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+function parseSalary(v?: string | number | null): number | null {
+    if (v == null || v === '') return null;
+    const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/\s/g, ''));
+    return Number.isFinite(n) ? n : null;
+}
+
+function fmtSalary(v?: string | number | null) {
+    const n = parseSalary(v);
+    return n != null ? `${n.toLocaleString('fr-FR')} CDF` : '—';
+}
+
+function safeFormatDate(value?: string) {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    try {
+        return format(d, 'dd MMM yyyy', { locale: fr });
+    } catch {
+        return '—';
+    }
+}
+
+const EMPTY_FORM = { employee: '', newSalary: '', effectiveDate: '', reason: '' };
 
 export default function CompensationPage() {
     const [histories, setHistories] = useState<CompensationHistory[]>([]);
@@ -25,12 +50,16 @@ export default function CompensationPage() {
     const [search, setSearch] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [creating, setCreating] = useState(false);
-    const [form, setForm] = useState({ employeeId: '', newSalary: '', effectiveDate: '', reason: '' });
+    const [form, setForm] = useState(EMPTY_FORM);
 
     const load = async () => {
         try {
             setIsLoading(true);
-            const [h, emps] = await Promise.all([getCompensationHistories(), getAllEmployees({ itemsPerPage: 500 }).catch(() => [])]);
+            setError(null);
+            const [h, emps] = await Promise.all([
+                getCompensationHistories(),
+                getAllEmployees({ itemsPerPage: 500 }).catch(() => []),
+            ]);
             setHistories(h);
             const arr = Array.isArray(emps) ? emps : (emps as any)['hydra:member'] || [];
             setEmployees(arr);
@@ -43,7 +72,11 @@ export default function CompensationPage() {
 
     useEffect(() => { load(); }, []);
 
-    const empName = (id: string) => { const e = employees.find((x: any) => x.id === id || x['@id'] === id); return e ? `${e.firstName} ${e.lastName}` : id; };
+    const empName = (ref: string) => {
+        const id = extractId(ref) || ref;
+        const e = employees.find((x: any) => x.id === id || x['@id'] === ref);
+        return e ? `${e.firstName} ${e.lastName}` : id;
+    };
 
     const filtered = useMemo(() => {
         if (!search.trim()) return histories;
@@ -53,18 +86,29 @@ export default function CompensationPage() {
 
     const totalPayroll = useMemo(() => {
         const empSalaries: Record<string, number> = {};
-        histories.forEach(h => { empSalaries[h.employee] = h.newSalary; });
+        histories.forEach(h => {
+            const id = extractId(h.employee) || h.employee;
+            const n = parseSalary(h.newSalary);
+            if (n != null) empSalaries[id] = n;
+        });
         return Object.values(empSalaries).reduce((s, v) => s + v, 0);
     }, [histories]);
 
     const handleCreate = async () => {
-        if (!form.employeeId || !form.newSalary || !form.effectiveDate) return toast.error('Employé, salaire et date obligatoires.');
+        if (!form.employee || !form.newSalary.trim() || !form.effectiveDate) {
+            return toast.error('Employé, salaire et date obligatoires.');
+        }
         try {
             setCreating(true);
-            await recordCompensation({ employeeId: form.employeeId, newSalary: parseFloat(form.newSalary), effectiveDate: form.effectiveDate, reason: form.reason || undefined });
+            await recordCompensation({
+                employee: form.employee,
+                newSalary: form.newSalary.trim(),
+                effectiveDate: form.effectiveDate,
+                reason: form.reason.trim() || undefined,
+            });
             toast.success('Compensation enregistrée.');
             setIsModalOpen(false);
-            setForm({ employeeId: '', newSalary: '', effectiveDate: '', reason: '' });
+            setForm(EMPTY_FORM);
             load();
         } catch (e: unknown) {
             toast.error(e instanceof Error ? e.message : 'Erreur.');
@@ -72,8 +116,6 @@ export default function CompensationPage() {
             setCreating(false);
         }
     };
-
-    const fmt = (n: number) => n.toLocaleString('fr-FR') + ' FCFA';
 
     return (
         <PageShell>
@@ -89,7 +131,7 @@ export default function CompensationPage() {
 
             <PageKpiStrip items={[
                 { label: 'Enregistrements', value: histories.length, icon: DollarSign, tone: 'primary', detail: 'Évolutions salariales' },
-                { label: 'Masse salariale', value: fmt(totalPayroll), icon: TrendingUp, tone: 'success', detail: 'Estimation actuelle' },
+                { label: 'Masse salariale', value: fmtSalary(totalPayroll), icon: TrendingUp, tone: 'success', detail: 'Estimation actuelle' },
             ]} />
 
             <FilterBar>
@@ -113,18 +155,22 @@ export default function CompensationPage() {
                                 <TableHead className="px-6">Nouveau salaire</TableHead>
                                 <TableHead className="px-6">Date effet</TableHead>
                                 <TableHead className="px-6">Motif</TableHead>
+                                <TableHead className="px-6">Source</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {filtered.length === 0 ? (
-                                <TableRow><TableCell colSpan={5} className="h-48 text-center text-muted-foreground">Aucun historique.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-48 text-center text-muted-foreground">Aucun historique.</TableCell></TableRow>
                             ) : filtered.map(h => (
                                 <TableRow key={h.id}>
                                     <TableCell className="px-6 font-semibold">{empName(h.employee)}</TableCell>
-                                    <TableCell className="px-6 text-secondary-500">{h.previousSalary != null ? fmt(h.previousSalary) : '—'}</TableCell>
-                                    <TableCell className="px-6 font-semibold text-emerald-600">{fmt(h.newSalary)}</TableCell>
-                                    <TableCell className="px-6 text-secondary-500 tabular-nums">{format(new Date(h.effectiveDate), 'dd MMM yyyy', { locale: fr })}</TableCell>
+                                    <TableCell className="px-6 text-secondary-500">{fmtSalary(h.oldSalary ?? h.previousSalary)}</TableCell>
+                                    <TableCell className="px-6 font-semibold text-emerald-600">{fmtSalary(h.newSalary)}</TableCell>
+                                    <TableCell className="px-6 text-secondary-500 tabular-nums">{safeFormatDate(h.effectiveDate)}</TableCell>
                                     <TableCell className="px-6 text-secondary-500 max-w-xs truncate">{h.reason || '—'}</TableCell>
+                                    <TableCell className="px-6 text-xs text-secondary-400">
+                                        {h.sourceEvent ? (COMPENSATION_SOURCE_LABELS[h.sourceEvent] || h.sourceEvent) : '—'}
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -134,12 +180,28 @@ export default function CompensationPage() {
 
             <Transition appear show={isModalOpen} as={Fragment}>
                 <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
-                    <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
-                        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
-                    </Transition.Child>
+                    <Transition.Child
+                        as="div"
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+                        enter="ease-out duration-200"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-150"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    />
                     <div className="fixed inset-0 flex items-center justify-center p-4">
-                        <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                            <Dialog.Panel className="bg-white rounded-2xl shadow-float w-full max-w-md p-6 space-y-5">
+                        <Transition.Child
+                            as="div"
+                            className="w-full max-w-md"
+                            enter="ease-out duration-200"
+                            enterFrom="opacity-0 scale-95"
+                            enterTo="opacity-100 scale-100"
+                            leave="ease-in duration-150"
+                            leaveFrom="opacity-100 scale-100"
+                            leaveTo="opacity-0 scale-95"
+                        >
+                            <Dialog.Panel className="bg-white rounded-2xl shadow-float w-full p-6 space-y-5">
                                 <div className="flex items-center justify-between">
                                     <Dialog.Title className="text-lg font-bold text-secondary-900">Enregistrer une compensation</Dialog.Title>
                                     <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 rounded-lg hover:bg-secondary-100 flex items-center justify-center"><X className="w-4 h-4" /></button>
@@ -147,7 +209,7 @@ export default function CompensationPage() {
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium text-secondary-700 mb-1.5">Employé <span className="text-rose-500">*</span></label>
-                                        <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full h-10 px-3 border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white">
+                                        <select value={form.employee} onChange={e => setForm(p => ({ ...p, employee: e.target.value }))} className="w-full h-10 px-3 border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white">
                                             <option value="">Sélectionner</option>
                                             {employees.map((e: any) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
                                         </select>
@@ -155,10 +217,10 @@ export default function CompensationPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="block text-sm font-medium text-secondary-700 mb-1.5">Nouveau salaire <span className="text-rose-500">*</span></label>
-                                            <input type="number" value={form.newSalary} onChange={e => setForm(p => ({ ...p, newSalary: e.target.value }))} className="w-full h-10 px-3 border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500" placeholder="0" />
+                                            <input type="text" inputMode="decimal" value={form.newSalary} onChange={e => setForm(p => ({ ...p, newSalary: e.target.value }))} className="w-full h-10 px-3 border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500" placeholder="Ex: 450000" />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-secondary-700 mb-1.5">Date d'effet <span className="text-rose-500">*</span></label>
+                                            <label className="block text-sm font-medium text-secondary-700 mb-1.5">Date d&apos;effet <span className="text-rose-500">*</span></label>
                                             <input type="date" value={form.effectiveDate} onChange={e => setForm(p => ({ ...p, effectiveDate: e.target.value }))} className="w-full h-10 px-3 border border-secondary-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500" />
                                         </div>
                                     </div>

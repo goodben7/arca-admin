@@ -12,6 +12,18 @@ import { PERSON_TYPE_LABELS } from '@/types/profile';
 import { useSidebar } from './SidebarContext';
 import { SidebarAmbient } from './SidebarAmbient';
 
+/** Ne active que l'entrée au préfixe le plus long (évite /training + /training/sessions ensemble). */
+function resolveActiveHref(pathname: string, hrefs: string[]): string | null {
+    let best: string | null = null;
+    for (const href of hrefs) {
+        const matches = pathname === href || pathname.startsWith(`${href}/`);
+        if (matches && (!best || href.length > best.length)) {
+            best = href;
+        }
+    }
+    return best;
+}
+
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     const pathname = usePathname();
     const router = useRouter();
@@ -78,21 +90,22 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                             />
                         ) : (
                             <div className="space-y-0.5">
-                                {section.items?.map((item, itemIdx) => {
-                                    const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-                                    return (
+                                {(() => {
+                                    const sectionHrefs = (section.items ?? []).map(i => i.href);
+                                    const activeHref = resolveActiveHref(pathname, sectionHrefs);
+                                    return section.items?.map((item, itemIdx) => (
                                         <NavItem
                                             key={itemIdx}
                                             href={item.href}
                                             icon={item.icon}
                                             label={item.title}
-                                            isActive={isActive}
+                                            isActive={item.href === activeHref}
                                             collapsed={isCollapsed}
                                             soon={item.status === 'under-construction'}
                                             onNavigate={onNavigate}
                                         />
-                                    );
-                                })}
+                                    ));
+                                })()}
                             </div>
                         )}
                     </div>
