@@ -81,7 +81,7 @@ export function LoginForm() {
 
     useEffect(() => {
         if (getToken()) {
-            router.replace('/dashboard');
+            router.replace('/apps');
         }
     }, [router]);
 
@@ -108,7 +108,7 @@ export function LoginForm() {
         try {
             const data = await login(formData.username, formData.password);
             setToken(data.token);
-            window.location.href = '/dashboard';
+            window.location.href = '/apps';
         } catch (err: any) {
             setError(err.message || 'Une erreur est survenue lors de la connexion.');
             setIsLoading(false);

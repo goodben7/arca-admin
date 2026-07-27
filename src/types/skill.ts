@@ -52,7 +52,10 @@ export interface JobRoleRequiredSkill {
     id: string;
     jobRole: string;
     skill: string;
-    requiredLevel: SkillLevel | string;
+    /** Champ API réel */
+    minimumLevel?: SkillLevel | string;
+    /** Alias legacy / lecture UI */
+    requiredLevel?: SkillLevel | string;
     mandatory?: boolean;
     createdAt?: string;
     updatedAt?: string;

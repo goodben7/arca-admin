@@ -17,10 +17,10 @@ export type TrainingEnrollmentStatus =
 export const ENROLLMENT_STATUS_LABELS: Record<string, string> = {
     ASSIGNED: 'Assigné',
     IN_PROGRESS: 'En cours',
-    COMPLETED: 'Complété',
+    COMPLETED: 'Terminé',
     CERTIFIED: 'Certifié',
     ABSENT: 'Absent',
-    ENROLLED: 'Enrollé',
+    ENROLLED: 'Inscrit',
 };
 
 export interface TrainingEnrollment {

@@ -1,5 +1,5 @@
 import { request } from './client';
-import { EvaluationCycle, PerformanceReview, Objective, PromotionEligibility, CreateObjectiveDto, CreateEvaluationCycleDto } from '@/types/performance';
+import { EvaluationCycle, PerformanceReview, Objective, PromotionEligibility, CreateObjectiveDto, CreateEvaluationCycleDto, CreatePerformanceReviewDto } from '@/types/performance';
 import { extractId } from '@/lib/api-iri';
 
 function norm<T>(data: unknown): T[] {
@@ -83,20 +83,59 @@ export async function getPerformanceReviewById(id: string): Promise<PerformanceR
     return res.json();
 }
 
-export async function submitPerformanceReview(reviewId: string): Promise<void> {
+export async function createPerformanceReview(data: CreatePerformanceReviewDto): Promise<PerformanceReview> {
+    const payload: Record<string, unknown> = {
+        employee: extractId(data.employee) || data.employee,
+        evaluationCycleId: extractId(data.evaluationCycleId) || data.evaluationCycleId,
+    };
+    if (data.reviewer) payload.reviewer = extractId(data.reviewer) || data.reviewer;
+    if (data.score != null) payload.score = data.score;
+    if (data.comment) payload.comment = data.comment;
+
+    const res = await request('/api/performance_reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
+    return res.json();
+}
+
+export async function updatePerformanceReview(
+    id: string,
+    data: Partial<Pick<CreatePerformanceReviewDto, 'reviewer' | 'score' | 'comment'>>,
+): Promise<PerformanceReview> {
+    const path = id.startsWith('/') ? id : `/api/performance_reviews/${id}`;
+    const payload: Record<string, unknown> = {};
+    if (data.reviewer !== undefined) {
+        payload.reviewer = data.reviewer ? (extractId(data.reviewer) || data.reviewer) : null;
+    }
+    if (data.score !== undefined) payload.score = data.score;
+    if (data.comment !== undefined) payload.comment = data.comment;
+
+    const res = await request(path, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/merge-patch+json' },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
+    return res.json();
+}
+
+export async function submitPerformanceReview(performanceReviewId: string): Promise<void> {
     const res = await request('/api/performance_reviews/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewId }),
+        body: JSON.stringify({ performanceReviewId: extractId(performanceReviewId) || performanceReviewId }),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
 }
 
-export async function validatePerformanceReview(reviewId: string): Promise<void> {
+export async function validatePerformanceReview(performanceReviewId: string): Promise<void> {
     const res = await request('/api/performance_reviews/validations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewId }),
+        body: JSON.stringify({ performanceReviewId: extractId(performanceReviewId) || performanceReviewId }),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
 }

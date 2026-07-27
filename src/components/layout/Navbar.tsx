@@ -1,13 +1,16 @@
 'use client';
 
-import { PanelLeftClose, PanelLeftOpen, Menu, ChevronDown, LogOut, User } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Menu, ChevronDown, LogOut, User, Grid3X3 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { getAbout } from '@/lib/api/auth';
 import { clearToken } from '@/lib/auth-token';
 import { PERSON_TYPE_LABELS } from '@/types/profile';
 import { useSidebar } from './SidebarContext';
 import { AnchoredDropdown } from '@/components/ui/AnchoredDropdown';
+import { GlobalSearch } from '@/components/apps/GlobalSearch';
+import { getModuleFromPath } from '@/lib/modules/registry';
 import { cn } from '@/lib/utils';
 
 function getRoleLabel(user: any): string {
@@ -20,6 +23,8 @@ function getRoleLabel(user: any): string {
 
 export function Navbar() {
     const router = useRouter();
+    const pathname = usePathname();
+    const module = getModuleFromPath(pathname);
     const { collapsed, toggle, openMobile } = useSidebar();
     const [user, setUser] = useState<any>(null);
     const [open, setOpen] = useState(false);
@@ -40,26 +45,38 @@ export function Navbar() {
 
     return (
         <header className="h-16 glass-panel px-4 md:px-6 flex items-center justify-between gap-4 rounded-2xl shadow-card border border-primary-100/40 shrink-0">
-            <div className="flex items-center gap-2">
-                <button
-                    onClick={openMobile}
-                    className="lg:hidden w-9 h-9 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-                    aria-label="Ouvrir le menu"
+            <div className="flex items-center gap-2 shrink-0">
+                {module && (
+                    <>
+                        <button
+                            onClick={openMobile}
+                            className="lg:hidden w-9 h-9 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+                            aria-label="Ouvrir le menu"
+                        >
+                            <Menu className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={toggle}
+                            title={collapsed ? 'Ouvrir le menu' : 'Réduire le menu'}
+                            className="hidden lg:flex w-9 h-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+                        >
+                            {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+                        </button>
+                    </>
+                )}
+                <Link
+                    href="/apps"
+                    className="inline-flex items-center gap-2 h-9 px-3 rounded-xl text-sm font-medium text-secondary-700 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                    title="Toutes les applications"
                 >
-                    <Menu className="w-5 h-5" />
-                </button>
-                <button
-                    onClick={toggle}
-                    title={collapsed ? 'Ouvrir le menu' : 'Réduire le menu'}
-                    className="hidden lg:flex w-9 h-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-                >
-                    {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
-                </button>
+                    <Grid3X3 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Modules</span>
+                </Link>
             </div>
 
-            <div className="flex-1" />
+            <GlobalSearch />
 
-            <div>
+            <div className="shrink-0">
                 <button
                     ref={triggerRef}
                     onClick={() => setOpen((v) => !v)}
@@ -97,12 +114,20 @@ export function Navbar() {
                     </div>
                     <div className="p-2">
                         <button
-                            onClick={() => { setOpen(false); router.push('/profiles'); }}
+                            onClick={() => { setOpen(false); router.push('/m/securite/settings'); }}
                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors text-left"
                             role="menuitem"
                         >
                             <User className="w-4 h-4 text-muted-foreground" />
-                            Mon profil
+                            Paramètres
+                        </button>
+                        <button
+                            onClick={() => { setOpen(false); router.push('/apps'); }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors text-left"
+                            role="menuitem"
+                        >
+                            <Grid3X3 className="w-4 h-4 text-muted-foreground" />
+                            Toutes les apps
                         </button>
                     </div>
                     <div className="p-2 border-t border-border-subtle">

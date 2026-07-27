@@ -134,11 +134,27 @@ export async function getCareerPaths(filters: Record<string, string> = {}): Prom
     return norm<CareerPath>(await res.json());
 }
 
-export async function createCareerPath(data: Partial<CareerPath>): Promise<CareerPath> {
+export async function createCareerPath(data: {
+    fromJobRole: string;
+    toJobRole: string;
+    conditions?: {
+        minimumYears?: number;
+        minTenureMonths?: number;
+        minimumPerformance?: number;
+        requiredTrainings?: string[];
+    };
+}): Promise<CareerPath> {
+    const payload: Record<string, unknown> = {
+        fromJobRole: data.fromJobRole,
+        toJobRole: data.toJobRole,
+    };
+    if (data.conditions && Object.keys(data.conditions).length > 0) {
+        payload.conditions = data.conditions;
+    }
     const res = await request('/api/career_paths', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
     return res.json();

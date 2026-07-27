@@ -43,13 +43,27 @@ export interface JobRole {
 
 // ── Career Paths ──────────────────────────────────────────────────────────────
 
+/** Conditions vérifiées à la soumission d'une mobilité PROMOTION. */
+export interface CareerPathConditions {
+    minimumYears?: number;
+    minTenureMonths?: number;
+    minimumPerformance?: number;
+    requiredTrainings?: string[];
+}
+
 export interface CareerPath {
     '@id'?: string;
     id: string;
     fromJobRole: string | JobRole;
     toJobRole: string | JobRole;
-    conditions?: Record<string, unknown>;
+    conditions?: CareerPathConditions | Record<string, unknown>;
     description?: string;
     createdAt?: string;
     updatedAt?: string;
+}
+
+export interface CreateCareerPathDto {
+    fromJobRole: string;
+    toJobRole: string;
+    conditions?: CareerPathConditions;
 }

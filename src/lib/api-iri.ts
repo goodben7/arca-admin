@@ -15,14 +15,49 @@ export function toIri(resource: string, value?: string | null): string | undefin
  * Extrait l'identifiant brut d'une relation (objet imbriqué, IRI ou id).
  */
 export function extractId(value?: string | { id?: string; '@id'?: string } | null): string | undefined {
-    if (!value) return undefined;
+    if (value == null || value === '') return undefined;
     if (typeof value === 'object') {
-        if (value.id) return value.id;
-        if (value['@id']) return value['@id'].split('/').pop();
+        const raw = value.id ?? (value as { uuid?: string }).uuid;
+        if (typeof raw === 'string' && raw.trim()) return raw.trim();
+        if (typeof raw === 'number') return String(raw);
+        const atId = value['@id'];
+        if (typeof atId === 'string' && atId) {
+            return atId.split('/').filter(Boolean).pop();
+        }
         return undefined;
     }
-    if (value.startsWith('/')) return value.split('/').pop();
-    return value;
+    const str = String(value).trim();
+    if (!str || str === '[object Object]') return undefined;
+    if (str.startsWith('/') || str.includes('/api/')) {
+        return str.split('/').filter(Boolean).pop();
+    }
+    return str;
+}
+
+/** Référence cycle d'un objectif / évaluation (lecture API). */
+export function cycleRefOf(item: {
+    cycle?: unknown;
+    evaluationCycleId?: unknown;
+    evaluationCycle?: unknown;
+}): unknown {
+    return item.cycle ?? item.evaluationCycleId ?? item.evaluationCycle;
+}
+
+/** Compare une référence cycle (objet, IRI ou id) à un id de cycle. */
+export function matchesCycleId(ref: unknown, cycleId?: string | null): boolean {
+    if (!ref || !cycleId) return false;
+    const target = String(cycleId).trim();
+    if (typeof ref === 'object' && ref !== null) {
+        return matchesCycleId(extractId(ref as { id?: string; '@id'?: string }), target);
+    }
+    const str = String(ref).trim();
+    const extracted = extractId(str);
+    return (
+        extracted === target ||
+        str === target ||
+        str === `/api/evaluation_cycles/${target}` ||
+        str.endsWith(`/${target}`)
+    );
 }
 
 type LookupItem = { id: string; '@id'?: string; name?: string; title?: string; code?: string };
@@ -60,4 +95,24 @@ export function relationName(
     if (typeof value === 'object') return value.name || value.title || '—';
     if (value.startsWith('/api/')) return value.split('/').pop() || value;
     return value;
+}
+
+/**
+ * Résout un libellé via une map id/IRI → label (départements, postes, etc.).
+ */
+export function resolveFromMap(
+    value: unknown,
+    map: Record<string, string>,
+    fallback = '—',
+): string {
+    if (!value) return fallback;
+    if (typeof value === 'object' && value !== null) {
+        return relationName(value as { name?: string; title?: string });
+    }
+    const str = value as string;
+    const id = extractId(str);
+    const resolved = map[str] || (id ? map[id] : undefined);
+    if (resolved) return resolved;
+    if (str.startsWith('/api/')) return fallback;
+    return str || fallback;
 }

@@ -42,7 +42,7 @@ export type OnboardingTaskType = typeof ONBOARDING_TASK_TYPE[keyof typeof ONBOAR
 
 export const ONBOARDING_TASK_TYPE_LABELS: Record<OnboardingTaskType, string> = {
     DOCUMENT: 'Document',
-    IT_ACCESS: 'Accès IT',
+    IT_ACCESS: 'Accès informatique',
     TRAINING: 'Formation',
     EQUIPMENT: 'Matériel',
     HR_FORM: 'Formulaire RH',

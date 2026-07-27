@@ -22,6 +22,20 @@ export async function createPosition(data: Partial<Position>): Promise<Position>
     return res.json();
 }
 
+export async function updatePosition(id: string, data: Partial<Position>): Promise<Position> {
+    const path = id.startsWith('/') ? id : `/api/positions/${id}`;
+    const res = await request(path, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/merge-patch+json' },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.message || 'Erreur lors de la mise à jour du poste.');
+    }
+    return res.json();
+}
+
 export async function openPosition(positionId: string): Promise<void> {
     const res = await request('/api/positions/open', {
         method: 'POST',
