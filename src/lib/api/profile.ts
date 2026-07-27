@@ -72,7 +72,7 @@ export async function createUser(data: { email: string; profile?: string; employ
     return res.json();
 }
 
-export async function updateUser(id: string, data: Partial<AppUser>): Promise<AppUser> {
+export async function updateUser(id: string, data: Partial<AppUser> & { profile?: string; employee?: string }): Promise<AppUser> {
     const path = id.startsWith('/') ? id : `/api/users/${id}`;
     const res = await request(path, {
         method: 'PATCH',

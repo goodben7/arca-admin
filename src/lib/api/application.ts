@@ -53,6 +53,18 @@ export async function getApplicationById(id: string): Promise<Application> {
     return response.json();
 }
 
+export async function markApplicationApplied(applicationId: string): Promise<void> {
+    const response = await request('/api/applications/applied', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId }),
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || err.detail || 'Erreur lors du passage en candidature reçue.');
+    }
+}
+
 export async function shortlistApplication(applicationId: string): Promise<void> {
     const response = await request('/api/applications/shortlistings', {
         method: 'POST',

@@ -28,7 +28,7 @@ export type MobilityStatus = typeof MOBILITY_STATUS[keyof typeof MOBILITY_STATUS
 
 export const MOBILITY_STATUS_LABELS: Record<MobilityStatus, string> = {
     DRAFT: 'Brouillon',
-    MANAGER_APPROVAL: 'Validation Manager',
+    MANAGER_APPROVAL: 'Validation responsable',
     HR_APPROVAL: 'Validation RH',
     EXECUTIVE_APPROVAL: 'Validation Direction',
     IMPLEMENTED: 'Implémentée',

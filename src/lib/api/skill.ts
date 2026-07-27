@@ -1,5 +1,5 @@
 import { request } from './client';
-import { extractId } from '@/lib/api-iri';
+import { extractId, toIri } from '@/lib/api-iri';
 import { SkillCategory, Skill, EmployeeSkill, JobRoleRequiredSkill } from '@/types/skill';
 
 function norm<T>(data: unknown): T[] {
@@ -136,18 +136,52 @@ export async function updateEmployeeSkill(id: string, data: Partial<EmployeeSkil
 // ── Job Role Required Skills ──────────────────────────────────────────────────
 
 export async function getJobRoleRequiredSkills(jobRoleId?: string): Promise<JobRoleRequiredSkill[]> {
-    const url = jobRoleId ? `/api/job_role_required_skills?jobRole=${jobRoleId}` : '/api/job_role_required_skills';
-    const res = await request(url);
+    if (!jobRoleId) {
+        const res = await request('/api/job_role_required_skills');
+        if (!res.ok) throw new Error('Impossible de charger les compétences requises.');
+        return norm<JobRoleRequiredSkill>(await res.json());
+    }
+
+    const id = extractId(jobRoleId) || jobRoleId;
+    const iri = encodeURIComponent(`/api/job_roles/${id}`);
+    // API Platform accepte souvent l’IRI ; on retombe sur l’id brut si besoin
+    let res = await request(`/api/job_role_required_skills?jobRole=${iri}`);
+    if (!res.ok) {
+        res = await request(`/api/job_role_required_skills?jobRole=${encodeURIComponent(id)}`);
+    }
     if (!res.ok) throw new Error('Impossible de charger les compétences requises.');
-    return norm<JobRoleRequiredSkill>(await res.json());
+    const list = norm<JobRoleRequiredSkill>(await res.json());
+    // Filtre client de sécurité (certaines versions d’API ignorent le filtre)
+    return list.filter(item => {
+        const roleId = extractId(item.jobRole as string);
+        return !roleId || roleId === id;
+    });
 }
 
-export async function createJobRoleRequiredSkill(data: Partial<JobRoleRequiredSkill>): Promise<JobRoleRequiredSkill> {
+export async function createJobRoleRequiredSkill(data: {
+    jobRole: string;
+    skill: string;
+    minimumLevel: string;
+    mandatory?: boolean;
+}): Promise<JobRoleRequiredSkill> {
+    const body: Record<string, unknown> = {
+        jobRole: toIri('job_roles', data.jobRole) || data.jobRole,
+        skill: toIri('skills', data.skill) || data.skill,
+        minimumLevel: data.minimumLevel,
+    };
+    if (data.mandatory !== undefined) body.mandatory = data.mandatory;
+
     const res = await request('/api/job_role_required_skills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(body),
     });
     if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
     return res.json();
+}
+
+export async function deleteJobRoleRequiredSkill(id: string): Promise<void> {
+    const path = id.startsWith('/') ? id : `/api/job_role_required_skills/${id}`;
+    const res = await request(path, { method: 'DELETE' });
+    if (!res.ok) { const e = await res.json().catch(() => ({})) as Record<string, unknown>; throw new Error(apiErr(e)); }
 }

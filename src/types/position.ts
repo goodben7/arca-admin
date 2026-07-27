@@ -17,8 +17,8 @@ export const POSITION_STATUS_LABELS: Record<string, string> = {
 };
 
 export const POSITION_LEVEL_LABELS: Record<string, string> = {
-    JUNIOR: 'Junior',
+    JUNIOR: 'Débutant',
     MID_LEVEL: 'Intermédiaire',
-    SENIOR: 'Sénior',
-    MANAGER: 'Manager',
+    SENIOR: 'Confirmé',
+    MANAGER: 'Responsable',
 };

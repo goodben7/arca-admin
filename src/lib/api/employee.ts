@@ -1,5 +1,5 @@
 import { Employee, Department, WorkExperience, Skill } from '@/types/employee';
-import { toIri } from '@/lib/api-iri';
+import { extractId, toIri } from '@/lib/api-iri';
 import { request } from './client';
 
 export async function getAllEmployees(params: Record<string, any> = {}): Promise<any> {
@@ -22,12 +22,20 @@ export async function getAllEmployees(params: Record<string, any> = {}): Promise
 }
 
 export async function createEmployee(data: Partial<Employee>): Promise<Employee> {
+    const payload: Record<string, unknown> = { ...data };
+    // jobRole / grade : IDs bruts (JR…, GR…), max 16 chars — pas d'IRI
+    if (data.jobRole) payload.jobRole = extractId(data.jobRole as string) || data.jobRole;
+    if (data.grade) payload.grade = extractId(data.grade as string) || data.grade;
+    if (data.department) payload.department = toIri('departments', data.department as string);
+    if (data.position) payload.position = toIri('positions', data.position as string);
+    if (data.profile) payload.profile = toIri('profiles', data.profile as string);
+
     const response = await request('/api/employees', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -152,10 +160,10 @@ export async function updateEmployee(id: string, data: Partial<Employee>): Promi
     const path = id.startsWith('/') ? id : `/api/employees/${id}`;
     const payload: Record<string, unknown> = { ...data };
     if (data.jobRole !== undefined) {
-        payload.jobRole = data.jobRole ? toIri('job_roles', data.jobRole as string) : null;
+        payload.jobRole = data.jobRole ? (extractId(data.jobRole as string) || data.jobRole) : null;
     }
     if (data.grade !== undefined) {
-        payload.grade = data.grade ? toIri('grades', data.grade as string) : null;
+        payload.grade = data.grade ? (extractId(data.grade as string) || data.grade) : null;
     }
     if (data.department !== undefined) {
         payload.department = data.department ? toIri('departments', data.department as string) : null;

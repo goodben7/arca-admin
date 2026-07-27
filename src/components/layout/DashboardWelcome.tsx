@@ -51,7 +51,7 @@ export function DashboardWelcome({ user, pendingCount, pendingLeaves = 0 }: Dash
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5">
                 <div className="min-w-0 space-y-1">
                     <p className="text-xs font-medium uppercase tracking-wider text-primary-500">
-                        Tableau de bord RH
+                        Pilotage RH
                     </p>
                     <h1 className="text-2xl md:text-[1.75rem] font-semibold text-foreground tracking-tight leading-tight">
                         {getGreeting()}, {firstName}
@@ -68,13 +68,13 @@ export function DashboardWelcome({ user, pendingCount, pendingLeaves = 0 }: Dash
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <Link href="/employees/create">
+                    <Link href="/m/personnel/employees/create">
                         <Button variant="pill" size="sm" className="gap-2">
                             <UserPlus className="w-4 h-4" />
                             Nouvel employé
                         </Button>
                     </Link>
-                    <Link href="/training/sessions/create">
+                    <Link href="/m/formation/sessions/create">
                         <Button variant="outline" size="sm" className="gap-2">
                             <GraduationCap className="w-4 h-4" />
                             Nouvelle session
@@ -85,7 +85,7 @@ export function DashboardWelcome({ user, pendingCount, pendingLeaves = 0 }: Dash
 
             {pendingCount > 0 && (
                 <Link
-                    href={pendingLeaves > 0 ? '/leave' : '#priorites'}
+                    href={pendingLeaves > 0 ? '/m/temps/leave' : '#priorites'}
                     className="flex items-center gap-4 rounded-lg border border-amber-200/80 bg-amber-50/60 px-4 py-3 hover:bg-amber-100/50 transition-colors group"
                 >
                     {pendingLeaves > 0 ? (

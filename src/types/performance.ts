@@ -49,13 +49,20 @@ export interface PerformanceReview {
     '@id'?: string;
     id: string;
     employee: string;
-    evaluationCycle: string;
+    /** Relation cycle (réponse API lecture) */
+    cycle?: string | { id?: string; '@id'?: string };
+    evaluationCycle?: string;
+    evaluationCycleId?: string;
     reviewer?: string;
     status: PerformanceReviewStatus | string;
+    score?: number | string | null;
+    comment?: string | null;
+    /** @deprecated alias UI */
     overallRating?: number;
     comments?: string;
     submittedAt?: string;
     validatedAt?: string;
+    validatedBy?: string;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -82,6 +89,8 @@ export interface Objective {
     '@id'?: string;
     id: string;
     employee: string;
+    /** Relation cycle (réponse API lecture) */
+    cycle?: string | { id?: string; '@id'?: string };
     evaluationCycle?: string;
     evaluationCycleId?: string;
     title: string;
@@ -108,7 +117,15 @@ export interface CreateObjectiveDto {
     targetValue?: string;
     achievable?: string;
     relevant?: string;
-    dueDate?: string;
+    dueDate: string;
+}
+
+export interface CreatePerformanceReviewDto {
+    employee: string;
+    evaluationCycleId: string;
+    reviewer?: string;
+    score?: number;
+    comment?: string;
 }
 
 export interface CreateEvaluationCycleDto {

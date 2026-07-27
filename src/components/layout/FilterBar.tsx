@@ -8,7 +8,7 @@ interface FilterBarProps {
 export function FilterBar({ children, className }: FilterBarProps) {
     return (
         <div className={cn(
-            'flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4 rounded-2xl filter-bar-surface shadow-card',
+            'relative z-30 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4 rounded-2xl filter-bar-surface shadow-card',
             className
         )}>
             {children}
