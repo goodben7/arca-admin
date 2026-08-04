@@ -8,6 +8,7 @@ import {
     LayoutGrid,
     Library,
     Route,
+    Scale,
     Settings,
     ShieldCheck,
     Sparkles,
@@ -42,6 +43,7 @@ export const SECTION_META: Record<string, SectionMeta> = {
     Système: { icon: Settings, tone: 'slate' },
     Suivi: { icon: Activity, tone: 'teal' },
     Général: { icon: LayoutGrid, tone: 'blue' },
+    Procédures: { icon: Scale, tone: 'rose' },
 };
 
 export const SECTION_TONE_STYLES: Record<SectionTone, { iconBg: string; iconText: string; headerBg: string }> = {

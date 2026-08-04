@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {
-    Calendar, GraduationCap, Target, DollarSign, Gift, UserCheck, LogOut, ArrowRightLeft, FileText,
+    Calendar, GraduationCap, Target, DollarSign, Gift, UserCheck, LogOut, ArrowRightLeft, FileText, Scale,
 } from 'lucide-react';
 
 interface Employee360HubProps {
@@ -18,6 +18,7 @@ const LINKS = [
     { label: 'Intégration', href: () => `/m/personnel/onboarding`, icon: UserCheck, module: 'Parcours' },
     { label: 'Sortie', href: () => `/m/personnel/offboarding`, icon: LogOut, module: 'Parcours' },
     { label: 'Mobilité', href: () => `/m/personnel/mobility`, icon: ArrowRightLeft, module: 'Parcours' },
+    { label: 'Discipline', href: (id: string) => `/m/sanctions/affaires?employee=${id}`, icon: Scale, module: 'Sanctions' },
     { label: 'Contrats', href: (id: string) => `/m/personnel/contracts?employee=${id}`, icon: FileText, module: 'Personnel' },
 ];
 

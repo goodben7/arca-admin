@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowRightLeft,
     Building2,
@@ -13,6 +13,8 @@ import {
     TrendingUp,
     BriefcaseBusiness,
     Award,
+    CheckCircle2,
+    XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
@@ -21,16 +23,20 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Input';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { getAllEmployees, getDepartments } from '@/lib/api/employee';
+import { getAllEmployees, getDepartments, checkPromotionEligibility } from '@/lib/api/employee';
 import { getJobRoles, getGrades } from '@/lib/api/jobArchitecture';
 import { createMobilityRequest } from '@/lib/api/mobilityRequest';
 import { MOBILITY_TYPE } from '@/types/mobilityRequest';
 import { Employee, Department } from '@/types/employee';
 import { JobRole, Grade } from '@/types/jobArchitecture';
+import { PromotionEligibility } from '@/types/performance';
+import { translateEligibilityReason } from '@/lib/employees/journeyLabels';
+import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
 
-export default function CreateMobilityRequestPage() {
+function CreateMobilityRequestForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
@@ -39,12 +45,14 @@ export default function CreateMobilityRequestPage() {
     const [isFetching, setIsFetching] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [promoElig, setPromoElig] = useState<PromotionEligibility | null>(null);
+    const [promoChecking, setPromoChecking] = useState(false);
 
     const [formData, setFormData] = useState({
-        employee: '',
-        type: '',
+        employee: searchParams.get('employee') || '',
+        type: searchParams.get('type') || '',
         targetDepartment: '',
-        targetJobRoleId: '',
+        targetJobRoleId: searchParams.get('targetJobRoleId') || '',
         targetGradeId: '',
         reason: '',
     });
@@ -82,15 +90,55 @@ export default function CreateMobilityRequestPage() {
         fetchData();
     }, []);
 
+    useEffect(() => {
+        if (
+            formData.type !== MOBILITY_TYPE.PROMOTION ||
+            !formData.employee ||
+            !formData.targetJobRoleId
+        ) {
+            setPromoElig(null);
+            return;
+        }
+
+        let cancelled = false;
+        setPromoChecking(true);
+        checkPromotionEligibility(formData.employee, formData.targetJobRoleId)
+            .then((result) => {
+                if (!cancelled) setPromoElig(result);
+            })
+            .catch(() => {
+                if (!cancelled) setPromoElig(null);
+            })
+            .finally(() => {
+                if (!cancelled) setPromoChecking(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [formData.type, formData.employee, formData.targetJobRoleId]);
+
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
     ) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
+        if (name === 'employee' || name === 'type' || name === 'targetJobRoleId') {
+            setPromoElig(null);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (
+            formData.type === MOBILITY_TYPE.PROMOTION &&
+            promoElig &&
+            !promoElig.eligible
+        ) {
+            toast.error('Collaborateur non éligible à cette promotion.');
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
 
@@ -123,6 +171,7 @@ export default function CreateMobilityRequestPage() {
     const showTargetJobRole =
         formData.type === MOBILITY_TYPE.PROMOTION || formData.type === MOBILITY_TYPE.DEMOTION;
     const isPromotion = formData.type === MOBILITY_TYPE.PROMOTION;
+    const promoBlocked = isPromotion && promoElig !== null && !promoElig.eligible;
 
     return (
         <PageShell className="max-w-4xl mx-auto">
@@ -242,33 +291,65 @@ export default function CreateMobilityRequestPage() {
                                 )}
 
                                 {showTargetJobRole && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div className="space-y-2 group">
-                                            <Label className="uppercase tracking-widest text-xs font-black text-secondary-400">
-                                                <BriefcaseBusiness className="inline-block w-4 h-4 mr-2 text-secondary-500" />
-                                                Fiche métier cible
-                                            </Label>
-                                            <Select
-                                                required
-                                                name="targetJobRoleId"
-                                                value={formData.targetJobRoleId}
-                                                onChange={handleChange}
-                                                className="h-12"
-                                            >
-                                                <option value="">Sélectionnez un métier...</option>
-                                                {jobRoles.map((role) => (
-                                                    <option key={role.id} value={role.id}>
-                                                        {role.title} ({role.code})
-                                                    </option>
-                                                ))}
-                                            </Select>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="space-y-2 group">
+                                                <Label className="uppercase tracking-widest text-xs font-black text-secondary-400">
+                                                    <BriefcaseBusiness className="inline-block w-4 h-4 mr-2 text-secondary-500" />
+                                                    Fiche métier cible
+                                                </Label>
+                                                <Select
+                                                    required
+                                                    name="targetJobRoleId"
+                                                    value={formData.targetJobRoleId}
+                                                    onChange={handleChange}
+                                                    className="h-12"
+                                                >
+                                                    <option value="">Sélectionnez un métier...</option>
+                                                    {jobRoles.map((role) => (
+                                                        <option key={role.id} value={role.id}>
+                                                            {role.title} ({role.code})
+                                                        </option>
+                                                    ))}
+                                                </Select>
+                                            </div>
+                                            {isPromotion && (
+                                                <div className="flex items-center gap-3 p-4 bg-secondary-50 rounded-2xl border border-secondary-100">
+                                                    {promoChecking ? (
+                                                        <Loader2 className="w-5 h-5 text-primary-600 shrink-0 animate-spin" />
+                                                    ) : promoElig?.eligible ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                                    ) : promoElig && !promoElig.eligible ? (
+                                                        <XCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                                                    ) : (
+                                                        <TrendingUp className="w-5 h-5 text-primary-600 shrink-0" />
+                                                    )}
+                                                    <p className="text-[10px] font-bold text-secondary-500 uppercase leading-relaxed">
+                                                        {promoChecking
+                                                            ? 'Vérification d’éligibilité…'
+                                                            : promoElig?.eligible
+                                                                ? 'Éligible à cette promotion'
+                                                                : promoElig && !promoElig.eligible
+                                                                    ? 'Non éligible — soumission bloquée'
+                                                                    : 'Sélectionnez employé + métier pour vérifier'}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
-                                        {isPromotion && (
-                                            <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                                                <Info className="w-5 h-5 text-amber-600 shrink-0" />
-                                                <p className="text-[10px] font-bold text-amber-700 uppercase leading-relaxed">
-                                                    Une vérification d&apos;éligibilité sera effectuée lors de la soumission.
-                                                </p>
+                                        {isPromotion && promoElig && promoElig.reasons.length > 0 && (
+                                            <div
+                                                className={cn(
+                                                    'rounded-xl border p-4 text-sm',
+                                                    promoElig.eligible
+                                                        ? 'border-emerald-200 bg-emerald-50/40 text-emerald-900'
+                                                        : 'border-amber-200 bg-amber-50/40 text-amber-900',
+                                                )}
+                                            >
+                                                <ul className="space-y-1 list-disc pl-4">
+                                                    {promoElig.reasons.map((reason, i) => (
+                                                        <li key={i}>{translateEligibilityReason(reason)}</li>
+                                                    ))}
+                                                </ul>
                                             </div>
                                         )}
                                     </div>
@@ -327,7 +408,7 @@ export default function CreateMobilityRequestPage() {
                         Annuler
                     </Button>
                     <Button
-                        disabled={isLoading || isFetching}
+                        disabled={isLoading || isFetching || promoBlocked || (isPromotion && promoChecking)}
                         type="submit"
                         className="px-10 py-6 rounded-2xl bg-primary-600 hover:bg-primary-700 text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-primary-200 transition-all active:scale-[0.98] flex items-center gap-3"
                     >
@@ -346,5 +427,19 @@ export default function CreateMobilityRequestPage() {
                 </div>
             </form>
         </PageShell>
+    );
+}
+
+export default function CreateMobilityRequestPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                    <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
+                </div>
+            }
+        >
+            <CreateMobilityRequestForm />
+        </Suspense>
     );
 }

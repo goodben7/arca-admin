@@ -82,6 +82,7 @@ export interface EmployeeJourneyEntry {
     employee: string;
     stage: string;
     eventType: string;
+    description?: string;
     sourceEntityType?: string;
     sourceEntityId?: string;
     metadata?: Record<string, unknown>;

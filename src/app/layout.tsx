@@ -10,8 +10,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "ARCA SIRH - Administration RH",
-  description: "Système d'Information Ressources Humaines de l'ARCA.",
+  title: "ARCA SIRH",
+  description: "Plateforme RH de l'Autorité de Régulation et de Contrôle des Assurances",
 };
 
 export default function RootLayout({

@@ -2,11 +2,13 @@
 
 import { useState, useEffect, use, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
     ChevronLeft, Mail, Phone, Briefcase, Calendar, MapPin, User, Shield, Clock, Heart,
     Globe, CheckCircle2, CalendarDays, Info, MoreVertical, Edit2, Download, Loader2,
     Building2, UserCircle2, FileText, Activity, FileCheck, Eye, Trash2, Plus, X, Upload, AlertCircle,
-    UserMinus, UserPlus, UserCheck, Power, Plane, Palmtree, Ban, ShieldCheck, UserCog, ChevronDown, MoreHorizontal, Save
+    UserMinus, UserPlus, UserCheck, Power, Plane, Palmtree, Ban, ShieldCheck, UserCog, ChevronDown, MoreHorizontal, Save,
+    TrendingUp, XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
@@ -14,7 +16,11 @@ import { Badge } from '@/components/ui/Badge';
 import { TabsProvider, TabsList, TabsTrigger, TabsContent, TabsPanels } from '@/components/ui/Tabs';
 import { Input, Label } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { getEmployeeById, getDepartments, getWorkExperiencesByEmployee, createWorkExperience, getAllEmployees, assignManager, changeEmployeeStatus, updateEmployee } from '@/lib/api/employee';
+import {
+    getEmployeeById, getDepartments, getWorkExperiencesByEmployee, createWorkExperience, getAllEmployees,
+    assignManager, changeEmployeeStatus, updateEmployee, checkRetirementEligibility, checkPromotionEligibility,
+    type RetirementEligibility,
+} from '@/lib/api/employee';
 import { getEmployeeSkills, createEmployeeSkill, validateEmployeeSkill, getSkills } from '@/lib/api/skill';
 import { getJobRoles, getGrades } from '@/lib/api/jobArchitecture';
 import { extractId, resolveFromMap } from '@/lib/api-iri';
@@ -26,6 +32,7 @@ import { getContractsByEmployee } from '@/lib/api/contract';
 import { getDocumentsByHolder, uploadDocument, deleteDocument } from '@/lib/api/document';
 import { Employee, STATUS, Department, WorkExperience } from '@/types/employee';
 import { EmployeeSkill, Skill as CatalogSkill, SKILL_LEVEL, SKILL_LEVEL_LABELS, SkillLevel } from '@/types/skill';
+import { PromotionEligibility } from '@/types/performance';
 import { toast } from '@/lib/toast';
 import { Contract } from '@/types/contract';
 import { DocumentRecord, DOCUMENT_TYPE } from '@/types/document';
@@ -40,8 +47,12 @@ import { ProfileSection } from '@/components/employees/ProfileSection';
 import { ProfileField } from '@/components/employees/ProfileField';
 import { EmployeeProfilePhoto } from '@/components/employees/EmployeeProfilePhoto';
 import { Employee360Hub } from '@/components/employee/Employee360Hub';
+import { EmployeeDisciplineTab } from '@/components/employees/EmployeeDisciplineTab';
+import { EmployeeJourneyTimeline } from '@/components/employees/EmployeeJourneyTimeline';
+import { EmployeeRetirementCard } from '@/components/employees/EmployeeRetirementCard';
 import { AnchoredDropdown } from '@/components/ui/AnchoredDropdown';
 import { BASE_URL } from '@/lib/api/client';
+import { translateEligibilityReason } from '@/lib/employees/journeyLabels';
 
 interface PageProps {
     params: Promise<{ id: string }>;
@@ -71,6 +82,12 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
     const [isChangingStatus, setIsChangingStatus] = useState<string | null>(null);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
     const statusTriggerRef = useRef<HTMLButtonElement>(null);
+    const [retirementElig, setRetirementElig] = useState<RetirementEligibility | null>(null);
+    const [retirementLoading, setRetirementLoading] = useState(false);
+    const [journeyRefreshKey, setJourneyRefreshKey] = useState(0);
+    const [promoTargetRoleId, setPromoTargetRoleId] = useState('');
+    const [promoElig, setPromoElig] = useState<PromotionEligibility | null>(null);
+    const [promoChecking, setPromoChecking] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean,
         title: string,
@@ -85,8 +102,28 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
         variant: 'info'
     });
 
+    async function refreshRetirementEligibility(employeeId = id) {
+        setRetirementLoading(true);
+        try {
+            const elig = await checkRetirementEligibility(employeeId);
+            setRetirementElig(elig);
+        } catch {
+            setRetirementElig(null);
+        } finally {
+            setRetirementLoading(false);
+        }
+    }
+
     async function handleStatusChange(action: string) {
         setIsStatusMenuOpen(false);
+
+        if (action === 'retirements' && retirementElig && !retirementElig.eligible) {
+            toast.error(
+                retirementElig.reasons.map(translateEligibilityReason).join(' · ')
+                || 'Collaborateur non éligible à la retraite.',
+            );
+            return;
+        }
         
         let title = "Confirmation";
         let message = "Êtes-vous sûr de vouloir procéder à cette opération ?";
@@ -146,15 +183,73 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
         setIsChangingStatus(action);
         try {
             await changeEmployeeStatus(action, id);
-            // Refresh data
             setIsLoading(true);
             const empData = await getEmployeeById(id);
             setEmployee(empData);
-        } catch (err: any) {
-            alert(err.message || "Erreur lors de l'opération");
+            setJourneyRefreshKey((k) => k + 1);
+            if (empData.status === STATUS.ACTIVE) {
+                await refreshRetirementEligibility(id);
+            } else {
+                setRetirementElig(null);
+            }
+            toast.success('Statut mis à jour.');
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Erreur lors de l'opération");
         } finally {
             setIsChangingStatus(null);
             setIsLoading(false);
+        }
+    }
+
+    function handleExportEmployee() {
+        if (!employee) return;
+        const payload = {
+            exportedAt: new Date().toISOString(),
+            employee: {
+                id: employee.id,
+                employeeNumber: employee.employeeNumber,
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                email: employee.email,
+                phone: employee.phone,
+                status: employee.status,
+                hireDate: employee.hireDate,
+                birthDate: employee.birthDate,
+                nationality: employee.nationality,
+                department: resolveFromMap(employee.department, departmentsMap),
+                position: resolveFromMap(employee.position, positionsMap),
+                jobRole: jobRoleLabel(employee.jobRole),
+                grade: gradeLabel(employee.grade),
+                manager: managerDetails?.name,
+            },
+            contractsCount: contracts.length,
+            skillsCount: skills.length,
+            documentsCount: documents.filter((d) => d.type !== 'PHOTO').length,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `employe-${employee.employeeNumber || id}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Export téléchargé.');
+    }
+
+    async function handleCheckPromotion() {
+        if (!promoTargetRoleId) {
+            toast.error('Sélectionnez une fiche métier cible.');
+            return;
+        }
+        setPromoChecking(true);
+        setPromoElig(null);
+        try {
+            const result = await checkPromotionEligibility(id, promoTargetRoleId);
+            setPromoElig(result);
+        } catch (e: unknown) {
+            toast.error(e instanceof Error ? e.message : 'Vérification impossible.');
+        } finally {
+            setPromoChecking(false);
         }
     }
 
@@ -416,6 +511,17 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                 const empData = await getEmployeeById(id);
                 setEmployee(empData);
 
+                if (empData.status === STATUS.ACTIVE) {
+                    setRetirementLoading(true);
+                    checkRetirementEligibility(id)
+                        .then(setRetirementElig)
+                        .catch(() => setRetirementElig(null))
+                        .finally(() => setRetirementLoading(false));
+                } else {
+                    setRetirementElig(null);
+                    setRetirementLoading(false);
+                }
+
                 // Fetch Manager details if available
                 if (empData.manager || empData.managerId) {
                     const mId = empData.managerId || (empData.manager as string).split('/').pop();
@@ -589,7 +695,7 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                                 open={isStatusMenuOpen}
                                 onClose={() => setIsStatusMenuOpen(false)}
                                 triggerRef={statusTriggerRef}
-                                width={240}
+                                width={280}
                                 className="p-1.5"
                             >
                                 <p className="px-3 py-2 text-xs font-medium text-muted-foreground">
@@ -607,8 +713,28 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                                         <button onClick={() => handleStatusChange('terminations')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
                                             <UserMinus className="w-4 h-4 text-accent-red-500" /> Terminer contrat
                                         </button>
-                                        <button onClick={() => handleStatusChange('retirements')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                                        <button
+                                            type="button"
+                                            disabled={retirementElig !== null && !retirementElig.eligible}
+                                            title={
+                                                retirementElig && !retirementElig.eligible
+                                                    ? retirementElig.reasons.map(translateEligibilityReason).join('\n')
+                                                    : retirementElig?.eligible
+                                                        ? 'Éligible à la retraite'
+                                                        : undefined
+                                            }
+                                            onClick={() => handleStatusChange('retirements')}
+                                            className={cn(
+                                                'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+                                                retirementElig !== null && !retirementElig.eligible
+                                                    ? 'text-muted-foreground/60 cursor-not-allowed'
+                                                    : 'text-foreground hover:bg-muted',
+                                            )}
+                                        >
                                             <Heart className="w-4 h-4 text-secondary-500" /> Retraite
+                                            {retirementElig && !retirementElig.eligible && (
+                                                <span className="ml-auto text-[10px] text-amber-600">Non éligible</span>
+                                            )}
                                         </button>
                                         <button onClick={() => handleStatusChange('deactivations')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
                                             <Power className="w-4 h-4 text-secondary-500" /> Désactiver
@@ -641,7 +767,13 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                                 )}
                             </AnchoredDropdown>
                         </div>
-                        <Button variant="outline" size="sm" className="gap-2">
+                        <Button asChild variant="outline" size="sm" className="gap-2">
+                            <Link href={`/m/personnel/employees/${id}/edit`}>
+                                <Edit2 className="w-4 h-4" />
+                                Modifier
+                            </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-2" onClick={handleExportEmployee}>
                             <Download className="w-4 h-4" />
                             Exporter
                         </Button>
@@ -658,12 +790,24 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                     <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Contrats</TabsTrigger>
                     <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Expériences</TabsTrigger>
                     <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Historique</TabsTrigger>
+                    <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Discipline</TabsTrigger>
                     <TabsTrigger className={EMPLOYEE_TAB_TRIGGER}>Documents</TabsTrigger>
                 </TabsList>
 
                 <TabsPanels>
                     <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
                         <div className="space-y-8">
+                            {(employee.status === STATUS.ACTIVE || employee.status === STATUS.RETIRED) && (
+                                <EmployeeRetirementCard
+                                    employee={employee}
+                                    employeeId={id}
+                                    eligibility={retirementElig}
+                                    loading={retirementLoading}
+                                    retiring={isChangingStatus === 'retirements'}
+                                    onRetire={() => handleStatusChange('retirements')}
+                                />
+                            )}
+
                             <ProfileSection title="Coordonnées">
                                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
                                     <ProfileField label="E-mail" value={employee.email} />
@@ -734,6 +878,83 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                                 ) : (
                                     <div className="p-4 rounded-xl border border-dashed border-border text-sm text-muted-foreground">
                                         Aucune fiche métier attribuée — requis pour la mobilité et l&apos;éligibilité promotion.
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-6 border-t border-border mb-8">
+                                <h3 className="text-sm font-semibold text-foreground mb-1">Éligibilité à une promotion</h3>
+                                <p className="text-xs text-muted-foreground mb-4">
+                                    Vérifie les critères API avant d&apos;ouvrir une mobilité de type promotion.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                                    <Select
+                                        value={promoTargetRoleId}
+                                        onChange={(e) => {
+                                            setPromoTargetRoleId(e.target.value);
+                                            setPromoElig(null);
+                                        }}
+                                        className="flex-1"
+                                    >
+                                        <option value="">Fiche métier cible…</option>
+                                        {jobRoles
+                                            .filter((r) => extractId(r.id) !== extractId(employee.jobRole))
+                                            .map((role) => (
+                                                <option key={role.id} value={role.id}>
+                                                    {role.title}{role.code ? ` (${role.code})` : ''}
+                                                </option>
+                                            ))}
+                                    </Select>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-2 shrink-0"
+                                        disabled={!promoTargetRoleId || promoChecking}
+                                        onClick={handleCheckPromotion}
+                                    >
+                                        {promoChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+                                        Vérifier
+                                    </Button>
+                                </div>
+                                {promoElig && (
+                                    <div
+                                        className={cn(
+                                            'rounded-xl border p-4',
+                                            promoElig.eligible
+                                                ? 'border-emerald-200 bg-emerald-50/40'
+                                                : 'border-amber-200 bg-amber-50/40',
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            {promoElig.eligible ? (
+                                                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                                            ) : (
+                                                <XCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                            )}
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-foreground">
+                                                    {promoElig.eligible
+                                                        ? 'Éligible à cette promotion'
+                                                        : 'Pas encore éligible'}
+                                                </p>
+                                                {promoElig.reasons.length > 0 && (
+                                                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground list-disc pl-4">
+                                                        {promoElig.reasons.map((reason, i) => (
+                                                            <li key={i}>{translateEligibilityReason(reason)}</li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                                {promoElig.eligible && (
+                                                    <Link
+                                                        href={`/m/personnel/mobility/create?employee=${id}&type=PROMOTION&targetJobRoleId=${promoTargetRoleId}`}
+                                                        className="inline-block mt-3 text-sm font-medium text-primary-600 hover:underline"
+                                                    >
+                                                        Créer une demande de mobilité →
+                                                    </Link>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -916,57 +1137,16 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                     </TabsContent>
 
                     <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
-                        <ProfileSection title="Journal d'audit" description="Traçabilité du dossier">
-                            <div className="divide-y divide-border">
-                                {[
-                                    {
-                                        date: employee.createdAt,
-                                        label: 'Dossier créé',
-                                        detail: `Initialisé par ${usersMap[employee.createdBy]?.name || usersMap[employee.createdBy]?.email || employee.createdBy || 'Système'}`,
-                                        type: 'Création',
-                                    },
-                                    ...(employee.updatedAt && employee.updatedAt !== employee.createdAt ? [{
-                                        date: employee.updatedAt,
-                                        label: 'Dossier mis à jour',
-                                        detail: 'Modification des données du dossier employé',
-                                        type: 'Mise à jour',
-                                    }] : []),
-                                    ...[
-                                        { date: employee.activatedAt, by: employee.activatedBy, label: 'Dossier activé', type: 'Activation' },
-                                        { date: employee.managerAssignedAt, by: employee.managerAssignedBy, label: 'Responsable assigné', type: 'Hiérarchie' },
-                                        { date: employee.probationAt, by: employee.probationBy, label: "Période d'essai", type: 'RH' },
-                                        { date: employee.onLeaveAt, by: employee.onLeaveBy, label: 'Départ en congé', type: 'Congés' },
-                                        { date: employee.suspendedAt, by: employee.suspendedBy, label: 'Dossier suspendu', type: 'Sanction' },
-                                        { date: employee.deactivatedAt, by: employee.deactivatedBy, label: 'Dossier désactivé', type: 'Statut' },
-                                        { date: employee.terminatedAt, by: employee.terminatedBy, label: 'Contrat terminé', type: 'Départ' },
-                                        { date: employee.retiredAt, by: employee.retiredBy, label: 'Départ retraite', type: 'Retraite' },
-                                    ]
-                                        .filter((ev) => ev.date)
-                                        .map((ev) => ({
-                                            date: ev.date!,
-                                            label: ev.label,
-                                            detail: `Par ${ev.by ? (usersMap[ev.by]?.name || usersMap[ev.by]?.email || ev.by) : 'Système'}`,
-                                            type: ev.type,
-                                        })),
-                                ]
-                                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                    .map((ev, idx) => (
-                                        <div key={idx} className="py-4 first:pt-0 last:pb-0 flex gap-4">
-                                            <div className="w-2 h-2 rounded-full bg-primary-500 mt-2 shrink-0" />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex flex-wrap items-center gap-2 justify-between">
-                                                    <p className="text-sm font-medium text-foreground">{ev.label}</p>
-                                                    <Badge variant="secondary" size="sm">{ev.type}</Badge>
-                                                </div>
-                                                <p className="text-sm text-muted-foreground mt-0.5">{ev.detail}</p>
-                                                <p className="text-xs text-muted-foreground mt-1">
-                                                    {format(new Date(ev.date), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                            </div>
+                        <ProfileSection
+                            title="Parcours collaborateur"
+                            description="Timeline officielle (API journey) — mobilités, statuts, discipline…"
+                        >
+                            <EmployeeJourneyTimeline employeeId={id} refreshKey={journeyRefreshKey} />
                         </ProfileSection>
+                    </TabsContent>
+
+                    <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">
+                        <EmployeeDisciplineTab employeeId={employee.id} />
                     </TabsContent>
 
                     <TabsContent className="mt-0 p-6 md:p-8 focus:outline-none">

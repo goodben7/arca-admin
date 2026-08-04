@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, ChevronRight, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
+import { Bell, ChevronRight, LogOut, Settings } from 'lucide-react';
 import type { AppModule } from '@/lib/modules/registry';
 import { getAbout } from '@/lib/api/auth';
 import { clearToken } from '@/lib/auth-token';
@@ -11,8 +11,7 @@ import { PERSON_TYPE_LABELS } from '@/types/profile';
 import { AnchoredDropdown } from '@/components/ui/AnchoredDropdown';
 import { GlobalSearch } from '@/components/apps/GlobalSearch';
 import { ModuleBreadcrumbs } from '@/components/modules/ModuleBreadcrumbs';
-import { useSidebar } from '@/components/layout/SidebarContext';
-import { cn } from '@/lib/utils';
+import { ModuleNavBar } from '@/components/modules/ModuleNavBar';
 
 function getRoleLabel(user: any): string {
     if (user?.profile?.label) return user.profile.label;
@@ -28,7 +27,6 @@ interface ModuleTopbarProps {
 
 export function ModuleTopbar({ module }: ModuleTopbarProps) {
     const router = useRouter();
-    const { collapsed, toggle, openMobile } = useSidebar();
     const [user, setUser] = useState<any>(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -54,23 +52,6 @@ export function ModuleTopbar({ module }: ModuleTopbarProps) {
     return (
         <header className="relative z-20 shrink-0 border-b border-border-subtle bg-surface">
             <div className="flex h-14 items-center gap-2 px-3 md:gap-3 md:px-5">
-                <button
-                    type="button"
-                    onClick={openMobile}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl text-secondary-500 hover:bg-muted lg:hidden"
-                    aria-label="Ouvrir le menu"
-                >
-                    <Menu className="h-4 w-4" />
-                </button>
-                <button
-                    type="button"
-                    onClick={toggle}
-                    title={collapsed ? 'Ouvrir le menu' : 'Réduire le menu'}
-                    className="hidden h-9 w-9 items-center justify-center rounded-xl text-secondary-500 hover:bg-muted lg:flex"
-                >
-                    {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                </button>
-
                 <Link href="/apps" className="flex shrink-0 items-center gap-2.5">
                     <div className="h-8 w-8 overflow-hidden rounded-lg border border-border-subtle bg-white p-1 shadow-sm">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -137,6 +118,8 @@ export function ModuleTopbar({ module }: ModuleTopbarProps) {
                     </div>
                 </div>
             </div>
+
+            <ModuleNavBar module={module} />
 
             <div className="flex h-1">
                 <div className="flex-[3] bg-primary-500" />

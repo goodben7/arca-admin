@@ -27,41 +27,41 @@ const SLIDES = [
     {
         id: 'initial',
         type: 'content',
-        title: "Gérez votre",
-        subtitle: "capital humain",
-        suffix: "avec",
-        accent: "excellence",
-        description: "Plateforme centralisée pour la gouvernance des talents de l'ARCA. Sécurisée, agile et axée sur la performance."
+        title: "ARCA",
+        subtitle: "SIRH",
+        suffix: "—",
+        accent: "votre RH",
+        description: "Plateforme de gestion des ressources humaines de l'Autorité de Régulation et de Contrôle des Assurances."
     },
     {
         id: 'slide1',
         type: 'image',
         src: '/slide1.jpg',
-        title: "Rigueur &",
-        subtitle: "Déontologie",
+        title: "Personnel &",
+        subtitle: "Organisation",
         suffix: "au",
         accent: "quotidien",
-        description: "Un cadre de travail structuré pour accompagner l'évolution du marché des assurances."
+        description: "Dossiers collaborateurs, contrats, mobilité et référentiels métiers — tout le cycle de vie RH."
     },
     {
         id: 'slide2',
         type: 'image',
         src: '/slide2.jpg',
-        title: "Innovation &",
-        subtitle: "Collaboration",
-        suffix: "entre",
-        accent: "départements",
-        description: "Nos outils digitaux facilitent la synergie entre toutes les directions de l'ARCA."
+        title: "Recrutement &",
+        subtitle: "Formation",
+        suffix: "en",
+        accent: "un flux",
+        description: "De l'offre d'emploi à l'intégration, puis au catalogue et aux séances de formation."
     },
     {
         id: 'slide3',
         type: 'image',
         src: '/slide3.jpg',
-        title: "Vision &",
-        subtitle: "Leadership",
-        suffix: "pour",
-        accent: "demain",
-        description: "Former et valoriser nos talents pour assurer l'excellence opérationnelle durable."
+        title: "Carrière &",
+        subtitle: "Pilotage",
+        suffix: "sous",
+        accent: "contrôle",
+        description: "Objectifs, évaluations, congés et accès sécurisés pour piloter l'activité RH."
     }
 ];
 
@@ -244,8 +244,8 @@ export function LoginForm() {
                         </div>
                     </div>
                     <div>
-                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.25em] mb-0.5">Infrastructure</p>
-                        <p className="text-white font-bold tracking-tight text-sm">Portail sécurisé</p>
+                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.25em] mb-0.5">ARCA SIRH</p>
+                        <p className="text-white font-bold tracking-tight text-sm">Espace collaborateur</p>
                     </div>
                 </div>
             </div>
@@ -260,17 +260,17 @@ export function LoginForm() {
                             <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
                         </div>
                         <div className="text-center">
-                            <h1 className="text-2xl font-black tracking-tighter">AR<span className="text-accent-red-500">CA</span></h1>
-                            <p className="text-[9px] text-secondary-400 font-black uppercase tracking-[0.2em] mt-1.5">Portail RH centralisé</p>
+                            <h1 className="text-2xl font-black tracking-tighter">AR<span className="text-accent-red-500">CA</span> SIRH</h1>
+                            <p className="text-[9px] text-secondary-400 font-black uppercase tracking-[0.2em] mt-1.5">Plateforme RH</p>
                         </div>
                     </div>
 
                     <div className="space-y-2 px-1 text-center lg:text-left">
                         <h3 className="text-3xl font-black text-secondary-950 tracking-tight">
-                            Bon retour<span className="text-primary-600"> !</span>
+                            Connexion<span className="text-primary-600">.</span>
                         </h3>
                         <p className="text-secondary-500 text-sm font-medium flex items-center justify-center lg:justify-start gap-2">
-                            Accès sécurisé à votre espace <ArrowRight className="w-3.5 h-3.5 text-secondary-300" />
+                            Accédez à votre espace ARCA SIRH <ArrowRight className="w-3.5 h-3.5 text-secondary-300" />
                         </p>
                     </div>
 

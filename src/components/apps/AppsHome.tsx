@@ -1,23 +1,43 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
-    Search, LogOut, Settings, Bell, Rocket, ArrowRight,
+    Search, Bell, Rocket, ArrowRight, LayoutGrid,
+    Users, Umbrella, Briefcase, GraduationCap, Activity as ActivityIcon,
 } from 'lucide-react';
-import { APP_MODULES, getModule, type AppModule } from '@/lib/modules/registry';
+import {
+    ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
+    CartesianGrid, XAxis, YAxis, Tooltip,
+} from 'recharts';
+import { format, formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { getFavoriteSlugs, toggleFavorite } from '@/lib/modules/prefs';
-import { AppTile } from './AppTile';
 import { getAbout } from '@/lib/api/auth';
-import { getHrDashboard } from '@/lib/api/hrDashboard';
-import type { HrDashboard } from '@/types/succession';
-import { clearToken } from '@/lib/auth-token';
-import { PERSON_TYPE_LABELS } from '@/types/profile';
-import { AnchoredDropdown } from '@/components/ui/AnchoredDropdown';
+import { getHrDashboard, getActivities } from '@/lib/api/hrDashboard';
+import { getAllEmployees } from '@/lib/api/employee';
+import { getAllLeaveRequests } from '@/lib/api/leave';
+import { getAllJobOffers } from '@/lib/api/jobOffer';
+import { getAllApplications } from '@/lib/api/application';
+import { getAllRecruitmentRequests } from '@/lib/api/recruitment';
+import { getAllTrainingSessions } from '@/lib/api/trainingSession';
+import type { HrDashboard, Activity } from '@/types/succession';
 import { ShellAmbient } from '@/components/layout/ShellAmbient';
-import { cn } from '@/lib/utils';
+import { DashboardKpi, DashboardQuickLink } from '@/components/dashboard/DashboardKpi';
+import { ChartTooltip } from '@/components/dashboard/ChartTooltip';
+import { DataPanel } from '@/components/layout/DataPanel';
 import { useSetupProgress } from '@/hooks/useSetupProgress';
+import { AppsLauncherModal } from './AppsLauncherModal';
+import { AppsCommandPalette } from './AppsCommandPalette';
+import { AppsSidebar, AppsSidebarToggle } from './AppsSidebar';
+
+const CHART = {
+    blue: '#007398',
+    yellow: '#FDB913',
+    red: '#C1272D',
+    light: '#56afca',
+    green: '#10B981',
+} as const;
 
 function greeting() {
     const h = new Date().getHours();
@@ -26,202 +46,176 @@ function greeting() {
     return 'Bonsoir';
 }
 
-function getRoleLabel(user: any): string {
-    if (user?.profile?.label) return user.profile.label;
-    if (user?.personType && PERSON_TYPE_LABELS[user.personType]) return PERSON_TYPE_LABELS[user.personType];
-    if (user?.roles?.includes('ROLE_SUPER_ADMIN')) return 'Super Administrateur';
-    if (user?.roles?.includes('ROLE_ADMIN')) return 'Administrateur RH';
-    return 'Utilisateur';
+function normalize(data: unknown): any[] {
+    if (Array.isArray(data)) return data;
+    const d = data as Record<string, unknown>;
+    if (Array.isArray(d?.['hydra:member'])) return d['hydra:member'] as any[];
+    if (Array.isArray(d?.member)) return d.member as any[];
+    return [];
 }
 
-const CATEGORIES: { id: string; label: string; hint: string; slugs: string[] }[] = [
-    {
-        id: 'ops',
-        label: 'Opérations RH',
-        hint: 'Personnel, absences et recrutement',
-        slugs: ['personnel', 'temps', 'recrutement'],
-    },
-    {
-        id: 'talent',
-        label: 'Développement des talents',
-        hint: 'Formation et carrière',
-        slugs: ['formation', 'performance'],
-    },
-    {
-        id: 'finance',
-        label: 'Paie & rémunération',
-        hint: 'Bulletins et avantages sociaux',
-        slugs: ['paie'],
-    },
-    {
-        id: 'gov',
-        label: 'Gouvernance & conformité',
-        hint: 'Pilotage, sécurité, sanctions',
-        slugs: ['pilotage', 'securite', 'sanctions'],
-    },
-];
-
 /**
- * Portail modules ARCA — cartes apps classiques + charte bleu / rouge / jaune.
+ * Hub RH `/apps` — tableau de bord léger + lanceur d’applications + palette ⌘K.
  */
 export function AppsHome() {
-    const router = useRouter();
-    const [query, setQuery] = useState('');
     const [favorites, setFavorites] = useState<string[]>([]);
     const [user, setUser] = useState<any>(null);
     const [stats, setStats] = useState<HrDashboard | null>(null);
-    const [menuOpen, setMenuOpen] = useState(false);
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    const searchRef = useRef<HTMLInputElement>(null);
+    const [appsOpen, setAppsOpen] = useState(false);
+    const [cmdOpen, setCmdOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [leaves, setLeaves] = useState<any[]>([]);
+    const [jobOffers, setJobOffers] = useState<any[]>([]);
+    const [applications, setApplications] = useState<any[]>([]);
+    const [recruitments, setRecruitments] = useState<any[]>([]);
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [activities, setActivities] = useState<Activity[]>([]);
+    const [dashLoading, setDashLoading] = useState(true);
     const { allDone, progressPercent, loading: setupLoading } = useSetupProgress();
 
     useEffect(() => {
         setFavorites(getFavoriteSlugs());
         getAbout().then(setUser).catch(() => setUser(null));
-        getHrDashboard().then(setStats).catch(() => setStats(null));
+
+        Promise.all([
+            getHrDashboard().catch(() => null),
+            getAllEmployees().catch(() => []),
+            getAllLeaveRequests().catch(() => []),
+            getAllJobOffers().catch(() => []),
+            getAllApplications().catch(() => []),
+            getAllRecruitmentRequests().catch(() => []),
+            getAllTrainingSessions().catch(() => []),
+            getActivities().catch(() => []),
+        ]).then(([hr, emp, leave, jobs, apps, rec, sess, acts]) => {
+            setStats(hr);
+            setEmployees(normalize(emp));
+            setLeaves(normalize(leave));
+            setJobOffers(normalize(jobs));
+            setApplications(normalize(apps));
+            setRecruitments(normalize(rec));
+            setSessions(normalize(sess));
+            setActivities(Array.isArray(acts) ? acts.slice(0, 8) : []);
+        }).finally(() => setDashLoading(false));
     }, []);
 
     useEffect(() => {
         function onKey(e: KeyboardEvent) {
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
-                searchRef.current?.focus();
+                setCmdOpen(true);
             }
         }
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
-    const filtered = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        if (!q) return APP_MODULES;
-        return APP_MODULES.filter(m =>
-            m.name.toLowerCase().includes(q) ||
-            m.shortName.toLowerCase().includes(q) ||
-            m.description.toLowerCase().includes(q) ||
-            m.menu.some(i => i.title.toLowerCase().includes(q))
-        );
-    }, [query]);
-
-    const favoriteModules = favorites
-        .map(s => getModule(s))
-        .filter((m): m is AppModule => !!m);
-
     const handleToggleFavorite = (slug: string) => {
         setFavorites(toggleFavorite(slug));
     };
 
-    const userLabel = user?.displayName || user?.email || '…';
+    const activeEmployees = employees.filter(e => e.status === 'ACTIVE').length;
+    const pendingLeaves = leaves.filter(l => l.status === 'PENDING').length;
+    const ongoingLeaves = leaves.filter(l => l.status === 'APPROVED' || l.status === 'IN_PROGRESS').length;
+    const openJobOffers = jobOffers.filter(j => j.status === 'PUBLISHED').length;
+    const hiredCount = applications.filter(a => a.status === 'HIRED').length;
+    const trainingsInProgress = stats?.trainingsInProgress ?? sessions.filter(s => s.status === 'IN_PROGRESS' || s.status === 'PLANNED').length;
+    const headcount = stats?.headcount ?? employees.length;
+    const activeRate = employees.length > 0 ? Math.round((activeEmployees / employees.length) * 100) : 0;
+
+    const statusPieData = useMemo(() => [
+        { name: 'Actifs', value: activeEmployees, color: CHART.blue },
+        { name: 'En congé', value: employees.filter(e => e.status === 'ON_LEAVE').length, color: CHART.yellow },
+        { name: 'Suspendus', value: employees.filter(e => e.status === 'SUSPENDED').length, color: CHART.red },
+        { name: 'Essai', value: employees.filter(e => e.status === 'PROBATION').length, color: CHART.light },
+    ].filter(d => d.value > 0), [employees, activeEmployees]);
+
+    const recruitmentFunnel = useMemo(() => [
+        { name: 'Demandes', value: recruitments.length, fill: CHART.light },
+        { name: 'Candidatures', value: applications.length, fill: CHART.blue },
+        { name: 'Embauches', value: hiredCount, fill: CHART.green },
+    ], [recruitments, applications, hiredCount]);
+
     const firstName =
         user?.displayName?.split(/\s+/)[0] ||
         user?.email?.split('@')[0] ||
         'collègue';
     const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
-    const initials = userLabel !== '…' ? userLabel.substring(0, 2).toUpperCase() : '..';
-    const roleLabel = user ? getRoleLabel(user) : '';
-
-    function handleLogout() {
-        clearToken();
-        router.push('/login');
-    }
+    const todayLabel = format(new Date(), 'EEEE d MMMM yyyy', { locale: fr });
 
     return (
-        <div className="h-full">
-            <div className="flex h-full flex-col overflow-hidden bg-surface">
-                {/* Topbar claire + bandeau charte */}
-                <header className="shrink-0 border-b border-border-subtle">
-                    <div className="flex h-14 items-center gap-3 px-4 md:px-5">
-                        <Link href="/apps" className="flex items-center gap-2.5 shrink-0">
-                            <div className="h-8 w-8 overflow-hidden rounded-lg border border-border-subtle bg-white p-1 shadow-sm">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="h-full w-full object-contain" />
-                            </div>
-                            <div className="hidden leading-tight sm:block">
-                                <p className="text-[13px] font-semibold tracking-tight">
-                                    <span className="text-primary-600">AR</span>
-                                    <span className="text-accent-red-500">CA</span>
-                                    <span className="mx-1.5 text-secondary-300">·</span>
-                                    <span className="font-medium text-secondary-600">SIRH</span>
-                                </p>
-                            </div>
-                        </Link>
+        <div className="flex h-full overflow-hidden bg-surface">
+            <AppsSidebar
+                mobileOpen={sidebarOpen}
+                onMobileClose={() => setSidebarOpen(false)}
+                onBrowseApps={() => setAppsOpen(true)}
+            />
 
-                        <div className="mx-auto hidden w-full max-w-sm sm:block">
-                            <div className="relative">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-secondary-400" />
-                                <input
-                                    ref={searchRef}
-                                    type="search"
-                                    value={query}
-                                    onChange={e => setQuery(e.target.value)}
-                                    placeholder="Rechercher un module ou une fonction…"
-                                    className="h-9 w-full rounded-xl border border-transparent bg-muted/80 pl-9 pr-12 text-[13px] outline-none transition-all placeholder:text-secondary-400 focus:border-primary-200 focus:bg-surface focus:ring-2 focus:ring-primary-500/10"
-                                />
-                                <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-border-subtle bg-surface px-1.5 py-px text-[9px] font-medium text-secondary-400">
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                <header className="shrink-0 border-b border-border-subtle bg-surface">
+                    <div className="flex h-14 items-center gap-3 px-4 md:px-5">
+                        <AppsSidebarToggle onClick={() => setSidebarOpen(true)} />
+
+                        <div className="min-w-0">
+                            <h1 className="truncate text-[15px] font-semibold tracking-tight text-secondary-900">
+                                Tableau de bord — Ressources Humaines
+                            </h1>
+                            <p className="hidden truncate text-[11px] capitalize text-secondary-400 sm:block">
+                                {todayLabel}
+                            </p>
+                        </div>
+
+                        <div className="mx-auto hidden w-full max-w-sm md:block">
+                            <button
+                                type="button"
+                                onClick={() => setCmdOpen(true)}
+                                className="relative flex h-9 w-full items-center gap-2 rounded-xl border border-transparent bg-muted/80 px-3 text-left text-[13px] text-secondary-400 transition-all hover:border-primary-200 hover:bg-surface"
+                            >
+                                <Search className="h-3.5 w-3.5 shrink-0" />
+                                <span className="flex-1 truncate">Rechercher un module ou une fonction…</span>
+                                <kbd className="rounded border border-border-subtle bg-surface px-1.5 py-px text-[9px] font-medium text-secondary-400">
                                     ⌘K
                                 </kbd>
-                            </div>
+                            </button>
                         </div>
 
                         <div className="ml-auto flex items-center gap-1">
-                            <button type="button" className="flex h-9 w-9 items-center justify-center rounded-xl text-secondary-500 hover:bg-muted" aria-label="Notifications">
-                                <Bell className="h-4 w-4" />
+                            <button
+                                type="button"
+                                onClick={() => setAppsOpen(true)}
+                                className="hidden sm:inline-flex h-9 items-center gap-2 rounded-xl bg-primary-600 px-3 text-[13px] font-semibold text-white shadow-sm hover:bg-primary-700"
+                            >
+                                <LayoutGrid className="h-3.5 w-3.5" />
+                                Applications
                             </button>
                             <button
                                 type="button"
-                                onClick={() => router.push('/m/securite/settings')}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl text-secondary-500 hover:bg-muted"
-                                aria-label="Paramètres"
+                                onClick={() => setAppsOpen(true)}
+                                className="flex sm:hidden h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-white"
+                                aria-label="Applications"
                             >
-                                <Settings className="h-4 w-4" />
+                                <LayoutGrid className="h-4 w-4" />
                             </button>
-                            <div className="mx-1 hidden h-6 w-px bg-border-subtle sm:block" />
-                            <div className="relative">
-                                <button
-                                    ref={triggerRef}
-                                    type="button"
-                                    onClick={() => setMenuOpen(v => !v)}
-                                    className="flex h-9 items-center gap-2 rounded-xl pl-1 pr-2 hover:bg-muted"
-                                >
-                                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-600 text-[10px] font-semibold text-white">
-                                        {initials}
-                                    </div>
-                                    <span className="hidden text-[13px] font-medium text-secondary-800 md:inline">{displayName}</span>
-                                </button>
-                                <AnchoredDropdown open={menuOpen} onClose={() => setMenuOpen(false)} triggerRef={triggerRef} width={240} className="overflow-hidden">
-                                    <div className="border-b border-border-subtle bg-muted/40 px-3 py-2.5">
-                                        <p className="truncate text-sm font-semibold">{userLabel}</p>
-                                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{roleLabel}</p>
-                                    </div>
-                                    <div className="p-1.5">
-                                        <button type="button" onClick={() => { setMenuOpen(false); router.push('/m/securite/settings'); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] hover:bg-muted">
-                                            <Settings className="h-3.5 w-3.5 text-muted-foreground" /> Paramètres
-                                        </button>
-                                        <button type="button" onClick={handleLogout} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium text-accent-red-600 hover:bg-accent-red-50">
-                                            <LogOut className="h-3.5 w-3.5" /> Déconnexion
-                                        </button>
-                                    </div>
-                                </AnchoredDropdown>
-                            </div>
+                            <button type="button" className="relative flex h-9 w-9 items-center justify-center rounded-xl text-secondary-500 hover:bg-muted" aria-label="Notifications">
+                                <Bell className="h-4 w-4" />
+                                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary-500" />
+                            </button>
                         </div>
                     </div>
-                    {/* Bandeau charte ARCA */}
                     <div className="flex h-1">
                         <div className="flex-[3] bg-primary-500" />
                         <div className="flex-1 bg-accent-red-500" />
                         <div className="flex-1 bg-accent-yellow-500" />
                     </div>
-                    <div className="border-b border-border-subtle px-4 py-2 sm:hidden">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-secondary-400" />
-                            <input
-                                type="search"
-                                value={query}
-                                onChange={e => setQuery(e.target.value)}
-                                placeholder="Rechercher…"
-                                className="h-9 w-full rounded-xl bg-muted/80 pl-9 pr-3 text-[13px] outline-none"
-                            />
-                        </div>
+                    <div className="border-b border-border-subtle px-4 py-2 md:hidden">
+                        <button
+                            type="button"
+                            onClick={() => setCmdOpen(true)}
+                            className="relative flex h-9 w-full items-center gap-2 rounded-xl bg-muted/80 px-3 text-left text-[13px] text-secondary-400"
+                        >
+                            <Search className="h-3.5 w-3.5" />
+                            <span>Rechercher…</span>
+                        </button>
                     </div>
                 </header>
 
@@ -230,33 +224,23 @@ export function AppsHome() {
 
                     <div className="relative z-[1] h-full overflow-y-auto">
                         <div className="mx-auto max-w-6xl px-4 py-7 md:px-8 md:py-9 page-enter-stack">
-                            {/* Intro */}
                             <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                                 <div>
-                                    <h1 className="text-2xl font-semibold tracking-tight text-secondary-900 md:text-[1.65rem]">
+                                    <h2 className="text-2xl font-semibold tracking-tight text-secondary-900 md:text-[1.65rem]">
                                         {greeting()}, {displayName}
-                                    </h1>
+                                    </h2>
                                     <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-secondary-500">
-                                        Choisissez un module pour accéder à ses fonctions.
+                                        Vue d’ensemble RH — ouvrez une application pour aller plus loin.
                                     </p>
                                 </div>
-                                <div className="flex gap-2 shrink-0 kpi-enter-stack">
-                                    <MetaPill
-                                        tone="blue"
-                                        label="Effectif"
-                                        value={stats ? stats.headcount : '—'}
-                                    />
-                                    <MetaPill
-                                        tone="red"
-                                        label="Rotation"
-                                        value={stats ? `${Math.round(stats.turnoverRatePercent)}%` : '—'}
-                                    />
-                                    <MetaPill
-                                        tone="yellow"
-                                        label="Formations"
-                                        value={stats ? stats.trainingsInProgress : '—'}
-                                    />
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setAppsOpen(true)}
+                                    className="inline-flex items-center gap-2 self-start rounded-xl border border-primary-200 bg-surface px-4 py-2.5 text-sm font-semibold text-primary-700 shadow-sm hover:bg-primary-50"
+                                >
+                                    <LayoutGrid className="h-4 w-4" />
+                                    Parcourir les apps
+                                </button>
                             </div>
 
                             {!setupLoading && !allDone && (
@@ -287,87 +271,176 @@ export function AppsHome() {
                                 </Link>
                             )}
 
-                            {query.trim() ? (
-                                <section>
-                                    <SectionHead title={`Résultats (${filtered.length})`} />
-                                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 apps-tile-grid">
-                                        {filtered.map(m => (
-                                            <AppTile key={m.slug} module={m} favorite={favorites.includes(m.slug)} onToggleFavorite={handleToggleFavorite} />
+                            <section aria-label="Indicateurs clés" className="mb-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                                    <DashboardKpi
+                                        label="Effectif"
+                                        value={dashLoading ? '…' : headcount}
+                                        detail={dashLoading ? undefined : `${activeEmployees} actifs (${activeRate}%)`}
+                                        icon={Users}
+                                        href="/m/personnel/employees"
+                                        tone="primary"
+                                    />
+                                    <DashboardKpi
+                                        label="Congés"
+                                        value={dashLoading ? '…' : pendingLeaves}
+                                        detail={ongoingLeaves > 0 ? `${ongoingLeaves} en cours` : 'En attente de validation'}
+                                        icon={Umbrella}
+                                        href="/m/temps/leave"
+                                        tone={pendingLeaves > 0 ? 'warning' : 'default'}
+                                    />
+                                    <DashboardKpi
+                                        label="Postes ouverts"
+                                        value={dashLoading ? '…' : openJobOffers}
+                                        detail="Offres publiées"
+                                        icon={Briefcase}
+                                        href="/m/recrutement/offres"
+                                    />
+                                    <DashboardKpi
+                                        label="Formations"
+                                        value={dashLoading ? '…' : trainingsInProgress}
+                                        detail="Sessions / parcours en cours"
+                                        icon={GraduationCap}
+                                        href="/m/formation/sessions"
+                                    />
+                                </div>
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    <DashboardQuickLink label="Personnel" value={headcount} href="/m/personnel/employees" icon={Users} />
+                                    <DashboardQuickLink label="Congés" value={pendingLeaves} href="/m/temps/leave" icon={Umbrella} />
+                                    <DashboardQuickLink label="Offres" value={openJobOffers} href="/m/recrutement/offres" icon={Briefcase} />
+                                    <DashboardQuickLink label="Pilotage" value={stats ? Math.round(stats.turnoverRatePercent) : 0} href="/m/pilotage" icon={ActivityIcon} />
+                                </div>
+                            </section>
+
+                            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 mb-6">
+                                <div className="xl:col-span-5">
+                                    <DataPanel className="!rounded-xl" title="Répartition de l’effectif" description="Statuts collaborateurs" contentClassName="pt-2">
+                                        {statusPieData.length > 0 ? (
+                                            <>
+                                                <ResponsiveContainer width="100%" height={180}>
+                                                    <PieChart>
+                                                        <Tooltip content={<ChartTooltip />} />
+                                                        <Pie data={statusPieData} dataKey="value" cx="50%" cy="50%" innerRadius={48} outerRadius={72} paddingAngle={2}>
+                                                            {statusPieData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                                                        </Pie>
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                                <ul className="space-y-2 mt-1">
+                                                    {statusPieData.map((e, i) => (
+                                                        <li key={i} className="flex items-center justify-between text-sm">
+                                                            <span className="flex items-center gap-2 text-muted-foreground">
+                                                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: e.color }} />
+                                                                {e.name}
+                                                            </span>
+                                                            <span className="font-semibold tabular-nums">{e.value}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </>
+                                        ) : (
+                                            <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                                                {dashLoading ? 'Chargement…' : 'Aucune donnée'}
+                                            </div>
+                                        )}
+                                    </DataPanel>
+                                </div>
+                                <div className="xl:col-span-7">
+                                    <DataPanel className="!rounded-xl" title="Funnel recrutement" description="Demandes → candidatures → embauches" contentClassName="pt-2">
+                                        <ResponsiveContainer width="100%" height={240}>
+                                            <BarChart data={recruitmentFunnel} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                                                <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                                                <YAxis allowDecimals={false} tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                                                <Tooltip content={<ChartTooltip />} />
+                                                <Bar dataKey="value" name="Volume" radius={[6, 6, 0, 0]} barSize={48}>
+                                                    {recruitmentFunnel.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </DataPanel>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <DataPanel
+                                    className="!rounded-xl"
+                                    title="Activité récente"
+                                    toolbar={
+                                        <Link href="/m/pilotage" className="text-xs font-medium text-primary-500 hover:text-primary-600 inline-flex items-center gap-1">
+                                            Pilotage <ArrowRight className="w-3.5 h-3.5" />
+                                        </Link>
+                                    }
+                                    contentClassName="p-0"
+                                >
+                                    {activities.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground text-center py-10 px-4">
+                                            {dashLoading ? 'Chargement…' : 'Aucune activité récente'}
+                                        </p>
+                                    ) : (
+                                        <ul className="divide-y divide-border-subtle">
+                                            {activities.map(a => {
+                                                const when = a.occurredAt || a.createdAt;
+                                                return (
+                                                    <li key={a.id} className="flex items-start gap-3 px-5 py-3.5">
+                                                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
+                                                            <ActivityIcon className="h-4 w-4" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-secondary-900 truncate">
+                                                                {a.activity}
+                                                                {a.ressourceName ? ` · ${a.ressourceName}` : ''}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                                {when
+                                                                    ? formatDistanceToNow(new Date(when), { addSuffix: true, locale: fr })
+                                                                    : '—'}
+                                                            </p>
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    )}
+                                </DataPanel>
+
+                                <DataPanel className="!rounded-xl" title="Accès rapides" description="Modules clés" contentClassName="p-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {[
+                                            { href: '/m/personnel/employees', label: 'Collaborateurs', hint: 'Dossiers RH' },
+                                            { href: '/m/temps/leave', label: 'Congés', hint: 'Demandes & validations' },
+                                            { href: '/m/recrutement/offres', label: 'Recrutement', hint: 'Offres publiées' },
+                                            { href: '/m/formation/sessions', label: 'Formation', hint: 'Sessions' },
+                                            { href: '/m/performance', label: 'Performance', hint: 'Objectifs & évaluations' },
+                                            { href: '/m/pilotage', label: 'Pilotage', hint: 'Indicateurs RH' },
+                                        ].map(item => (
+                                            <Link
+                                                key={item.href}
+                                                href={item.href}
+                                                className="rounded-xl border border-border-subtle bg-surface px-3.5 py-3 hover:border-primary-200 hover:bg-primary-50/40 transition-colors"
+                                            >
+                                                <p className="text-sm font-semibold text-secondary-900">{item.label}</p>
+                                                <p className="text-[11px] text-secondary-500 mt-0.5">{item.hint}</p>
+                                            </Link>
                                         ))}
                                     </div>
-                                    {filtered.length === 0 && (
-                                        <p className="py-16 text-center text-sm text-secondary-500">Aucun module ne correspond.</p>
-                                    )}
-                                </section>
-                            ) : (
-                                <>
-                                    {favoriteModules.length > 0 && (
-                                        <section className="mb-9">
-                                            <SectionHead title="Favoris" subtitle="Vos modules épinglés" />
-                                            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 apps-tile-grid">
-                                                {favoriteModules.map(m => (
-                                                    <AppTile key={m.slug} module={m} favorite onToggleFavorite={handleToggleFavorite} />
-                                                ))}
-                                            </div>
-                                        </section>
-                                    )}
-
-                                    {CATEGORIES.map(cat => {
-                                        const mods = cat.slugs.map(s => getModule(s)).filter((m): m is AppModule => !!m);
-                                        if (!mods.length) return null;
-                                        return (
-                                            <section key={cat.id} className="mb-9 last:mb-2">
-                                                <SectionHead title={cat.label} subtitle={cat.hint} />
-                                                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 apps-tile-grid">
-                                                    {mods.map(m => (
-                                                        <AppTile
-                                                            key={m.slug}
-                                                            module={m}
-                                                            favorite={favorites.includes(m.slug)}
-                                                            onToggleFavorite={handleToggleFavorite}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </section>
-                                        );
-                                    })}
-                                </>
-                            )}
+                                </DataPanel>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    );
-}
 
-function MetaPill({ tone, label, value }: { tone: 'blue' | 'red' | 'yellow'; label: string; value: number | string }) {
-    const styles = {
-        blue: 'border-primary-100 bg-primary-50 text-primary-800',
-        red: 'border-accent-red-100 bg-accent-red-50 text-accent-red-700',
-        yellow: 'border-[#FDE9B0] bg-[#FFF8E7] text-[#9A7200]',
-    };
-    return (
-        <div className={cn('rounded-xl border px-3 py-2 min-w-[72px]', styles[tone])}>
-            <p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">{label}</p>
-            <p className="text-lg font-semibold tabular-nums leading-none mt-0.5">{value}</p>
-        </div>
-    );
-}
-
-function SectionHead({ title, subtitle }: { title: string; subtitle?: string }) {
-    return (
-        <div className="flex items-end justify-between gap-3 border-b border-border-subtle/80 pb-2.5">
-            <div className="flex items-start gap-2.5">
-                <span
-                    className="mt-1 h-8 w-1 shrink-0 rounded-full bg-gradient-to-b from-primary-500 via-accent-red-500 to-accent-yellow-500"
-                    aria-hidden
-                />
-                <div>
-                    <h2 className="text-[13px] font-semibold text-secondary-900">{title}</h2>
-                    {subtitle && <p className="text-[11px] text-secondary-400 mt-0.5">{subtitle}</p>}
-                </div>
-            </div>
+            <AppsLauncherModal
+                open={appsOpen}
+                onClose={() => setAppsOpen(false)}
+                favorites={favorites}
+                onToggleFavorite={handleToggleFavorite}
+            />
+            <AppsCommandPalette
+                open={cmdOpen}
+                onClose={() => setCmdOpen(false)}
+                onBrowseApps={() => setAppsOpen(true)}
+            />
         </div>
     );
 }
