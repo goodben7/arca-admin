@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation';
 import { SidebarProvider } from '@/components/layout/SidebarContext';
-import { ModuleSidebar } from '@/components/modules/ModuleSidebar';
 import { ModuleTopbar } from '@/components/modules/ModuleTopbar';
 import { ShellAmbient } from '@/components/layout/ShellAmbient';
 import { getModuleFromPath } from '@/lib/modules/registry';
@@ -26,14 +25,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             ) : module ? (
                 <div className="flex h-screen w-full flex-col overflow-hidden bg-surface">
                     <ModuleTopbar module={module} />
-                    <div className="flex min-h-0 flex-1 overflow-hidden">
-                        <ModuleSidebar module={module} />
-                        <div className="relative min-h-0 flex-1 overflow-hidden bg-[#eef5f9]">
-                            <ShellAmbient />
-                            <div className="relative z-[1] h-full overflow-y-auto">
-                                <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
-                                    {children}
-                                </div>
+                    <div className="relative min-h-0 flex-1 overflow-hidden bg-[#eef5f9]">
+                        <ShellAmbient />
+                        <div className="relative z-[1] h-full overflow-y-auto">
+                            <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
+                                {children}
                             </div>
                         </div>
                     </div>

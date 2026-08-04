@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Shield } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
     return (
@@ -19,14 +19,14 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                             href="/offres-emploi"
                             className="px-3.5 py-1.5 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-all"
                         >
-                            Offres d&apos;emploi
+                            Offres internes
                         </Link>
                         <Link
                             href="/login"
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-semibold text-white bg-white/15 hover:bg-white/25 rounded-lg transition-all"
                         >
-                            <Shield className="w-3.5 h-3.5" />
-                            Admin
+                            <LogIn className="w-3.5 h-3.5" />
+                            Connexion
                         </Link>
                     </nav>
                 </div>
@@ -49,7 +49,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                             <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="h-5 w-auto object-contain" />
                         </div>
                         <p className="text-xs font-medium text-muted-foreground">
-                            © {new Date().getFullYear()} ARCA — Tous droits réservés
+                            © {new Date().getFullYear()} ARCA SIRH — Tous droits réservés
                         </p>
                     </div>
                     <p className="text-xs text-muted-foreground italic">

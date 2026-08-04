@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     ChevronLeft,
@@ -26,7 +26,8 @@ import { JobRole, Grade } from '@/types/jobArchitecture';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 
-export default function EditEmployeePage({ params }: { params: { id: string } }) {
+export default function EditEmployeePage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
     const router = useRouter();
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [departments, setDepartments] = useState<Department[]>([]);
@@ -46,14 +47,15 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
         position: '',
         jobRole: '',
         grade: '',
-        hireDate: ''
+        hireDate: '',
+        birthDate: '',
     });
 
     useEffect(() => {
         async function loadData() {
             try {
                 const [empData, deptsData, posData, rolesData, gradesData] = await Promise.all([
-                    getEmployeeById(params.id),
+                    getEmployeeById(id),
                     getDepartments(),
                     getAllPositions(),
                     getJobRoles().catch(() => []),
@@ -75,7 +77,8 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
                     position: (empData.position as any)?.['@id'] || empData.position || '',
                     jobRole: extractId(empData.jobRole) || '',
                     grade: extractId(empData.grade) || '',
-                    hireDate: empData.hireDate ? empData.hireDate.split('T')[0] : ''
+                    hireDate: empData.hireDate ? empData.hireDate.split('T')[0] : '',
+                    birthDate: empData.birthDate ? empData.birthDate.split('T')[0] : '',
                 });
             } catch (err: any) {
                 setError(err.message || 'Erreur lors du chargement des données.');
@@ -84,7 +87,7 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
             }
         }
         loadData();
-    }, [params.id]);
+    }, [id]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -97,8 +100,8 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
         setError(null);
 
         try {
-            await updateEmployee(params.id, formData);
-            router.push(`/m/personnel/employees/${params.id}`);
+            await updateEmployee(id, formData);
+            router.push(`/m/personnel/employees/${id}`);
             router.refresh();
         } catch (err: any) {
             setError(err.message || 'Erreur lors de la mise à jour.');
@@ -119,8 +122,8 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
         <PageShell className="max-w-4xl mx-auto">
             <PageHeader
                 title={`Modifier : ${formData.firstName} ${formData.lastName}`}
-                description={`ID: ${params.id}`}
-                backHref={`/m/personnel/employees/${params.id}`}
+                description={`ID: ${id}`}
+                backHref={`/m/personnel/employees/${id}`}
             />
 
             <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -205,9 +208,28 @@ export default function EditEmployeePage({ params }: { params: { id: string } })
                                     ))}
                                 </select>
                             </div>
-                            <div className="space-y-2 md:col-span-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="birthDate" className="text-[10px] font-black uppercase text-secondary-400 tracking-widest ml-1">
+                                    Date de naissance
+                                </Label>
+                                <Input
+                                    id="birthDate"
+                                    name="birthDate"
+                                    type="date"
+                                    value={formData.birthDate}
+                                    onChange={handleChange}
+                                    className="h-12 rounded-xl"
+                                />
+                                <p className="text-[10px] text-secondary-400 px-1">
+                                    Requis pour l’éligibilité retraite (âge ≥ 65 ans).
+                                </p>
+                            </div>
+                            <div className="space-y-2">
                                 <Label htmlFor="hireDate" className="text-[10px] font-black uppercase text-secondary-400 tracking-widest ml-1">Date d'embauche</Label>
                                 <Input id="hireDate" name="hireDate" type="date" value={formData.hireDate} onChange={handleChange} required className="h-12 rounded-xl" />
+                                <p className="text-[10px] text-secondary-400 px-1">
+                                    Utilisée pour l’ancienneté (retraite ≥ 35 ans).
+                                </p>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="jobRole" className="text-[10px] font-black uppercase text-secondary-400 tracking-widest ml-1">Fiche métier RH</Label>

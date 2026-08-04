@@ -158,12 +158,13 @@ export async function getSkillsByEmployee(employeeId: string): Promise<{ 'hydra:
 
 export async function updateEmployee(id: string, data: Partial<Employee>): Promise<Employee> {
     const path = id.startsWith('/') ? id : `/api/employees/${id}`;
+    // PATCH Api Platform : relations en IRI (≠ create qui attend des IDs JR…/GR… bruts)
     const payload: Record<string, unknown> = { ...data };
     if (data.jobRole !== undefined) {
-        payload.jobRole = data.jobRole ? (extractId(data.jobRole as string) || data.jobRole) : null;
+        payload.jobRole = data.jobRole ? toIri('job_roles', data.jobRole as string) : null;
     }
     if (data.grade !== undefined) {
-        payload.grade = data.grade ? (extractId(data.grade as string) || data.grade) : null;
+        payload.grade = data.grade ? toIri('grades', data.grade as string) : null;
     }
     if (data.department !== undefined) {
         payload.department = data.department ? toIri('departments', data.department as string) : null;
@@ -171,6 +172,20 @@ export async function updateEmployee(id: string, data: Partial<Employee>): Promi
     if (data.position !== undefined) {
         payload.position = data.position ? toIri('positions', data.position as string) : null;
     }
+    if (data.profile !== undefined) {
+        payload.profile = data.profile ? toIri('profiles', data.profile as string) : null;
+    }
+    if (data.birthDate !== undefined) {
+        payload.birthDate = data.birthDate
+            ? String(data.birthDate).split('T')[0]
+            : null;
+    }
+    if (data.hireDate !== undefined) {
+        payload.hireDate = data.hireDate
+            ? String(data.hireDate).split('T')[0]
+            : null;
+    }
+
     const response = await request(path, {
         method: 'PATCH',
         headers: {
@@ -232,15 +247,42 @@ export async function validateEmployeeSkill(employeeSkillId: string) {
 }
 
 export async function getEmployeeJourney(employeeId: string) {
-    const response = await request(`/api/employees/${employeeId}/journey?order[occurredAt]=desc`);
+    const id = extractId(employeeId) || employeeId;
+    const response = await request(`/api/employees/${id}/journey?order[occurredAt]=desc`);
     if (!response.ok) {
         throw new Error('Impossible de charger le parcours de l\'employé.');
+    }
+    const data = await response.json();
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.['hydra:member'])) return data['hydra:member'];
+    if (Array.isArray(data?.member)) return data.member;
+    return [];
+}
+
+export interface RetirementEligibility {
+    employeeId: string;
+    eligible: boolean;
+    reasons: string[];
+}
+
+export async function checkRetirementEligibility(employeeId: string): Promise<RetirementEligibility> {
+    const id = extractId(employeeId) || employeeId;
+    const response = await request(`/api/employees/${id}/retirement-eligibility`);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+            errorData.detail || errorData.message || 'Impossible de vérifier l\'éligibilité à la retraite.',
+        );
     }
     return response.json();
 }
 
 export async function checkPromotionEligibility(employeeId: string, targetJobRole: string) {
-    const response = await request(`/api/employees/${employeeId}/promotion-eligibility?targetJobRole=${targetJobRole}`);
+    const empId = extractId(employeeId) || employeeId;
+    const roleId = extractId(targetJobRole) || targetJobRole;
+    const response = await request(
+        `/api/employees/${empId}/promotion-eligibility?targetJobRole=${encodeURIComponent(roleId)}`,
+    );
     if (!response.ok) {
         throw new Error('Impossible de vérifier l\'éligibilité à la promotion.');
     }
@@ -248,12 +290,13 @@ export async function checkPromotionEligibility(employeeId: string, targetJobRol
 }
 
 export async function changeEmployeeStatus(action: string, employeeId: string) {
+    const id = extractId(employeeId) || employeeId;
     const response = await request(`/api/employees/${action}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ employeeId }),
+        body: JSON.stringify({ employeeId: id }),
     });
 
     if (!response.ok) {

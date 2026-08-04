@@ -263,7 +263,7 @@ export const APP_MODULES: AppModule[] = [
         description: 'Mesures disciplinaires — Code du travail RDC.',
         icon: Scale,
         href: '/m/sanctions',
-        status: 'soon',
+        status: 'active',
         accent: {
             bg: 'bg-[#BE123C]',
             soft: 'bg-rose-50',
@@ -273,6 +273,8 @@ export const APP_MODULES: AppModule[] = [
         },
         menu: [
             { title: 'Vue d\'ensemble', href: '/m/sanctions', icon: LayoutGrid },
+            { title: 'Affaires', href: '/m/sanctions/affaires', section: 'Procédures', icon: ClipboardList },
+            { title: 'Échelles', href: '/m/sanctions/echelles', section: 'Référentiel', icon: Scale },
         ],
     },
 ];

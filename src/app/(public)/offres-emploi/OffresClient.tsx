@@ -64,13 +64,13 @@ export default function OffresClient({ offers, deptMap, fetchError }: Props) {
                 <div className="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                     <div className="space-y-3">
                         <p className="text-[10px] font-black uppercase tracking-widest text-white/50">
-                            Rejoignez-nous
+                            Carrières ARCA
                         </p>
                         <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter leading-tight">
-                            Offres d&apos;emploi
+                            Offres internes
                         </h1>
                         <p className="text-white/50 font-medium text-sm max-w-lg">
-                            Découvrez nos postes ouverts et construisez votre avenir avec l&apos;ARCA.
+                            Découvrez les postes ouverts à l&apos;ARCA et postulez en ligne.
                         </p>
                     </div>
 
