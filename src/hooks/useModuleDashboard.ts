@@ -7,22 +7,11 @@ import {
     AlertCircle, BookOpen, Briefcase, CalendarDays, ClipboardList, Clock, FileCheck,
     Gift, GraduationCap, KeyRound, Presentation, Shield, Target, UserPlus, Users, Wallet,
 } from 'lucide-react';
-import { getAllEmployees, getDepartments } from '@/lib/api/employee';
-import { getAllContracts } from '@/lib/api/contract';
-import { getAllLeaveRequests } from '@/lib/api/leave';
-import { getAllJobOffers } from '@/lib/api/jobOffer';
-import { getAllApplications } from '@/lib/api/application';
-import { getAllRecruitmentRequests } from '@/lib/api/recruitment';
-import { getAllTrainingRequests } from '@/lib/api/training';
-import { getAllTrainingSessions } from '@/lib/api/trainingSession';
-import { getTrainingCatalogs } from '@/lib/api/trainingCatalog';
-import { getEvaluationCycles, getObjectives } from '@/lib/api/performance';
-import { getSuccessionPlans } from '@/lib/api/succession';
-import { getBenefits } from '@/lib/api/benefit';
-import { getCompensationHistories } from '@/lib/api/compensation';
+import { getDepartments } from '@/lib/api/employee';
 import { getAllUsers, getAllProfiles } from '@/lib/api/profile';
 import { getOnboardingProcesses } from '@/lib/api/onboarding';
 import { getHrDashboard } from '@/lib/api/hrDashboard';
+import { fetchAllCollection } from '@/lib/api/collection';
 import { normalizeList } from '@/lib/modules/dashboard/normalize';
 
 export interface ModuleKpi {
@@ -62,72 +51,73 @@ const CHART = {
 
 async function fetchPersonnel() {
     const [employees, departments, contracts, onboarding, hr] = await Promise.all([
-        getAllEmployees().catch(() => []),
+        fetchAllCollection('/api/employees').catch(() => ({ items: [], total: 0 })),
         getDepartments().catch(() => []),
-        getAllContracts().catch(() => []),
+        fetchAllCollection('/api/contracts').catch(() => ({ items: [], total: 0 })),
         getOnboardingProcesses().catch(() => []),
         getHrDashboard().catch(() => null),
     ]);
     return {
-        employees: normalizeList(employees),
+        employees: employees.items,
         departments: normalizeList(departments),
-        contracts: normalizeList(contracts),
+        contracts: contracts.items,
         onboarding: normalizeList(onboarding),
         hr,
+        employeeTotal: employees.total,
     };
 }
 
 async function fetchTemps() {
-    const leaves = await getAllLeaveRequests().catch(() => []);
-    return { leaves: normalizeList(leaves) };
+    const leaves = await fetchAllCollection('/api/leave_requests').catch(() => ({ items: [], total: 0 }));
+    return { leaves: leaves.items };
 }
 
 async function fetchRecrutement() {
     const [applications, jobOffers, recruitments] = await Promise.all([
-        getAllApplications().catch(() => []),
-        getAllJobOffers().catch(() => []),
-        getAllRecruitmentRequests().catch(() => []),
+        fetchAllCollection('/api/applications').catch(() => ({ items: [], total: 0 })),
+        fetchAllCollection('/api/job_offers').catch(() => ({ items: [], total: 0 })),
+        fetchAllCollection('/api/recruitment_requests').catch(() => ({ items: [], total: 0 })),
     ]);
     return {
-        applications: normalizeList(applications),
-        jobOffers: normalizeList(jobOffers),
-        recruitments: normalizeList(recruitments),
+        applications: applications.items,
+        jobOffers: jobOffers.items,
+        recruitments: recruitments.items,
     };
 }
 
 async function fetchFormation() {
     const [trainings, sessions, catalogs] = await Promise.all([
-        getAllTrainingRequests().catch(() => []),
-        getAllTrainingSessions().catch(() => []),
-        getTrainingCatalogs().catch(() => []),
+        fetchAllCollection('/api/training_requests').catch(() => ({ items: [], total: 0 })),
+        fetchAllCollection('/api/training_sessions').catch(() => ({ items: [], total: 0 })),
+        fetchAllCollection('/api/training_catalogs').catch(() => ({ items: [], total: 0 })),
     ]);
     return {
-        trainings: normalizeList(trainings),
-        sessions: normalizeList(sessions),
-        catalogs: normalizeList(catalogs),
+        trainings: trainings.items,
+        sessions: sessions.items,
+        catalogs: catalogs.items,
     };
 }
 
 async function fetchPerformance() {
     const [cycles, objectives, succession, hr] = await Promise.all([
-        getEvaluationCycles().catch(() => []),
-        getObjectives().catch(() => []),
-        getSuccessionPlans().catch(() => []),
+        fetchAllCollection('/api/evaluation_cycles').catch(() => ({ items: [], total: 0 })),
+        fetchAllCollection('/api/objectives').catch(() => ({ items: [], total: 0 })),
+        fetchAllCollection('/api/succession_plans').catch(() => ({ items: [], total: 0 })),
         getHrDashboard().catch(() => null),
     ]);
-    return { cycles: normalizeList(cycles), objectives: normalizeList(objectives), succession: normalizeList(succession), hr };
+    return { cycles: cycles.items, objectives: objectives.items, succession: succession.items, hr };
 }
 
 async function fetchPaie() {
     const [contracts, benefits, compensations] = await Promise.all([
-        getAllContracts().catch(() => []),
-        getBenefits().catch(() => []),
-        getCompensationHistories().catch(() => []),
+        fetchAllCollection('/api/contracts').catch(() => ({ items: [], total: 0 })),
+        fetchAllCollection('/api/benefits').catch(() => ({ items: [], total: 0 })),
+        fetchAllCollection('/api/compensation_histories').catch(() => ({ items: [], total: 0 })),
     ]);
     return {
-        contracts: normalizeList(contracts),
-        benefits: normalizeList(benefits),
-        compensations: normalizeList(compensations),
+        contracts: contracts.items,
+        benefits: benefits.items,
+        compensations: compensations.items,
     };
 }
 
@@ -165,7 +155,7 @@ function computeDashboard(slug: string, raw: unknown, loading: boolean): ModuleD
 }
 
 function computePersonnel(data: Awaited<ReturnType<typeof fetchPersonnel>>): ModuleDashboardData {
-    const { employees, departments, contracts, onboarding, hr } = data;
+    const { employees, departments, contracts, onboarding, hr, employeeTotal } = data;
     const active = employees.filter(e => e.status === 'ACTIVE').length;
     const onLeave = employees.filter(e => e.status === 'ON_LEAVE').length;
     const activeContracts = contracts.filter(c => c.status === 'ACTIVE').length;
@@ -187,10 +177,12 @@ function computePersonnel(data: Awaited<ReturnType<typeof fetchPersonnel>>): Mod
         { name: 'Autres', value: Math.max(0, employees.length - active - onLeave), color: CHART.light },
     ].filter(d => d.value > 0);
 
+    const headcount = Math.max(employeeTotal || 0, employees.length);
+
     return {
         loading: false,
         kpis: [
-            { label: 'Effectifs', value: employees.length, detail: `${active} actifs`, href: '/m/personnel/employees', tone: 'primary' },
+            { label: 'Effectifs', value: headcount, detail: `${active} actifs`, href: '/m/personnel/employees', tone: 'primary' },
             { label: 'Contrats actifs', value: activeContracts, detail: expiring > 0 ? `${expiring} à échéance` : 'Situation stable', href: '/m/personnel/contracts', tone: expiring > 0 ? 'warning' : 'default' },
             { label: 'Départements', value: departments.length, detail: 'Structures actives', href: '/m/personnel/departments' },
             { label: 'Rotation', value: hr ? `${Math.round(hr.turnoverRatePercent)}%` : '—', detail: 'Sur 12 mois', href: '/m/pilotage' },
@@ -231,7 +223,7 @@ function computeTemps(data: Awaited<ReturnType<typeof fetchTemps>>): ModuleDashb
 
 function computeRecrutement(data: Awaited<ReturnType<typeof fetchRecrutement>>): ModuleDashboardData {
     const { applications, jobOffers, recruitments } = data;
-    const pendingApps = applications.filter(a => a.status === 'PENDING').length;
+    const pendingApps = applications.filter(a => a.status === 'APPLIED' || a.status === 'PENDING').length;
     const hired = applications.filter(a => a.status === 'HIRED').length;
     const openOffers = jobOffers.filter(j => j.status === 'PUBLISHED').length;
     const pendingRec = recruitments.filter(r => r.status === 'PENDING').length;
@@ -253,7 +245,7 @@ function computeRecrutement(data: Awaited<ReturnType<typeof fetchRecrutement>>):
             title: 'Fil de candidatures',
             data: [
                 { name: 'En attente', value: pendingApps, color: CHART.yellow },
-                { name: 'En cours', value: applications.filter(a => ['SHORTLISTED', 'INTERVIEW_SCHEDULED'].includes(a.status)).length, color: CHART.light },
+                { name: 'En cours', value: applications.filter(a => ['SHORTLISTED', 'INTERVIEW', 'INTERVIEW_SCHEDULED'].includes(a.status)).length, color: CHART.light },
                 { name: 'Recrutés', value: hired, color: CHART.green },
             ].filter(d => d.value > 0),
         } : undefined,

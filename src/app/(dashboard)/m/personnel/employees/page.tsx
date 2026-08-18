@@ -28,7 +28,8 @@ import Link from 'next/link';
 import { getAllEmployees, getDepartments } from '@/lib/api/employee';
 import { getAllPositions } from '@/lib/api/position';
 import { getAllDocuments } from '@/lib/api/document';
-import { BASE_URL } from '@/lib/api/client';
+import { normalizeCollection } from '@/lib/modules/dashboard/normalize';
+import { buildAssetUrl } from '@/lib/api/client';
 import { Employee, STATUS, Department } from '@/types/employee';
 import { resolveFromMap } from '@/lib/api-iri';
 import { format } from 'date-fns';
@@ -105,7 +106,7 @@ export default function EmployeesPage() {
                 const avMap: Record<string, string> = {};
                 docList.forEach((doc: any) => {
                     if (doc.holderId && doc.contentUrl) {
-                        avMap[doc.holderId] = `${BASE_URL}${doc.contentUrl}`;
+                        avMap[doc.holderId] = buildAssetUrl(doc.contentUrl);
                     }
                 });
                 setAvatarsMap(avMap);
@@ -136,13 +137,8 @@ export default function EmployeesPage() {
                 }
 
                 const empData = await getAllEmployees(params);
+                const { items: empList, total } = normalizeCollection<Employee>(empData);
 
-                const empList = Array.isArray(empData) ? empData : empData['hydra:member'] || [];
-                // If it's an array, the total is the length. If it's Hydra, we take hydra:totalItems.
-                const total = Array.isArray(empData) 
-                    ? empData.length 
-                    : (typeof empData['hydra:totalItems'] === 'number' ? empData['hydra:totalItems'] : empList.length);
-                
                 setEmployees(empList);
                 setTotalItems(total);
             } catch (err: any) {

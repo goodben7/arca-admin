@@ -16,5 +16,7 @@ export async function getActivities(filters: { user?: string; activity?: string;
     if (Array.isArray(data)) return data as Activity[];
     const d = data as Record<string, unknown>;
     if (Array.isArray(d['hydra:member'])) return d['hydra:member'] as Activity[];
+    if (Array.isArray(d.member)) return d.member as Activity[];
+    if (Array.isArray(d.data)) return d.data as Activity[];
     return [];
 }

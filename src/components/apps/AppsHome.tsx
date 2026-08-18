@@ -3,33 +3,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-    Search, Bell, Rocket, ArrowRight, LayoutGrid,
-    Users, Umbrella, Briefcase, GraduationCap, Activity as ActivityIcon,
+    Rocket, ArrowRight,
+    Users, Umbrella, Briefcase, GraduationCap,
+    Target, BarChart3, Sparkles, CheckCircle2, CalendarDays, Clock,
+    Calculator, FileBarChart, Settings,
 } from 'lucide-react';
 import {
     ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
     CartesianGrid, XAxis, YAxis, Tooltip,
 } from 'recharts';
-import { format, formatDistanceToNow } from 'date-fns';
+import { addDays, format, formatDistanceToNow, isWithinInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { getFavoriteSlugs, toggleFavorite } from '@/lib/modules/prefs';
 import { getAbout } from '@/lib/api/auth';
 import { getHrDashboard, getActivities } from '@/lib/api/hrDashboard';
-import { getAllEmployees } from '@/lib/api/employee';
-import { getAllLeaveRequests } from '@/lib/api/leave';
-import { getAllJobOffers } from '@/lib/api/jobOffer';
-import { getAllApplications } from '@/lib/api/application';
-import { getAllRecruitmentRequests } from '@/lib/api/recruitment';
-import { getAllTrainingSessions } from '@/lib/api/trainingSession';
+import { fetchAllCollection } from '@/lib/api/collection';
+import type { AuthUser } from '@/types/auth';
+import type { Employee } from '@/types/employee';
+import type { LeaveRequest } from '@/types/leave';
+import type { JobOffer } from '@/types/jobOffer';
+import type { Application } from '@/types/application';
+import type { RecruitmentRequest } from '@/types/recruitment';
+import type { TrainingSession } from '@/types/trainingSession';
+import type { Contract } from '@/types/contract';
+import type { CompensationHistory } from '@/types/compensation';
+import type { PerformanceReview } from '@/types/performance';
+import type { Profile } from '@/types/profile';
 import type { HrDashboard, Activity } from '@/types/succession';
-import { ShellAmbient } from '@/components/layout/ShellAmbient';
-import { DashboardKpi, DashboardQuickLink } from '@/components/dashboard/DashboardKpi';
+import { DashboardKpi, DashboardModuleCard } from '@/components/dashboard/DashboardKpi';
 import { ChartTooltip } from '@/components/dashboard/ChartTooltip';
 import { DataPanel } from '@/components/layout/DataPanel';
 import { useSetupProgress } from '@/hooks/useSetupProgress';
-import { AppsLauncherModal } from './AppsLauncherModal';
-import { AppsCommandPalette } from './AppsCommandPalette';
-import { AppsSidebar, AppsSidebarToggle } from './AppsSidebar';
+import { cn } from '@/lib/utils';
 
 const CHART = {
     blue: '#007398',
@@ -46,89 +50,198 @@ function greeting() {
     return 'Bonsoir';
 }
 
-function normalize(data: unknown): any[] {
-    if (Array.isArray(data)) return data;
+function normalize<T>(data: unknown): T[] {
+    if (Array.isArray(data)) return data as T[];
     const d = data as Record<string, unknown>;
-    if (Array.isArray(d?.['hydra:member'])) return d['hydra:member'] as any[];
-    if (Array.isArray(d?.member)) return d.member as any[];
+    if (Array.isArray(d?.['hydra:member'])) return d['hydra:member'] as T[];
+    if (Array.isArray(d?.member)) return d.member as T[];
+    if (Array.isArray(d?.data)) return d.data as T[];
     return [];
 }
 
-/**
- * Hub RH `/apps` — tableau de bord léger + lanceur d’applications + palette ⌘K.
- */
+function statusOf(value: unknown) {
+    if (typeof value === 'string') return value.toUpperCase();
+    if (value && typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        const nested = record.code ?? record.value ?? record.id ?? record.status;
+        if (typeof nested === 'string') return nested.toUpperCase();
+    }
+    return '';
+}
+
+function isStatus(value: unknown, ...statuses: string[]) {
+    const current = statusOf(value);
+    return statuses.some((status) => current === status.toUpperCase());
+}
+
+function isThisMonth(dateStr?: string) {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return false;
+    const now = new Date();
+    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+}
+
+function isThisWeek(dateStr?: string) {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return false;
+    const now = new Date();
+    return isWithinInterval(date, {
+        start: startOfWeek(now, { weekStartsOn: 1 }),
+        end: endOfWeek(now, { weekStartsOn: 1 }),
+    });
+}
+
+function employeeStatusLabel(status?: string) {
+    switch (status) {
+        case 'ACTIVE': return 'Actif';
+        case 'ON_LEAVE': return 'Congé';
+        case 'SUSPENDED': return 'Suspendu';
+        case 'PROBATION': return 'Essai';
+        case 'TERMINATED': return 'Sorti';
+        case 'RETIRED': return 'Retraité';
+        case 'INACTIVE': return 'Inactif';
+        default: return status || '—';
+    }
+}
+
+function currentQuarterLabel() {
+    const month = new Date().getMonth();
+    return `T${Math.floor(month / 3) + 1} ${new Date().getFullYear()}`;
+}
 export function AppsHome() {
-    const [favorites, setFavorites] = useState<string[]>([]);
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<AuthUser | null>(null);
     const [stats, setStats] = useState<HrDashboard | null>(null);
-    const [appsOpen, setAppsOpen] = useState(false);
-    const [cmdOpen, setCmdOpen] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [employees, setEmployees] = useState<any[]>([]);
-    const [leaves, setLeaves] = useState<any[]>([]);
-    const [jobOffers, setJobOffers] = useState<any[]>([]);
-    const [applications, setApplications] = useState<any[]>([]);
-    const [recruitments, setRecruitments] = useState<any[]>([]);
-    const [sessions, setSessions] = useState<any[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [employeeTotal, setEmployeeTotal] = useState(0);
+    const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+    const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
+    const [applications, setApplications] = useState<Application[]>([]);
+    const [recruitments, setRecruitments] = useState<RecruitmentRequest[]>([]);
+    const [sessions, setSessions] = useState<TrainingSession[]>([]);
+    const [contracts, setContracts] = useState<Contract[]>([]);
+    const [compensations, setCompensations] = useState<CompensationHistory[]>([]);
+    const [reviews, setReviews] = useState<PerformanceReview[]>([]);
+    const [profiles, setProfiles] = useState<Profile[]>([]);
     const [activities, setActivities] = useState<Activity[]>([]);
     const [dashLoading, setDashLoading] = useState(true);
     const { allDone, progressPercent, loading: setupLoading } = useSetupProgress();
 
     useEffect(() => {
-        setFavorites(getFavoriteSlugs());
         getAbout().then(setUser).catch(() => setUser(null));
 
         Promise.all([
             getHrDashboard().catch(() => null),
-            getAllEmployees().catch(() => []),
-            getAllLeaveRequests().catch(() => []),
-            getAllJobOffers().catch(() => []),
-            getAllApplications().catch(() => []),
-            getAllRecruitmentRequests().catch(() => []),
-            getAllTrainingSessions().catch(() => []),
+            fetchAllCollection<Employee>('/api/employees').catch(() => ({ items: [] as Employee[], total: 0 })),
+            fetchAllCollection<LeaveRequest>('/api/leave_requests').catch(() => ({ items: [] as LeaveRequest[], total: 0 })),
+            fetchAllCollection<JobOffer>('/api/job_offers').catch(() => ({ items: [] as JobOffer[], total: 0 })),
+            fetchAllCollection<Application>('/api/applications').catch(() => ({ items: [] as Application[], total: 0 })),
+            fetchAllCollection<RecruitmentRequest>('/api/recruitment_requests').catch(() => ({ items: [] as RecruitmentRequest[], total: 0 })),
+            fetchAllCollection<TrainingSession>('/api/training_sessions').catch(() => ({ items: [] as TrainingSession[], total: 0 })),
+            fetchAllCollection<Contract>('/api/contracts').catch(() => ({ items: [] as Contract[], total: 0 })),
+            fetchAllCollection<CompensationHistory>('/api/compensation_histories').catch(() => ({ items: [] as CompensationHistory[], total: 0 })),
+            fetchAllCollection<PerformanceReview>('/api/performance_reviews').catch(() => ({ items: [] as PerformanceReview[], total: 0 })),
+            fetchAllCollection<Profile>('/api/profiles').catch(() => ({ items: [] as Profile[], total: 0 })),
             getActivities().catch(() => []),
-        ]).then(([hr, emp, leave, jobs, apps, rec, sess, acts]) => {
+        ]).then(([hr, emp, leave, jobs, apps, rec, sess, ctr, comp, rev, prof, acts]) => {
             setStats(hr);
-            setEmployees(normalize(emp));
-            setLeaves(normalize(leave));
-            setJobOffers(normalize(jobs));
-            setApplications(normalize(apps));
-            setRecruitments(normalize(rec));
-            setSessions(normalize(sess));
-            setActivities(Array.isArray(acts) ? acts.slice(0, 8) : []);
+            setEmployees(emp.items);
+            setEmployeeTotal(emp.total);
+            setLeaves(leave.items);
+            setJobOffers(jobs.items);
+            setApplications(apps.items);
+            setRecruitments(rec.items);
+            setSessions(sess.items);
+            setContracts(ctr.items);
+            setCompensations(comp.items);
+            setReviews(rev.items);
+            setProfiles(prof.items);
+            setActivities(normalize<Activity>(acts).slice(0, 8));
         }).finally(() => setDashLoading(false));
     }, []);
 
-    useEffect(() => {
-        function onKey(e: KeyboardEvent) {
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-                e.preventDefault();
-                setCmdOpen(true);
-            }
-        }
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, []);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    const handleToggleFavorite = (slug: string) => {
-        setFavorites(toggleFavorite(slug));
-    };
-
-    const activeEmployees = employees.filter(e => e.status === 'ACTIVE').length;
-    const pendingLeaves = leaves.filter(l => l.status === 'PENDING').length;
-    const ongoingLeaves = leaves.filter(l => l.status === 'APPROVED' || l.status === 'IN_PROGRESS').length;
-    const openJobOffers = jobOffers.filter(j => j.status === 'PUBLISHED').length;
-    const hiredCount = applications.filter(a => a.status === 'HIRED').length;
-    const trainingsInProgress = stats?.trainingsInProgress ?? sessions.filter(s => s.status === 'IN_PROGRESS' || s.status === 'PLANNED').length;
-    const headcount = stats?.headcount ?? employees.length;
-    const activeRate = employees.length > 0 ? Math.round((activeEmployees / employees.length) * 100) : 0;
+    const activeEmployees = employees.filter((e) => (
+        isStatus(e.status, 'ACTIVE')
+        || (!statusOf(e.status) && Boolean(e.activatedAt) && !e.deactivatedAt && !e.terminatedAt)
+    )).length;
+    const pendingLeaves = leaves.filter((l) => isStatus(l.status, 'PENDING')).length;
+    const ongoingLeaves = leaves.filter((l) => {
+        if (!isStatus(l.status, 'APPROVED')) return false;
+        if (!l.endDate) return true;
+        const end = new Date(l.endDate);
+        return !Number.isNaN(end.getTime()) && end >= today;
+    }).length;
+    const returningThisWeek = leaves.filter((l) => isStatus(l.status, 'APPROVED') && isThisWeek(l.endDate)).length;
+    const hiredThisMonth = employees.filter((e) => isThisMonth(e.hireDate)).length;
+    const openJobOffers = jobOffers.filter((j) => isStatus(j.status, 'PUBLISHED')).length;
+    const pendingRecruitments = recruitments.filter((r) => isStatus(r.status, 'PENDING')).length;
+    const hiredCount = applications.filter((a) => isStatus(a.status, 'HIRED')).length;
+    const applicationsThisMonth = applications.filter((a) => isThisMonth(a.appliedAt || a.createdAt)).length;
+    const trainingsFromSessions = sessions.filter((s) => isStatus(s.status, 'ONGOING', 'PLANNED')).length;
+    const trainingsInProgress = trainingsFromSessions || stats?.trainingsInProgress || 0;
+    const headcount = Math.max(employeeTotal, employees.length, stats?.headcount || 0);
+    const activeRate = headcount > 0 ? Math.round((activeEmployees / headcount) * 1000) / 10 : 0;
+    const payrollThisMonth = compensations.filter((c) => isThisMonth(c.effectiveDate || c.createdAt)).length;
+    const reviewScores = reviews
+        .map(r => Number(r.score ?? r.overallRating))
+        .filter(n => Number.isFinite(n) && n > 0);
+    const performanceScore = reviewScores.length > 0
+        ? Math.round((reviewScores.reduce((sum, n) => sum + n, 0) / reviewScores.length) * 10) / 10
+        : null;
+    const now = new Date();
+    const inSixtyDays = addDays(now, 60);
+    const contractsToRenew = contracts.filter(c => {
+        if (!c.endDate || !isStatus(c.status, 'ACTIVE', 'PENDING')) return false;
+        const end = new Date(c.endDate);
+        return !Number.isNaN(end.getTime()) && end >= now && end <= inSixtyDays;
+    }).length;
+    const monthShort = format(now, 'MMM yyyy', { locale: fr });
+    const recentEmployees = [...employees]
+        .filter(e => e.firstName && e.lastName)
+        .sort((a, b) => new Date(b.hireDate || b.createdAt || 0).getTime() - new Date(a.hireDate || a.createdAt || 0).getTime())
+        .slice(0, 5);
+    const alertItems = [
+        contractsToRenew > 0 ? {
+            title: `${contractsToRenew} contrat${contractsToRenew > 1 ? 's' : ''} à renouveler`,
+            detail: 'Échéance dans les 60 prochains jours',
+            tone: 'rose' as const,
+        } : null,
+        pendingLeaves > 0 ? {
+            title: `${pendingLeaves} demande${pendingLeaves > 1 ? 's' : ''} de congé à traiter`,
+            detail: ongoingLeaves > 0 ? `${ongoingLeaves} congé(s) en cours` : 'Validation RH attendue',
+            tone: 'amber' as const,
+        } : null,
+        openJobOffers > 0 ? {
+            title: `${openJobOffers} poste${openJobOffers > 1 ? 's' : ''} ouvert${openJobOffers > 1 ? 's' : ''}`,
+            detail: `${applications.length} candidature(s) reçue(s)`,
+            tone: 'rose' as const,
+        } : null,
+        trainingsInProgress > 0 ? {
+            title: `${trainingsInProgress} session${trainingsInProgress > 1 ? 's' : ''} de formation`,
+            detail: 'Sessions ou parcours en cours',
+            tone: 'emerald' as const,
+        } : null,
+        reviews.length > 0 ? {
+            title: `${reviews.length} évaluation${reviews.length > 1 ? 's' : ''} en suivi`,
+            detail: performanceScore != null ? `Score moyen ${performanceScore}` : 'Cycles et revues de performance',
+            tone: 'blue' as const,
+        } : hiredCount > 0 ? {
+            title: `${hiredCount} recrutement${hiredCount > 1 ? 's' : ''} finalisé${hiredCount > 1 ? 's' : ''}`,
+            detail: 'Intégrations récentes à suivre',
+            tone: 'blue' as const,
+        } : null,
+    ].filter(Boolean) as Array<{ title: string; detail: string; tone: 'amber' | 'rose' | 'emerald' | 'blue' }>;
 
     const statusPieData = useMemo(() => [
         { name: 'Actifs', value: activeEmployees, color: CHART.blue },
-        { name: 'En congé', value: employees.filter(e => e.status === 'ON_LEAVE').length, color: CHART.yellow },
-        { name: 'Suspendus', value: employees.filter(e => e.status === 'SUSPENDED').length, color: CHART.red },
-        { name: 'Essai', value: employees.filter(e => e.status === 'PROBATION').length, color: CHART.light },
-    ].filter(d => d.value > 0), [employees, activeEmployees]);
+        { name: 'En congé', value: employees.filter((e) => isStatus(e.status, 'ON_LEAVE')).length, color: CHART.yellow },
+        { name: 'Suspendus', value: employees.filter((e) => isStatus(e.status, 'SUSPENDED')).length, color: CHART.red },
+        { name: 'Essai', value: employees.filter((e) => isStatus(e.status, 'PROBATION')).length, color: CHART.light },
+    ].filter((d) => d.value > 0), [employees, activeEmployees]);
 
     const recruitmentFunnel = useMemo(() => [
         { name: 'Demandes', value: recruitments.length, fill: CHART.light },
@@ -141,127 +254,79 @@ export function AppsHome() {
         user?.email?.split('@')[0] ||
         'collègue';
     const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
-    const todayLabel = format(new Date(), 'EEEE d MMMM yyyy', { locale: fr });
+
+    const heroStats = [
+        { label: 'Effectif', value: dashLoading ? '…' : headcount },
+        { label: 'Congés', value: dashLoading ? '…' : ongoingLeaves },
+        { label: 'Offres', value: dashLoading ? '…' : openJobOffers },
+    ];
 
     return (
-        <div className="flex h-full overflow-hidden bg-surface">
-            <AppsSidebar
-                mobileOpen={sidebarOpen}
-                onMobileClose={() => setSidebarOpen(false)}
-                onBrowseApps={() => setAppsOpen(true)}
-            />
-
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                <header className="shrink-0 border-b border-border-subtle bg-surface">
-                    <div className="flex h-14 items-center gap-3 px-4 md:px-5">
-                        <AppsSidebarToggle onClick={() => setSidebarOpen(true)} />
-
-                        <div className="min-w-0">
-                            <h1 className="truncate text-[15px] font-semibold tracking-tight text-secondary-900">
-                                Tableau de bord — Ressources Humaines
-                            </h1>
-                            <p className="hidden truncate text-[11px] capitalize text-secondary-400 sm:block">
-                                {todayLabel}
-                            </p>
-                        </div>
-
-                        <div className="mx-auto hidden w-full max-w-sm md:block">
-                            <button
-                                type="button"
-                                onClick={() => setCmdOpen(true)}
-                                className="relative flex h-9 w-full items-center gap-2 rounded-xl border border-transparent bg-muted/80 px-3 text-left text-[13px] text-secondary-400 transition-all hover:border-primary-200 hover:bg-surface"
-                            >
-                                <Search className="h-3.5 w-3.5 shrink-0" />
-                                <span className="flex-1 truncate">Rechercher un module ou une fonction…</span>
-                                <kbd className="rounded border border-border-subtle bg-surface px-1.5 py-px text-[9px] font-medium text-secondary-400">
-                                    ⌘K
-                                </kbd>
-                            </button>
-                        </div>
-
-                        <div className="ml-auto flex items-center gap-1">
-                            <button
-                                type="button"
-                                onClick={() => setAppsOpen(true)}
-                                className="hidden sm:inline-flex h-9 items-center gap-2 rounded-xl bg-primary-600 px-3 text-[13px] font-semibold text-white shadow-sm hover:bg-primary-700"
-                            >
-                                <LayoutGrid className="h-3.5 w-3.5" />
-                                Applications
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setAppsOpen(true)}
-                                className="flex sm:hidden h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-white"
-                                aria-label="Applications"
-                            >
-                                <LayoutGrid className="h-4 w-4" />
-                            </button>
-                            <button type="button" className="relative flex h-9 w-9 items-center justify-center rounded-xl text-secondary-500 hover:bg-muted" aria-label="Notifications">
-                                <Bell className="h-4 w-4" />
-                                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary-500" />
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex h-1">
-                        <div className="flex-[3] bg-primary-500" />
-                        <div className="flex-1 bg-accent-red-500" />
-                        <div className="flex-1 bg-accent-yellow-500" />
-                    </div>
-                    <div className="border-b border-border-subtle px-4 py-2 md:hidden">
-                        <button
-                            type="button"
-                            onClick={() => setCmdOpen(true)}
-                            className="relative flex h-9 w-full items-center gap-2 rounded-xl bg-muted/80 px-3 text-left text-[13px] text-secondary-400"
-                        >
-                            <Search className="h-3.5 w-3.5" />
-                            <span>Rechercher…</span>
-                        </button>
-                    </div>
-                </header>
-
-                <div className="relative min-h-0 flex-1 overflow-hidden bg-[#eef5f9]">
-                    <ShellAmbient />
-
-                    <div className="relative z-[1] h-full overflow-y-auto">
-                        <div className="mx-auto max-w-6xl px-4 py-7 md:px-8 md:py-9 page-enter-stack">
-                            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                                <div>
-                                    <h2 className="text-2xl font-semibold tracking-tight text-secondary-900 md:text-[1.65rem]">
-                                        {greeting()}, {displayName}
-                                    </h2>
-                                    <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-secondary-500">
-                                        Vue d’ensemble RH — ouvrez une application pour aller plus loin.
-                                    </p>
+        <div className="page-enter-stack">
+                            <div className="relative mb-8 overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 px-6 py-8 md:px-8 md:py-9 shadow-md">
+                                <div className="pointer-events-none absolute inset-0" aria-hidden>
+                                    <div className="absolute inset-x-0 top-0 h-px bg-white/15" />
+                                    <div className="absolute -top-20 -right-8 h-64 w-64 rounded-full bg-primary-400/18 blur-3xl" />
+                                    <div className="absolute bottom-[-40%] left-[8%] h-56 w-56 rounded-full bg-accent-red-500/10 blur-3xl" />
+                                    <div className="absolute top-6 right-[32%] h-36 w-36 rounded-full bg-accent-yellow-400/12 blur-2xl" />
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setAppsOpen(true)}
-                                    className="inline-flex items-center gap-2 self-start rounded-xl border border-primary-200 bg-surface px-4 py-2.5 text-sm font-semibold text-primary-700 shadow-sm hover:bg-primary-50"
-                                >
-                                    <LayoutGrid className="h-4 w-4" />
-                                    Parcourir les apps
-                                </button>
+                                <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+                                    <div className="max-w-xl">
+                                        <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 mb-4 backdrop-blur-sm">
+                                            <Sparkles className="h-3.5 w-3.5 text-accent-yellow-400" />
+                                            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">
+                                                Hub ressources humaines
+                                            </span>
+                                        </div>
+                                        <h2 className="text-[1.85rem] md:text-[2.15rem] font-black tracking-tight text-white leading-[1.15]">
+                                            {greeting()}, {displayName}
+                                        </h2>
+                                        <p className="mt-2.5 text-sm leading-relaxed text-white/65 max-w-lg">
+                                            Vue d’ensemble de l’activité RH — effectif, temps, recrutement et formation.
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center lg:flex-col lg:items-end">
+                                        <div className="flex gap-2">
+                                            {heroStats.map((item) => (
+                                                <div
+                                                    key={item.label}
+                                                    className="min-w-[72px] rounded-2xl border border-white/15 bg-white/10 px-3.5 py-2.5 backdrop-blur-sm"
+                                                >
+                                                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">{item.label}</p>
+                                                    <p className="mt-1 text-xl font-black tabular-nums text-white leading-none">{item.value}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <Link
+                                            href="/m/pilotage"
+                                            className="inline-flex items-center justify-center gap-2 self-start rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-primary-800 shadow-sm hover:bg-primary-50 transition-colors"
+                                        >
+                                            <BarChart3 className="h-4 w-4" />
+                                            Voir le pilotage
+                                        </Link>
+                                    </div>
+                                </div>
                             </div>
 
                             {!setupLoading && !allDone && (
                                 <Link
                                     href="/m/pilotage/configuration"
-                                    className="mb-8 flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-50 to-white hover:border-primary-300 transition-colors group"
+                                    className="mb-8 flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-[1.35rem] border border-primary-100 bg-white shadow-sm hover:border-primary-200 hover:shadow-card transition-all group"
                                 >
                                     <div className="flex items-start gap-3 flex-1">
-                                        <div className="w-10 h-10 rounded-xl bg-primary-100 text-primary-600 flex items-center justify-center shrink-0">
+                                        <div className="w-11 h-11 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
                                             <Rocket className="w-5 h-5" />
                                         </div>
-                                        <div>
+                                        <div className="min-w-0 flex-1">
                                             <p className="font-semibold text-secondary-900">Configuration initiale en cours</p>
                                             <p className="text-sm text-secondary-500 mt-0.5">
                                                 Paramétrez les référentiels, les accès et vos premiers dossiers collaborateurs.
                                             </p>
-                                            <div className="mt-2 flex items-center gap-2">
-                                                <div className="w-24 h-1.5 rounded-full bg-primary-100 overflow-hidden">
-                                                    <div className="h-full bg-primary-500" style={{ width: `${progressPercent}%` }} />
+                                            <div className="mt-3 flex items-center gap-3">
+                                                <div className="h-1.5 flex-1 max-w-xs rounded-full bg-primary-100 overflow-hidden">
+                                                    <div className="h-full rounded-full bg-primary-500 transition-all" style={{ width: `${progressPercent}%` }} />
                                                 </div>
-                                                <span className="text-xs font-bold text-primary-700">{progressPercent}%</span>
+                                                <span className="text-xs font-bold text-primary-700 tabular-nums">{progressPercent}%</span>
                                             </div>
                                         </div>
                                     </div>
@@ -271,50 +336,148 @@ export function AppsHome() {
                                 </Link>
                             )}
 
-                            <section aria-label="Indicateurs clés" className="mb-6">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                            <section aria-label="Indicateurs clés" className="mb-8">
+                                <div className="mb-3 flex items-baseline justify-between gap-3">
+                                    <h3 className="text-[13px] font-bold uppercase tracking-[0.14em] text-secondary-400">Indicateurs</h3>
+                                    <p className="text-xs text-secondary-400 hidden sm:block">Cliquez une carte pour ouvrir le module</p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 kpi-enter-stack">
                                     <DashboardKpi
-                                        label="Effectif"
+                                        label="Effectif total"
                                         value={dashLoading ? '…' : headcount}
-                                        detail={dashLoading ? undefined : `${activeEmployees} actifs (${activeRate}%)`}
+                                        detail={hiredThisMonth > 0 ? `↑ +${hiredThisMonth} ce mois` : 'Collaborateurs au registre'}
                                         icon={Users}
                                         href="/m/personnel/employees"
                                         tone="primary"
                                     />
                                     <DashboardKpi
-                                        label="Congés"
-                                        value={dashLoading ? '…' : pendingLeaves}
-                                        detail={ongoingLeaves > 0 ? `${ongoingLeaves} en cours` : 'En attente de validation'}
-                                        icon={Umbrella}
+                                        label="Employés actifs"
+                                        value={dashLoading ? '…' : activeEmployees}
+                                        detail={dashLoading ? undefined : `${activeRate}% présents`}
+                                        icon={CheckCircle2}
+                                        href="/m/personnel/employees"
+                                        tone="success"
+                                    />
+                                    <DashboardKpi
+                                        label="Congés en cours"
+                                        value={dashLoading ? '…' : ongoingLeaves}
+                                        detail={returningThisWeek > 0
+                                            ? `${returningThisWeek} retour${returningThisWeek > 1 ? 's' : ''} cette semaine`
+                                            : pendingLeaves > 0
+                                                ? `${pendingLeaves} en attente de validation`
+                                                : 'Aucun départ planifié'}
+                                        icon={CalendarDays}
                                         href="/m/temps/leave"
-                                        tone={pendingLeaves > 0 ? 'warning' : 'default'}
+                                        tone="warning"
                                     />
                                     <DashboardKpi
                                         label="Postes ouverts"
                                         value={dashLoading ? '…' : openJobOffers}
-                                        detail="Offres publiées"
-                                        icon={Briefcase}
+                                        detail={pendingRecruitments > 0
+                                            ? `${pendingRecruitments} demande${pendingRecruitments > 1 ? 's' : ''} en attente`
+                                            : 'Offres publiées'}
+                                        icon={Clock}
                                         href="/m/recrutement/offres"
+                                        tone="danger"
                                     />
-                                    <DashboardKpi
-                                        label="Formations"
-                                        value={dashLoading ? '…' : trainingsInProgress}
-                                        detail="Sessions / parcours en cours"
-                                        icon={GraduationCap}
-                                        href="/m/formation/sessions"
-                                    />
-                                </div>
-                                <div className="flex flex-wrap gap-2 mt-3">
-                                    <DashboardQuickLink label="Personnel" value={headcount} href="/m/personnel/employees" icon={Users} />
-                                    <DashboardQuickLink label="Congés" value={pendingLeaves} href="/m/temps/leave" icon={Umbrella} />
-                                    <DashboardQuickLink label="Offres" value={openJobOffers} href="/m/recrutement/offres" icon={Briefcase} />
-                                    <DashboardQuickLink label="Pilotage" value={stats ? Math.round(stats.turnoverRatePercent) : 0} href="/m/pilotage" icon={ActivityIcon} />
                                 </div>
                             </section>
 
+                            <section aria-label="Modules RH" className="mb-8">
+                                <div className="mb-3 flex items-baseline justify-between gap-3">
+                                    <h3 className="text-[13px] font-bold uppercase tracking-[0.14em] text-secondary-400">Modules</h3>
+                                    <p className="text-xs text-secondary-400 hidden sm:block">Accès rapide aux domaines RH</p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                                    <DashboardModuleCard
+                                        title="Gestion RH"
+                                        value={dashLoading ? '…' : headcount}
+                                        description="Dossiers employés, organigramme, contrats"
+                                        badge="Actif"
+                                        badgeTone="blue"
+                                        href="/m/personnel/employees"
+                                        icon={Users}
+                                        tint="bg-primary-100 text-primary-700"
+                                    />
+                                    <DashboardModuleCard
+                                        title="Paie"
+                                        value={dashLoading ? '…' : payrollThisMonth}
+                                        description="Mouvements de rémunération enregistrés"
+                                        badge={monthShort}
+                                        badgeTone="green"
+                                        href="/m/paie"
+                                        icon={Calculator}
+                                        tint="bg-teal-50 text-teal-700"
+                                    />
+                                    <DashboardModuleCard
+                                        title="Congés"
+                                        value={dashLoading ? '…' : ongoingLeaves}
+                                        description="Demandes en attente, soldes de congés"
+                                        badge={pendingLeaves > 0 ? `${pendingLeaves} en attente` : 'En cours'}
+                                        badgeTone="orange"
+                                        href="/m/temps/leave"
+                                        icon={Umbrella}
+                                        tint="bg-amber-50 text-amber-700"
+                                    />
+                                    <DashboardModuleCard
+                                        title="Recrutement"
+                                        value={dashLoading ? '…' : applicationsThisMonth || applications.length}
+                                        description="Candidatures reçues ce mois"
+                                        badge={`${openJobOffers} poste${openJobOffers > 1 ? 's' : ''}`}
+                                        badgeTone="red"
+                                        href="/m/recrutement"
+                                        icon={Briefcase}
+                                        tint="bg-rose-50 text-rose-700"
+                                    />
+                                    <DashboardModuleCard
+                                        title="Formation"
+                                        value={dashLoading ? '…' : trainingsInProgress}
+                                        description="Participants inscrits, sessions ouvertes"
+                                        badge={`${sessions.length} session${sessions.length > 1 ? 's' : ''}`}
+                                        badgeTone="blue"
+                                        href="/m/formation/sessions"
+                                        icon={GraduationCap}
+                                        tint="bg-sky-50 text-sky-700"
+                                    />
+                                    <DashboardModuleCard
+                                        title="Performance"
+                                        value={dashLoading ? '…' : performanceScore != null ? `${performanceScore}` : reviews.length}
+                                        description="Score moyen évaluations / revues"
+                                        badge={currentQuarterLabel()}
+                                        badgeTone="teal"
+                                        href="/m/performance"
+                                        icon={Target}
+                                        tint="bg-cyan-50 text-cyan-800"
+                                    />
+                                    <DashboardModuleCard
+                                        title="Rapports BI"
+                                        value={dashLoading ? '…' : activities.length}
+                                        description="Activités et indicateurs de pilotage"
+                                        badge="Mensuel"
+                                        badgeTone="yellow"
+                                        href="/m/pilotage/reports"
+                                        icon={FileBarChart}
+                                        tint="bg-amber-50 text-amber-800"
+                                    />
+                                    <DashboardModuleCard
+                                        title="Paramétrage"
+                                        value={dashLoading ? '…' : profiles.length}
+                                        description="Rôles, droits, référentiels"
+                                        badge="Admin"
+                                        badgeTone="blue"
+                                        href="/m/securite"
+                                        icon={Settings}
+                                        tint="bg-slate-100 text-slate-700"
+                                    />
+                                </div>
+                            </section>
+
+                            <div className="mb-3 flex items-baseline justify-between gap-3">
+                                <h3 className="text-[13px] font-bold uppercase tracking-[0.14em] text-secondary-400">Activité</h3>
+                            </div>
                             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 mb-6">
                                 <div className="xl:col-span-5">
-                                    <DataPanel className="!rounded-xl" title="Répartition de l’effectif" description="Statuts collaborateurs" contentClassName="pt-2">
+                                    <DataPanel accent={false} className="!rounded-[1.35rem]" title="Répartition de l’effectif" description="Statuts collaborateurs" contentClassName="pt-2">
                                         {statusPieData.length > 0 ? (
                                             <>
                                                 <ResponsiveContainer width="100%" height={180}>
@@ -345,7 +508,7 @@ export function AppsHome() {
                                     </DataPanel>
                                 </div>
                                 <div className="xl:col-span-7">
-                                    <DataPanel className="!rounded-xl" title="Funnel recrutement" description="Demandes → candidatures → embauches" contentClassName="pt-2">
+                                    <DataPanel accent={false} className="!rounded-[1.35rem]" title="Funnel recrutement" description="Demandes → candidatures → embauches" contentClassName="pt-2">
                                         <ResponsiveContainer width="100%" height={240}>
                                             <BarChart data={recruitmentFunnel} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -361,86 +524,113 @@ export function AppsHome() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                                 <DataPanel
-                                    className="!rounded-xl"
-                                    title="Activité récente"
+                                    accent={false}
+                                    className="!rounded-[1.35rem] lg:col-span-8"
+                                    title="Employés récemment intégrés"
                                     toolbar={
-                                        <Link href="/m/pilotage" className="text-xs font-medium text-primary-500 hover:text-primary-600 inline-flex items-center gap-1">
-                                            Pilotage <ArrowRight className="w-3.5 h-3.5" />
+                                        <Link href="/m/personnel/employees" className="text-xs font-medium text-primary-500 hover:text-primary-600 inline-flex items-center gap-1">
+                                            Voir tout <ArrowRight className="w-3.5 h-3.5" />
                                         </Link>
                                     }
                                     contentClassName="p-0"
                                 >
-                                    {activities.length === 0 ? (
+                                    {recentEmployees.length === 0 ? (
                                         <p className="text-sm text-muted-foreground text-center py-10 px-4">
                                             {dashLoading ? 'Chargement…' : 'Aucune activité récente'}
                                         </p>
                                     ) : (
-                                        <ul className="divide-y divide-border-subtle">
-                                            {activities.map(a => {
-                                                const when = a.occurredAt || a.createdAt;
-                                                return (
-                                                    <li key={a.id} className="flex items-start gap-3 px-5 py-3.5">
-                                                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
-                                                            <ActivityIcon className="h-4 w-4" />
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-medium text-secondary-900 truncate">
-                                                                {a.activity}
-                                                                {a.ressourceName ? ` · ${a.ressourceName}` : ''}
-                                                            </p>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                                                {when
-                                                                    ? formatDistanceToNow(new Date(when), { addSuffix: true, locale: fr })
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead className="panel-header-wash text-secondary-400 uppercase tracking-wider text-[10px]">
+                                                    <tr>
+                                                        <th className="px-5 py-3 text-left">Employé</th>
+                                                        <th className="px-5 py-3 text-left">Poste</th>
+                                                        <th className="px-5 py-3 text-left">Statut</th>
+                                                        <th className="px-5 py-3 text-left">Intégration</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border-subtle">
+                                                    {recentEmployees.map((emp) => (
+                                                        <tr key={emp.id} className="hover:bg-primary-50/20 transition-colors">
+                                                            <td className="px-5 py-3.5">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-[10px] font-bold text-white">
+                                                                        {String(emp.firstName?.[0] || '').toUpperCase()}{String(emp.lastName?.[0] || '').toUpperCase()}
+                                                                    </span>
+                                                                    <div>
+                                                                        <p className="font-semibold text-secondary-900">{emp.firstName} {emp.lastName}</p>
+                                                                        <p className="text-xs text-secondary-500">{emp.employeeNumber || emp.id}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-5 py-3.5 text-secondary-600">{emp.position || '—'}</td>
+                                                            <td className="px-5 py-3.5">
+                                                                <span className={cn(
+                                                                    'inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide',
+                                                                    emp.status === 'ACTIVE' && 'bg-emerald-50 text-emerald-700',
+                                                                    emp.status === 'ON_LEAVE' && 'bg-amber-50 text-amber-700',
+                                                                    emp.status !== 'ACTIVE' && emp.status !== 'ON_LEAVE' && 'bg-secondary-100 text-secondary-600',
+                                                                )}>
+                                                                    {employeeStatusLabel(emp.status)}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-5 py-3.5 text-secondary-500">
+                                                                {emp.hireDate
+                                                                    ? format(new Date(emp.hireDate), 'dd/MM/yyyy', { locale: fr })
                                                                     : '—'}
-                                                            </p>
-                                                        </div>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     )}
                                 </DataPanel>
 
-                                <DataPanel className="!rounded-xl" title="Accès rapides" description="Modules clés" contentClassName="p-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        {[
-                                            { href: '/m/personnel/employees', label: 'Collaborateurs', hint: 'Dossiers RH' },
-                                            { href: '/m/temps/leave', label: 'Congés', hint: 'Demandes & validations' },
-                                            { href: '/m/recrutement/offres', label: 'Recrutement', hint: 'Offres publiées' },
-                                            { href: '/m/formation/sessions', label: 'Formation', hint: 'Sessions' },
-                                            { href: '/m/performance', label: 'Performance', hint: 'Objectifs & évaluations' },
-                                            { href: '/m/pilotage', label: 'Pilotage', hint: 'Indicateurs RH' },
-                                        ].map(item => (
-                                            <Link
-                                                key={item.href}
-                                                href={item.href}
-                                                className="rounded-xl border border-border-subtle bg-surface px-3.5 py-3 hover:border-primary-200 hover:bg-primary-50/40 transition-colors"
+                                <DataPanel accent={false} className="!rounded-[1.35rem] lg:col-span-4" title="Alertes & agenda RH" description="Points de vigilance" contentClassName="p-4">
+                                    <div className="space-y-3">
+                                        {alertItems.length === 0 && activities.length === 0 && (
+                                            <div className="rounded-2xl border border-dashed border-secondary-200 bg-secondary-50/60 px-4 py-8 text-center">
+                                                <p className="text-sm font-medium text-secondary-500">
+                                                    {dashLoading ? 'Chargement…' : 'Rien à signaler pour le moment'}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {alertItems.map((item, idx) => (
+                                            <div
+                                                key={idx}
+                                                className={cn(
+                                                    'rounded-2xl border border-l-[3px] px-4 py-3',
+                                                    item.tone === 'amber' && 'border-amber-100 border-l-amber-400 bg-amber-50/70',
+                                                    item.tone === 'rose' && 'border-rose-100 border-l-accent-red-400 bg-rose-50/70',
+                                                    item.tone === 'emerald' && 'border-emerald-100 border-l-emerald-500 bg-emerald-50/70',
+                                                    item.tone === 'blue' && 'border-primary-100 border-l-primary-500 bg-primary-50/70',
+                                                )}
                                             >
-                                                <p className="text-sm font-semibold text-secondary-900">{item.label}</p>
-                                                <p className="text-[11px] text-secondary-500 mt-0.5">{item.hint}</p>
-                                            </Link>
+                                                <p className="text-sm font-semibold text-secondary-900">{item.title}</p>
+                                                <p className="mt-1 text-xs text-secondary-500">{item.detail}</p>
+                                            </div>
                                         ))}
+                                        {activities.slice(0, 2).map((a) => {
+                                            const when = a.occurredAt || a.createdAt;
+                                            return (
+                                                <div key={a.id} className="rounded-2xl border border-border-subtle bg-white/70 px-4 py-3">
+                                                    <p className="text-sm font-semibold text-secondary-900">
+                                                        {a.activity}
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-secondary-500">
+                                                        {when
+                                                            ? formatDistanceToNow(new Date(when), { addSuffix: true, locale: fr })
+                                                            : '—'}
+                                                    </p>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </DataPanel>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <AppsLauncherModal
-                open={appsOpen}
-                onClose={() => setAppsOpen(false)}
-                favorites={favorites}
-                onToggleFavorite={handleToggleFavorite}
-            />
-            <AppsCommandPalette
-                open={cmdOpen}
-                onClose={() => setCmdOpen(false)}
-                onBrowseApps={() => setAppsOpen(true)}
-            />
         </div>
     );
 }

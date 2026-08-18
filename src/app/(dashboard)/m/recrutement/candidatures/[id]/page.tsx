@@ -2,19 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
-    ArrowLeft, AlertCircle, Loader2, CheckCircle2, Users,
+    AlertCircle, Loader2, CheckCircle2, Users,
     Mail, Phone, Calendar, Briefcase, FileText, Eye,
     XCircle, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { getApplicationById, shortlistApplication, scheduleInterview, rejectApplication, hireApplication, markApplicationApplied } from '@/lib/api/application';
 import { getDocumentsByHolder } from '@/lib/api/document';
 import { Application, APPLICATION_STATUS, APPLICATION_STATUS_LABELS, type ApplicationStatus } from '@/types/application';
 import { DocumentRecord } from '@/types/document';
-import { BASE_URL } from '@/lib/api/client';
+import { buildAssetUrl } from '@/lib/api/client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,8 @@ import { PageShell } from '@/components/layout/PageShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ApplicationStatusBar } from '@/components/recrutement/ApplicationStatusBar';
 import { toast } from '@/lib/toast';
+
+type HydraCollection<T> = { 'hydra:member'?: T[] };
 
 function fmtDate(d?: string) {
     if (!d) return '—';
@@ -48,7 +50,7 @@ function isImage(doc: DocumentRecord) {
 
 // ── Preview Modal ─────────────────────────────────────────────────────────────
 function PreviewModal({ doc, onClose }: { doc: DocumentRecord; onClose: () => void }) {
-    const url = doc.contentUrl?.startsWith('http') ? doc.contentUrl : `${BASE_URL}${doc.contentUrl}`;
+    const url = doc.contentUrl ? buildAssetUrl(doc.contentUrl) : '';
     const ext = getFileExt(doc);
     const isPdf = ext === 'pdf';
     const img = isImage(doc);
@@ -147,7 +149,7 @@ export default function ApplicationDetailPage() {
         setDocsLoading(true);
         getDocumentsByHolder('APPLICATION', appId)
             .then(data => {
-                const list = Array.isArray(data) ? data : (data as any)['hydra:member'] || [];
+                const list = Array.isArray(data) ? data : ((data as HydraCollection<DocumentRecord>)['hydra:member'] || []);
                 setDocuments(list);
             })
             .catch(() => setDocuments([]))
@@ -159,7 +161,7 @@ export default function ApplicationDetailPage() {
     async function doAction(fn: () => Promise<void>, successMsg: string) {
         setActionLoading(true);
         try { await fn(); toast.success(successMsg); await refresh(); }
-        catch (e: any) { toast.error(e?.message || 'Erreur.'); }
+        catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Erreur.'); }
         finally { setActionLoading(false); }
     }
 
@@ -236,6 +238,29 @@ export default function ApplicationDetailPage() {
                     onReject={() => setShowRejectModal(true)}
                 />
             </div>
+
+            {status === APPLICATION_STATUS.HIRED && (
+                <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-5 py-4">
+                    <p className="text-sm font-semibold text-emerald-900">
+                        Candidat recruté
+                    </p>
+                    <p className="mt-1 text-sm text-emerald-800/85">
+                        Le dossier d’intégration et les documents de candidature doivent ensuite être suivis depuis les espaces Personnel.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        <Link href="/m/personnel/onboarding">
+                            <Button variant="outline" size="sm" className="border-emerald-200 bg-white text-emerald-800">
+                                Parcours d&apos;intégration
+                            </Button>
+                        </Link>
+                        <Link href="/m/personnel/documents">
+                            <Button variant="outline" size="sm" className="border-emerald-200 bg-white text-emerald-800">
+                                Documents RH
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            )}
 
             {/* Onglets */}
             <div className="flex items-center gap-1 border-b border-secondary-100">
@@ -335,7 +360,7 @@ export default function ApplicationDetailPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {documents.map(doc => {
                                     const ext = getFileExt(doc);
-                                    const url = doc.contentUrl?.startsWith('http') ? doc.contentUrl : `${BASE_URL}${doc.contentUrl}`;
+                                    const url = doc.contentUrl ? buildAssetUrl(doc.contentUrl) : '';
                                     return (
                                         <div key={doc.id} className="bg-white rounded-2xl border border-secondary-100 shadow-sm p-5 flex flex-col gap-4 hover:shadow-md transition-all">
                                             <div className="flex items-start gap-3">

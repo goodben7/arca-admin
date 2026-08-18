@@ -18,7 +18,15 @@ function apiErr(e: Record<string, unknown>): string {
     if (Array.isArray(e['violations'])) {
         return (e['violations'] as Array<{ message: string }>).map(v => v.message).join(', ');
     }
-    return (e['hydra:description'] as string) || (e.detail as string) || (e.message as string) || 'Une erreur est survenue.';
+    const raw = (e['hydra:description'] as string) || (e.detail as string) || (e.message as string) || 'Une erreur est survenue.';
+    const lower = raw.toLowerCase();
+    if (lower.includes('disciplinary case can only be created for an active, on-leave or probation employee')) {
+        return 'Une affaire disciplinaire ne peut être créée que pour un employé actif, en congé ou en période d’essai.';
+    }
+    if (lower.includes('active case')) {
+        return 'Une affaire disciplinaire active existe déjà pour cet employé.';
+    }
+    return raw;
 }
 
 async function postAction(path: string, body: Record<string, unknown> | FormData): Promise<DisciplinaryCase | void> {

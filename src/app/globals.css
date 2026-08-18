@@ -474,12 +474,58 @@
   .apps-tile-grid > *:nth-child(5) { animation-delay: 360ms; }
   .apps-tile-grid > *:nth-child(6) { animation-delay: 420ms; }
 
+  @keyframes login-float {
+    0% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(28px, -46px) scale(1.08); }
+    66% { transform: translate(-18px, 18px) scale(0.94); }
+    100% { transform: translate(0, 0) scale(1); }
+  }
+
+  @keyframes login-progress {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  @keyframes login-shine {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(180%); }
+  }
+
+  .login-float {
+    animation: login-float 22s ease-in-out infinite;
+  }
+
+  .login-float-delayed {
+    animation: login-float 28s ease-in-out infinite reverse;
+  }
+
+  .login-progress {
+    animation: login-progress 8s linear infinite;
+  }
+
+  .login-hero-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .login-form-ambient {
+    background:
+      radial-gradient(ellipse 80% 50% at 90% 0%, rgba(0, 115, 152, 0.08), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 10% 100%, rgba(193, 39, 45, 0.05), transparent 50%),
+      linear-gradient(180deg, #f7fbfd 0%, #eef4f8 100%);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .page-enter-stack > *,
     .enter-grid-item,
     .kpi-enter-stack > *,
     .apps-tile-grid > *,
-    .sidebar-orb {
+    .sidebar-orb,
+    .login-float,
+    .login-float-delayed,
+    .login-progress {
       animation: none !important;
     }
   }

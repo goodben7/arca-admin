@@ -10,11 +10,12 @@ import {
 } from 'lucide-react';
 import { getAbout } from '@/lib/api/auth';
 import { clearToken } from '@/lib/auth-token';
+import type { AuthUser } from '@/types/auth';
 import { PERSON_TYPE_LABELS } from '@/types/profile';
 import { AnchoredDropdown } from '@/components/ui/AnchoredDropdown';
 import { cn } from '@/lib/utils';
 
-function getRoleLabel(user: any): string {
+function getRoleLabel(user: AuthUser | null): string {
     if (user?.profile?.label) return user.profile.label;
     if (user?.personType && PERSON_TYPE_LABELS[user.personType]) return PERSON_TYPE_LABELS[user.personType];
     if (user?.roles?.includes('ROLE_SUPER_ADMIN')) return 'Super Administrateur';
@@ -68,7 +69,7 @@ function AppsSidebarPanel({
 }) {
     const pathname = usePathname();
     const router = useRouter();
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<AuthUser | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
 

@@ -11,59 +11,76 @@ import {
     ArrowRight,
     ShieldCheck,
     Loader2,
-    CheckCircle2,
-    Info
+    Users,
+    Briefcase,
+    Target,
+    type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input, Label } from '@/components/ui/Input';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { Preloader } from '@/components/ui/Preloader';
 import { login } from '@/lib/api/auth';
-import { setToken, clearToken, getToken, hasSession } from '@/lib/auth-token';
+import { setToken, clearToken, getToken } from '@/lib/auth-token';
 import { cn } from '@/lib/utils';
 
-const SLIDES = [
+const SLIDES: {
+    id: string;
+    icon: LucideIcon;
+    kicker: string;
+    title: string;
+    accent: string;
+    description: string;
+    chips: string[];
+}[] = [
     {
-        id: 'initial',
-        type: 'content',
-        title: "ARCA",
-        subtitle: "SIRH",
-        suffix: "—",
-        accent: "votre RH",
-        description: "Plateforme de gestion des ressources humaines de l'Autorité de Régulation et de Contrôle des Assurances."
+        id: 'hub',
+        icon: ShieldCheck,
+        kicker: 'Espace institutionnel',
+        title: 'Le SIRH de l’ARCA',
+        accent: 'en un lieu',
+        description: 'Pilotez le cycle de vie collaborateur — du recrutement à la carrière — pour l’Autorité de Régulation et de Contrôle des Assurances.',
+        chips: ['Personnel', 'Contrats', 'Sécurité'],
     },
     {
-        id: 'slide1',
-        type: 'image',
-        src: '/slide1.jpg',
-        title: "Personnel &",
-        subtitle: "Organisation",
-        suffix: "au",
-        accent: "quotidien",
-        description: "Dossiers collaborateurs, contrats, mobilité et référentiels métiers — tout le cycle de vie RH."
+        id: 'people',
+        icon: Users,
+        kicker: 'Personnel & organisation',
+        title: 'Dossiers, mobilité',
+        accent: 'et métiers',
+        description: 'Fiches collaborateurs, affectations, échelles disciplinaires et référentiels — tout le quotidien RH, structuré.',
+        chips: ['Collaborateurs', 'Mobilités', 'Discipline'],
     },
     {
-        id: 'slide2',
-        type: 'image',
-        src: '/slide2.jpg',
-        title: "Recrutement &",
-        subtitle: "Formation",
-        suffix: "en",
-        accent: "un flux",
-        description: "De l'offre d'emploi à l'intégration, puis au catalogue et aux séances de formation."
+        id: 'talent',
+        icon: Briefcase,
+        kicker: 'Recrutement & formation',
+        title: 'De l’offre',
+        accent: 'à l’intégration',
+        description: 'Demandes, offres, candidatures, puis catalogue et sessions — un flux unique jusqu’à la montée en compétences.',
+        chips: ['Offres', 'Candidatures', 'Sessions'],
     },
     {
-        id: 'slide3',
-        type: 'image',
-        src: '/slide3.jpg',
-        title: "Carrière &",
-        subtitle: "Pilotage",
-        suffix: "sous",
-        accent: "contrôle",
-        description: "Objectifs, évaluations, congés et accès sécurisés pour piloter l'activité RH."
-    }
+        id: 'career',
+        icon: Target,
+        kicker: 'Carrière & pilotage',
+        title: 'Objectifs, évaluations',
+        accent: 'sous contrôle',
+        description: 'Performance, congés et indicateurs pour décider avec une vue d’ensemble fiable de l’activité RH.',
+        chips: ['Objectifs', 'Congés', 'Pilotage'],
+    },
 ];
+
+function humanizeLoginError(message?: string | null) {
+    if (!message) return 'Identifiants invalides. Veuillez réessayer.';
+    const lower = message.toLowerCase();
+    if (lower.includes('expired jwt token') || lower.includes('jwt') || lower.includes('session')) {
+        return 'Session expirée. Veuillez vous reconnecter.';
+    }
+    if (lower.includes('invalid credentials') || lower.includes('identifiants invalides')) {
+        return 'Identifiants invalides. Vérifiez votre e-mail ou votre mot de passe.';
+    }
+    return message;
+}
 
 export function LoginForm() {
     const router = useNextRouter();
@@ -76,7 +93,7 @@ export function LoginForm() {
 
     const [formData, setFormData] = useState({
         username: '',
-        password: ''
+        password: '',
     });
 
     useEffect(() => {
@@ -89,7 +106,7 @@ export function LoginForm() {
         const urlError = searchParams.get('error');
         if (urlError) {
             clearToken();
-            setError(urlError);
+            Promise.resolve().then(() => setError(humanizeLoginError(urlError)));
         }
     }, [searchParams]);
 
@@ -109,261 +126,308 @@ export function LoginForm() {
             const data = await login(formData.username, formData.password);
             setToken(data.token);
             window.location.href = '/apps';
-        } catch (err: any) {
-            setError(err.message || 'Une erreur est survenue lors de la connexion.');
+        } catch (err: unknown) {
+            setError(humanizeLoginError(err instanceof Error ? err.message : null));
             setIsLoading(false);
             setShowPreloader(false);
         }
     }
 
+    const SlideIcon = SLIDES[currentSlide].icon;
+
     return (
         <>
-        <Preloader visible={showPreloader} message={isLoading ? "Connexion en cours…" : "Chargement…"} />
-        <div className="min-h-screen grid lg:grid-cols-2 bg-background overflow-hidden">
-            <style jsx global>{`
-                @keyframes float {
-                    0% { transform: translate(0, 0) scale(1); }
-                    33% { transform: translate(30px, -50px) scale(1.1); }
-                    66% { transform: translate(-20px, 20px) scale(0.9); }
-                    100% { transform: translate(0, 0) scale(1); }
-                }
-                .animate-float {
-                    animation: float 20s ease-in-out infinite;
-                }
-                .animate-float-delayed {
-                    animation: float 25s ease-in-out infinite reverse;
-                }
-                @keyframes progress {
-                    0% { transform: translateX(-100%); }
-                    50% { transform: translateX(0); }
-                    100% { transform: translateX(100%); }
-                }
-                .animate-progress {
-                    animation: progress 8s linear infinite;
-                }
-            `}</style>
-
-            {/* Visual Side (Left) — background fixe, textes en slide */}
-            <div className="hidden lg:flex m-3 rounded-2xl flex-col justify-between relative overflow-hidden group shadow-float">
-
-                {/* ── Background fixe ── */}
-                <div className="absolute inset-0 bg-primary-900 rounded-2xl">
-                    <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[100px] animate-float" />
-                    <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-accent-red-500/5 rounded-full blur-[100px] animate-float-delayed" />
-                    <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
-                </div>
-
-                <div className="relative z-10 space-y-8 p-8 md:p-10 flex flex-col flex-1">
-                    {/* Brand Section */}
-                    <div className="flex items-center gap-4">
-                        <div className="relative p-1">
-                            <div className="absolute inset-0 bg-white/20 rounded-2xl blur-md group-hover:bg-white/30 transition-all" />
-                            <div className="relative w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-xl p-2.5 border border-white/40">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
-                            </div>
-                        </div>
-                        <div>
-                            <div className="flex items-baseline gap-1">
-                                <h1 className="text-2xl font-black tracking-tighter text-white">AR<span className="text-accent-red-500">CA</span></h1>
-                                <div className="w-1.5 h-1.5 rounded-full bg-accent-yellow-400 mb-0.5 animate-pulse" />
-                            </div>
-                            <p className="text-[9px] text-white/60 font-black uppercase tracking-[0.22em] mt-1.5 leading-tight">
-                                Autorité de Régulation
-                            </p>
-                            <p className="text-[9px] text-white/40 font-bold uppercase tracking-[0.12em] mt-0.5 leading-tight">
-                                &amp; de Contrôle des Assurances
-                            </p>
-                        </div>
+            <Preloader visible={showPreloader} message={isLoading ? 'Connexion en cours…' : 'Chargement…'} />
+            <div className="min-h-screen grid lg:grid-cols-[1.05fr_0.95fr] bg-background overflow-hidden">
+                {/* Visual Side */}
+                <div className="hidden lg:flex m-3 mr-0 rounded-[1.75rem] flex-col justify-between relative overflow-hidden shadow-float">
+                    <div className="absolute inset-0 bg-primary-950">
+                        <div className="absolute inset-0 login-hero-grid opacity-40" />
+                        <div className="absolute top-[-12%] right-[-8%] w-[520px] h-[520px] bg-primary-500/20 rounded-full blur-[110px] login-float" />
+                        <div className="absolute bottom-[-18%] left-[-12%] w-[560px] h-[560px] bg-accent-red-500/12 rounded-full blur-[120px] login-float-delayed" />
+                        <div className="absolute top-[42%] right-[8%] w-[240px] h-[240px] bg-accent-yellow-500/15 rounded-full blur-[80px] login-float" />
+                    </div>
+                    <div className="absolute left-0 top-0 bottom-0 w-[5px] flex flex-col">
+                        <div className="flex-[3] bg-primary-400" />
+                        <div className="flex-1 bg-accent-red-500" />
+                        <div className="flex-1 bg-accent-yellow-500" />
                     </div>
 
-                    {/* ── Zone de texte — seuls les textes slident ── */}
-                    <div className="max-w-md min-h-[260px] relative flex flex-col justify-center flex-1">
-                        {SLIDES.map((slide, idx) => (
-                            <div
-                                key={`text-${slide.id}`}
-                                className={cn(
-                                    "absolute inset-0 flex flex-col justify-center space-y-5 transition-all duration-700 ease-in-out",
-                                    idx === currentSlide
-                                        ? "opacity-100 translate-y-0 pointer-events-auto"
-                                        : idx < currentSlide
-                                            ? "opacity-0 -translate-y-6 pointer-events-none"
-                                            : "opacity-0 translate-y-6 pointer-events-none"
-                                )}
-                            >
-                                <div className="space-y-3">
-                                    <h2 className="text-3xl xl:text-4xl font-black text-white leading-[1.1] tracking-tight">
-                                        <span className="block mb-1">{slide.title}</span>
-                                        <span className="bg-gradient-to-r from-white/80 to-white/30 bg-clip-text text-transparent">{slide.subtitle}</span>
-                                        <span className="block mt-1.5 text-[0.92em]">
-                                            {slide.suffix}{' '}
-                                            <span className="relative">
-                                                {slide.accent}
-                                                <span className="absolute -bottom-1 left-0 w-full h-1 bg-gradient-to-r from-accent-red-500 to-transparent rounded-full" />
-                                            </span>.
-                                        </span>
-                                    </h2>
+                    <div className="relative z-10 flex flex-col flex-1 p-9 xl:p-12">
+                        <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-white/30 rounded-2xl blur-md" />
+                                <div className="relative w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-xl p-2.5 ring-1 ring-white/50">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="w-full h-full object-contain" />
                                 </div>
-                                <p className="text-white/45 text-sm font-medium leading-relaxed max-w-sm border-l-2 border-white/10 pl-4">
-                                    {slide.description}
+                            </div>
+                            <div>
+                                <div className="flex items-baseline gap-1.5">
+                                    <h1 className="text-2xl font-black tracking-tighter text-white">
+                                        AR<span className="text-accent-red-400">CA</span>
+                                    </h1>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">SIRH</span>
+                                </div>
+                                <p className="text-[9px] text-white/55 font-black uppercase tracking-[0.18em] mt-1">
+                                    Autorité de Régulation
+                                </p>
+                                <p className="text-[9px] text-white/35 font-bold uppercase tracking-[0.1em]">
+                                    &amp; de Contrôle des Assurances
                                 </p>
                             </div>
-                        ))}
+                        </div>
 
-                        {/* Pagination / Indicators */}
-                        <div className="relative mt-auto pt-[240px] flex items-center gap-4">
-                            <div className="flex gap-1.5">
-                                {SLIDES.map((_, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setCurrentSlide(idx)}
+                        <div className="flex-1 flex flex-col justify-center min-h-[320px] relative mt-10">
+                            {SLIDES.map((slide, idx) => {
+                                const Icon = slide.icon;
+                                return (
+                                    <div
+                                        key={slide.id}
                                         className={cn(
-                                            "transition-all duration-700 rounded-full h-1 relative overflow-hidden",
-                                            idx === currentSlide ? "w-10 bg-white/20" : "w-1.5 bg-white/10"
+                                            'absolute inset-0 flex flex-col justify-center transition-all duration-700 ease-out',
+                                            idx === currentSlide
+                                                ? 'opacity-100 translate-y-0'
+                                                : idx < currentSlide
+                                                    ? 'opacity-0 -translate-y-5 pointer-events-none'
+                                                    : 'opacity-0 translate-y-5 pointer-events-none',
                                         )}
                                     >
-                                        {idx === currentSlide && (
-                                            <div className="absolute inset-0 bg-primary-400 animate-progress" />
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                            <span className="text-[9px] font-black text-white/25 uppercase tracking-[0.25em]">
-                                0{currentSlide + 1} / 0{SLIDES.length}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Footer Security */}
-                <div className="relative z-10 flex items-center gap-4 px-8 md:px-10 pb-8 md:pb-10">
-                    <div className="group/shield relative">
-                        <div className="absolute inset-0 bg-primary-400/20 rounded-xl blur-lg scale-150 opacity-0 group-hover/shield:opacity-100 transition-opacity" />
-                        <div className="relative p-3 bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 shadow-xl">
-                            <ShieldCheck className="w-5 h-5 text-white" />
-                        </div>
-                    </div>
-                    <div>
-                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.25em] mb-0.5">ARCA SIRH</p>
-                        <p className="text-white font-bold tracking-tight text-sm">Espace collaborateur</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Login Side (Right) */}
-            <div className="flex items-center justify-center p-6 sm:p-10 lg:p-12 overflow-y-auto">
-                <div className="w-full max-w-[420px] space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                    {/* Mobile Header */}
-                    <div className="flex lg:hidden flex-col items-center gap-4 mb-2">
-                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg p-3 border border-secondary-100">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/logo_arca_nouveau-2.png" alt="ARCA Logo" className="w-full h-full object-contain" />
-                        </div>
-                        <div className="text-center">
-                            <h1 className="text-2xl font-black tracking-tighter">AR<span className="text-accent-red-500">CA</span> SIRH</h1>
-                            <p className="text-[9px] text-secondary-400 font-black uppercase tracking-[0.2em] mt-1.5">Plateforme RH</p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2 px-1 text-center lg:text-left">
-                        <h3 className="text-3xl font-black text-secondary-950 tracking-tight">
-                            Connexion<span className="text-primary-600">.</span>
-                        </h3>
-                        <p className="text-secondary-500 text-sm font-medium flex items-center justify-center lg:justify-start gap-2">
-                            Accédez à votre espace ARCA SIRH <ArrowRight className="w-3.5 h-3.5 text-secondary-300" />
-                        </p>
-                    </div>
-
-                    <Card className="border border-secondary-100/80 shadow-float overflow-hidden rounded-2xl bg-white">
-                        <CardContent className="p-7 space-y-6">
-                            {error && (
-                                <div className="p-5 bg-rose-50 border border-rose-100 rounded-3xl flex items-start gap-4 animate-in shake-1 duration-500">
-                                    <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-black uppercase tracking-widest text-rose-600">Erreur d'accès</p>
-                                        <p className="text-sm text-rose-700 font-medium italic leading-tight">{error}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            <form onSubmit={handleSubmit} className="grid gap-5">
-                                <div className="space-y-2">
-                                    <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-[0.18em] text-secondary-400 ml-1">
-                                        Identifiant
-                                    </Label>
-                                    <div className="relative group">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
-                                            <User className="w-3.5 h-3.5 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
+                                        <div className="inline-flex items-center gap-2 self-start rounded-full border border-white/15 bg-white/8 px-3 py-1 mb-5">
+                                            <Icon className="w-3.5 h-3.5 text-accent-yellow-400" />
+                                            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/70">
+                                                {slide.kicker}
+                                            </span>
                                         </div>
-                                        <Input
-                                            id="username"
-                                            type="text"
-                                            placeholder="nom.utilisateur"
-                                            className="pl-12 h-11 bg-white border-secondary-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-xl text-sm font-semibold transition-all"
-                                            value={formData.username}
-                                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.18em] text-secondary-400 ml-1">
-                                        Mot de passe
-                                    </Label>
-                                    <div className="relative group">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
-                                            <Lock className="w-3.5 h-3.5 text-secondary-400 group-focus-within:text-primary-600 transition-colors" />
+                                        <h2 className="text-[2.15rem] xl:text-[2.55rem] font-black text-white leading-[1.08] tracking-tight max-w-lg">
+                                            {slide.title}{' '}
+                                            <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-white to-white/50">
+                                                {slide.accent}
+                                                <span className="absolute -bottom-1 left-0 w-full h-[3px] rounded-full bg-gradient-to-r from-accent-red-500 via-accent-yellow-400 to-transparent" />
+                                            </span>
+                                        </h2>
+                                        <p className="mt-5 text-white/55 text-[15px] font-medium leading-relaxed max-w-md border-l-2 border-white/15 pl-4">
+                                            {slide.description}
+                                        </p>
+                                        <div className="mt-6 flex flex-wrap gap-2">
+                                            {slide.chips.map((chip) => (
+                                                <span
+                                                    key={chip}
+                                                    className="rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[11px] font-semibold text-white/75"
+                                                >
+                                                    {chip}
+                                                </span>
+                                            ))}
                                         </div>
-                                        <Input
-                                            id="password"
-                                            type={showPassword ? "text" : "password"}
-                                            placeholder="••••••••••••"
-                                            className="pl-12 pr-11 h-11 bg-white border-secondary-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-xl text-sm font-semibold transition-all"
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            required
-                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-6">
+                            <div className="flex items-center gap-3">
+                                <div className="flex gap-1.5">
+                                    {SLIDES.map((_, idx) => (
                                         <button
+                                            key={idx}
                                             type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                                            onClick={() => setCurrentSlide(idx)}
+                                            className={cn(
+                                                'h-1 rounded-full overflow-hidden transition-all duration-500',
+                                                idx === currentSlide ? 'w-10 bg-white/20' : 'w-1.5 bg-white/15 hover:bg-white/30',
+                                            )}
+                                            aria-label={`Slide ${idx + 1}`}
                                         >
-                                            {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                            {idx === currentSlide && (
+                                                <div className="h-full w-full bg-gradient-to-r from-primary-300 to-accent-yellow-400 login-progress" />
+                                            )}
                                         </button>
-                                    </div>
+                                    ))}
                                 </div>
+                                <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.22em]">
+                                    0{currentSlide + 1} / 0{SLIDES.length}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 rounded-xl bg-white/8 border border-white/12 backdrop-blur-md">
+                                    <SlideIcon className="w-4 h-4 text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-[9px] font-black text-white/35 uppercase tracking-[0.22em]">Espace sécurisé</p>
+                                    <p className="text-white font-semibold text-sm tracking-tight">Collaborateurs ARCA</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                                <Button
-                                    type="submit"
-                                    disabled={isLoading}
-                                    className="w-full h-11 text-[10px] font-black uppercase tracking-[0.22em] rounded-xl bg-primary-600 hover:bg-primary-700 shadow-lg shadow-primary-900/20 transition-all active:scale-[0.98] group relative overflow-hidden mt-1"
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-[1.5s]" />
-                                    {isLoading ? (
-                                        <div className="flex items-center gap-3">
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                            Authentification...
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center justify-center gap-3">
-                                            <span>Ouvrir la session</span>
-                                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
-                                        </div>
-                                    )}
-                                </Button>
-                            </form>
-                        </CardContent>
-                    </Card>
+                {/* Form Side */}
+                <div className="relative flex items-center justify-center p-6 sm:p-10 lg:p-12 overflow-y-auto login-form-ambient">
+                    <div className="pointer-events-none absolute inset-0 opacity-40" aria-hidden>
+                        <div className="absolute top-12 right-8 w-40 h-40 rounded-full bg-primary-400/15 blur-3xl" />
+                        <div className="absolute bottom-16 left-6 w-32 h-32 rounded-full bg-accent-yellow-400/20 blur-3xl" />
+                    </div>
 
-                    <div className="text-center">
-                        <p className="text-[11px] font-bold tracking-[0.1em] text-secondary-300 uppercase">
-                            Power By <span className="bg-gradient-to-r from-[#8b31cc] via-[#d946ef] to-[#ff6b3d] bg-clip-text text-transparent font-black">DIGIS</span>
-                        </p>
+                    <div className="relative w-full max-w-[440px] space-y-7">
+                        <div className="flex lg:hidden flex-col items-center gap-3">
+                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-float p-3 border border-white">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="w-full h-full object-contain" />
+                            </div>
+                            <div className="text-center">
+                                <h1 className="text-2xl font-black tracking-tighter">
+                                    AR<span className="text-accent-red-500">CA</span> SIRH
+                                </h1>
+                                <p className="text-[9px] text-secondary-400 font-black uppercase tracking-[0.22em] mt-1">
+                                    Plateforme RH
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2 text-center lg:text-left">
+                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary-600">
+                                Authentification
+                            </p>
+                            <h3 className="text-[2rem] font-black text-secondary-950 tracking-tight leading-none">
+                                Bienvenue<span className="text-primary-600">.</span>
+                            </h3>
+                            <p className="text-secondary-500 text-sm font-medium">
+                                Identifiez-vous pour ouvrir votre espace ARCA SIRH.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div className="rounded-2xl border border-primary-100 bg-white/70 px-4 py-3">
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary-600">
+                                    Accès administrateur
+                                </p>
+                                <p className="mt-1 text-xs text-secondary-500 leading-relaxed">
+                                    Gestion RH, paramétrage, pilotage et arbitrages.
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-secondary-100 bg-white/70 px-4 py-3">
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-secondary-600">
+                                    Accès agent
+                                </p>
+                                <p className="mt-1 text-xs text-secondary-500 leading-relaxed">
+                                    Consultation et suivi selon les droits attribués au profil.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/90 shadow-float backdrop-blur-xl">
+                            <div className="h-[3px] flex">
+                                <div className="flex-[3] bg-primary-500" />
+                                <div className="flex-1 bg-accent-red-500" />
+                                <div className="flex-1 bg-accent-yellow-500" />
+                            </div>
+                            <div className="p-7 sm:p-8 space-y-6">
+                                {error && (
+                                    <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-start gap-3">
+                                        <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-rose-600">
+                                                Accès refusé
+                                            </p>
+                                            <p className="text-sm text-rose-700 font-medium mt-0.5 leading-snug">{error}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleSubmit} className="grid gap-5">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-[0.18em] text-secondary-400 ml-1">
+                                            Identifiant
+                                        </Label>
+                                        <div className="relative group">
+                                            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
+                                                <User className="w-3.5 h-3.5 text-secondary-400 group-focus-within:text-primary-600" />
+                                            </div>
+                                            <Input
+                                                id="username"
+                                                type="text"
+                                                autoComplete="username"
+                                                placeholder="admin@arca.com ou identifiant"
+                                                className="pl-12 h-12 bg-secondary-50/60 border-secondary-200 focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-xl text-sm font-semibold"
+                                                value={formData.username}
+                                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <p className="px-1 text-[11px] text-secondary-400">
+                                            Utilisez votre e-mail professionnel ou votre identifiant de connexion.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.18em] text-secondary-400 ml-1">
+                                            Mot de passe
+                                        </Label>
+                                        <div className="relative group">
+                                            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-secondary-100 group-focus-within:bg-primary-50 transition-colors">
+                                                <Lock className="w-3.5 h-3.5 text-secondary-400 group-focus-within:text-primary-600" />
+                                            </div>
+                                            <Input
+                                                id="password"
+                                                type={showPassword ? 'text' : 'password'}
+                                                autoComplete="current-password"
+                                                placeholder="••••••••••••"
+                                                className="pl-12 pr-11 h-12 bg-secondary-50/60 border-secondary-200 focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-xl text-sm font-semibold"
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-secondary-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                                                aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                                            >
+                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        type="submit"
+                                        disabled={isLoading}
+                                        className="relative w-full h-12 text-[11px] font-black uppercase tracking-[0.2em] rounded-xl bg-primary-600 hover:bg-primary-700 shadow-lg shadow-primary-900/20 overflow-hidden group mt-1"
+                                    >
+                                        <span
+                                            className="pointer-events-none absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100"
+                                            style={{ animation: 'login-shine 1.4s ease-in-out infinite' }}
+                                        />
+                                        {isLoading ? (
+                                            <span className="flex items-center gap-2.5">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Authentification…
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center justify-center gap-2.5">
+                                                Ouvrir la session
+                                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                            </span>
+                                        )}
+                                    </Button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between px-1">
+                            <div className="flex items-center gap-2 text-secondary-400">
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span className="text-[11px] font-semibold">Session chiffrée JWT</span>
+                            </div>
+                            <p className="text-[11px] font-bold tracking-[0.08em] text-secondary-300 uppercase">
+                                Powered by{' '}
+                                <span className="bg-gradient-to-r from-[#8b31cc] via-[#d946ef] to-[#ff6b3d] bg-clip-text text-transparent font-black">
+                                    DIGIS
+                                </span>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
         </>
     );
 }

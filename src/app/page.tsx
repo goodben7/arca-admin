@@ -37,7 +37,7 @@ const MODULES = [
 
 export default async function LandingPage() {
     let offers: JobOffer[] = [];
-    let deptMap: Record<string, string> = {};
+    const deptMap: Record<string, string> = {};
 
     try {
         const [offersData, deptsData] = await Promise.all([
@@ -67,8 +67,8 @@ export default async function LandingPage() {
                         </div>
                     </Link>
                     <nav className="flex items-center gap-1 p-1 rounded-xl bg-white/10">
-                        <a href="#offres" className="px-3.5 py-1.5 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-all">
-                            Offres internes
+                        <a href="#solution" className="px-3.5 py-1.5 text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                            Solution RH
                         </a>
                         <Link href="/login" className="flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-semibold text-white bg-white/15 hover:bg-white/25 rounded-lg transition-all">
                             <LogIn className="w-3.5 h-3.5" />
@@ -117,17 +117,9 @@ export default async function LandingPage() {
                         </p>
 
                         <div className="flex flex-wrap items-center gap-3 pt-1">
-                            <Link
-                                href="/login"
-                                className="inline-flex items-center gap-2.5 bg-accent-red-500 hover:bg-accent-red-600 active:scale-95 text-white font-black uppercase tracking-widest text-[10px] px-5 py-3 rounded-xl shadow-lg shadow-accent-red-900/25 transition-all duration-200"
-                            >
-                                <LogIn className="w-3.5 h-3.5" />
-                                Se connecter
-                                <ArrowRight className="w-3.5 h-3.5" />
-                            </Link>
                             <a
                                 href="#offres"
-                                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl px-4 py-2.5 text-white font-bold text-xs transition-all"
+                                className="inline-flex items-center gap-2 bg-accent-red-500 hover:bg-accent-red-600 active:scale-95 text-white font-black uppercase tracking-widest text-[10px] px-5 py-3 rounded-xl shadow-lg shadow-accent-red-900/25 transition-all duration-200"
                             >
                                 <Briefcase className="w-3.5 h-3.5 text-accent-yellow-400" />
                                 Offres internes
@@ -157,16 +149,16 @@ export default async function LandingPage() {
                 />
             </section>
 
-            {/* ── PROJET ── */}
-            <section className="max-w-6xl mx-auto px-6 py-14 w-full">
+            {/* ── SOLUTION ── */}
+            <section id="solution" className="max-w-6xl mx-auto px-6 py-14 w-full scroll-mt-28">
                 <div className="mb-8 max-w-2xl">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-accent-red-500 mb-2">Le projet</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-accent-red-500 mb-2">Solution en main</p>
                     <h2 className="text-2xl font-black text-secondary-900 tracking-tight">
-                        Un SIRH pensé pour l&apos;ARCA
+                        Une solution RH prête à l&apos;emploi pour l&apos;ARCA
                     </h2>
                     <p className="text-secondary-500 text-sm mt-2 leading-relaxed">
-                        Une suite modulaire pour piloter les ressources humaines au quotidien :
-                        du recrutement à la mobilité, en passant par la formation et l&apos;évaluation.
+                        Une plateforme unifiée pour piloter les ressources humaines au quotidien,
+                        du recrutement à la mobilité, en passant par la formation, la carrière et le temps.
                     </p>
                 </div>
 

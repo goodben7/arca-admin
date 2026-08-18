@@ -198,19 +198,24 @@ export function EmployeeRetirementCard({
                         )}
 
                         {earliestEligible && !eligibleByDates && (
-                            <p className="text-sm text-secondary-600">
-                                Première échéance indicative :{' '}
-                                <strong className="text-foreground">
-                                    {format(earliestEligible.date, 'd MMMM yyyy', { locale: fr })}
-                                </strong>{' '}
-                                via {earliestEligible.via}.
-                            </p>
+                            <div className="rounded-xl border border-primary-100 bg-primary-50/40 px-3.5 py-3">
+                                <p className="text-sm text-secondary-700">
+                                    Prochaine échéance estimative :
+                                    {' '}
+                                    <strong className="text-foreground">
+                                        {format(earliestEligible.date, 'd MMMM yyyy', { locale: fr })}
+                                    </strong>
+                                </p>
+                                <p className="mt-1 text-xs text-secondary-500">
+                                    Critère le plus proche à atteindre : {earliestEligible.via}.
+                                </p>
+                            </div>
                         )}
 
                         {eligibility && eligibility.reasons.length > 0 && (
                             <ul className="space-y-1 text-sm text-secondary-600 list-disc pl-4">
                                 {eligibility.reasons.map((r, i) => (
-                                    <li key={i}>{translateEligibilityReason(r)}</li>
+                                    <li key={i}>{translateEligibilityReason(r).replace('Ancienneté insuffisante (règle : ≥ 35 ans)', 'Ancienneté requise non atteinte').replace('Âge insuffisant (règle : ≥ 65 ans)', 'Âge légal non atteint')}</li>
                                 ))}
                             </ul>
                         )}
@@ -238,7 +243,7 @@ export function EmployeeRetirementCard({
                                 </Button>
                                 {!eligibility?.eligible && (
                                     <span className="text-xs text-muted-foreground">
-                                        Action disponible dès que les critères API sont remplis
+                                        Disponible dès que les conditions de retraite sont remplies
                                     </span>
                                 )}
                             </div>

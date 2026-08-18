@@ -51,7 +51,7 @@ import { EmployeeDisciplineTab } from '@/components/employees/EmployeeDiscipline
 import { EmployeeJourneyTimeline } from '@/components/employees/EmployeeJourneyTimeline';
 import { EmployeeRetirementCard } from '@/components/employees/EmployeeRetirementCard';
 import { AnchoredDropdown } from '@/components/ui/AnchoredDropdown';
-import { BASE_URL } from '@/lib/api/client';
+import { buildAssetUrl } from '@/lib/api/client';
 import { translateEligibilityReason } from '@/lib/employees/journeyLabels';
 
 interface PageProps {
@@ -666,7 +666,7 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                     <EmployeeProfilePhoto
                         firstName={employee.firstName}
                         lastName={employee.lastName}
-                        photoUrl={avatarDoc?.contentUrl ? `${BASE_URL}${avatarDoc.contentUrl}` : undefined}
+                        photoUrl={avatarDoc?.contentUrl ? buildAssetUrl(avatarDoc.contentUrl) : undefined}
                         isUploading={isUploadingAvatar}
                         onUpload={handleAvatarUpload}
                     />
@@ -1192,12 +1192,12 @@ export default function EmployeeDetailsPage({ params }: PageProps) {
                                                     <td className="px-6 py-4">
                                                         <div className="flex justify-end gap-1">
                                                             {doc.contentUrl && (
-                                                                <Button onClick={() => setPreviewDocUrl(`${BASE_URL}${doc.contentUrl}`)} variant="ghost" size="icon" className="h-8 w-8">
+                                                                <Button onClick={() => setPreviewDocUrl(buildAssetUrl(doc.contentUrl!))} variant="ghost" size="icon" className="h-8 w-8">
                                                                     <Eye className="w-4 h-4" />
                                                                 </Button>
                                                             )}
                                                             {doc.contentUrl && (
-                                                                <a href={`${BASE_URL}${doc.contentUrl}`} download target="_blank" rel="noreferrer">
+                                                                <a href={buildAssetUrl(doc.contentUrl)} download target="_blank" rel="noreferrer">
                                                                     <Button variant="ghost" size="icon" className="h-8 w-8">
                                                                         <Download className="w-4 h-4" />
                                                                     </Button>

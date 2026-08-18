@@ -14,14 +14,21 @@ import { getSanctionScales } from '@/lib/api/sanctionScale';
 import { getAllEmployees } from '@/lib/api/employee';
 import { extractId } from '@/lib/api-iri';
 import { sanctionScaleCodeLabel, type SanctionScale } from '@/types/sanctions';
+import { STATUS, type Employee } from '@/types/employee';
 import { toast } from '@/lib/toast';
+
+function normalizeEmployees(data: unknown): Employee[] {
+    if (Array.isArray(data)) return data as Employee[];
+    const collection = data as { 'hydra:member'?: Employee[] };
+    return Array.isArray(collection['hydra:member']) ? collection['hydra:member'] : [];
+}
 
 export default function CreateDisciplinaryCaseClient() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const prefillEmployee = searchParams.get('employee') || '';
 
-    const [employees, setEmployees] = useState<any[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [scales, setScales] = useState<SanctionScale[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -39,7 +46,7 @@ export default function CreateDisciplinaryCaseClient() {
             getAllEmployees({ itemsPerPage: 500 }).catch(() => []),
             getSanctionScales({ active: 'true', 'order[severityLevel]': 'asc' }).catch(() => []),
         ]).then(([e, s]) => {
-            setEmployees(Array.isArray(e) ? e : (e as any)['hydra:member'] || []);
+            setEmployees(normalizeEmployees(e));
             setScales(s);
             if (prefillEmployee) setForm(f => ({ ...f, employee: prefillEmployee }));
         }).finally(() => setLoading(false));
@@ -56,6 +63,9 @@ export default function CreateDisciplinaryCaseClient() {
     }, [form.employee]);
 
     const selectedScale = scales.find(s => s.id === form.sanctionScale);
+    const eligibleEmployees = employees.filter((emp) =>
+        emp.status === STATUS.ACTIVE || emp.status === STATUS.ON_LEAVE || emp.status === STATUS.PROBATION,
+    );
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -115,12 +125,15 @@ export default function CreateDisciplinaryCaseClient() {
                         required
                     >
                         <option value="">Sélectionner…</option>
-                        {employees.map((emp: any) => (
+                        {eligibleEmployees.map((emp) => (
                             <option key={emp.id} value={extractId(emp.id || emp['@id'])}>
                                 {emp.firstName} {emp.lastName} ({emp.employeeNumber || emp.id})
                             </option>
                         ))}
                     </select>
+                    <p className="mt-1.5 text-xs text-secondary-500">
+                        Seuls les employés actifs, en congé ou en période d’essai peuvent faire l’objet d’une affaire disciplinaire.
+                    </p>
                     {blocked && (
                         <p className="mt-1.5 text-xs font-medium text-amber-700">
                             Affaire active déjà en cours pour cet employé.

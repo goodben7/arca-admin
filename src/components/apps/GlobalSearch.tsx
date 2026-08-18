@@ -79,7 +79,7 @@ export function GlobalSearch() {
             <button
                 type="button"
                 onClick={() => setOpen(true)}
-                className="w-full h-10 flex items-center gap-2 px-3 rounded-xl bg-muted/70 border border-transparent hover:border-border-subtle text-sm text-muted-foreground transition-colors"
+                className="w-full h-10 flex items-center gap-2.5 px-4 rounded-full bg-secondary-50 border border-secondary-100 hover:border-primary-200 hover:bg-white text-sm text-muted-foreground transition-colors"
             >
                 <Search className="w-4 h-4 shrink-0" />
                 <span className="flex-1 text-left truncate">Rechercher un module ou une fonction…</span>

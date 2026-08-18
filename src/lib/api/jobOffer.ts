@@ -1,5 +1,5 @@
 import { JobOffer } from '@/types/jobOffer';
-import { BASE_URL, request } from './client';
+import { buildApiUrl, request } from './client';
 
 function normalizeArray(data: any): any[] {
     if (Array.isArray(data)) return data;
@@ -9,7 +9,7 @@ function normalizeArray(data: any): any[] {
 }
 
 export async function getPublishedJobOffers(): Promise<JobOffer[]> {
-    const response = await fetch(`${BASE_URL}/api/job_offers?status=PUBLISHED`, {
+    const response = await fetch(buildApiUrl('/api/job_offers?status=PUBLISHED'), {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
     });
@@ -18,7 +18,7 @@ export async function getPublishedJobOffers(): Promise<JobOffer[]> {
 }
 
 export async function getPublicDepartments(): Promise<{ id: string; name: string; '@id'?: string }[]> {
-    const response = await fetch(`${BASE_URL}/api/departments`, {
+    const response = await fetch(buildApiUrl('/api/departments'), {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
     });

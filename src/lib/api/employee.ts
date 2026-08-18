@@ -12,7 +12,9 @@ export async function getAllEmployees(params: Record<string, any> = {}): Promise
     });
 
     const queryString = queryParams.toString();
-    const response = await request(`/api/employees${queryString ? `?${queryString}` : ''}`);
+    const response = await request(`/api/employees${queryString ? `?${queryString}` : ''}`, {
+        headers: { Accept: 'application/ld+json' },
+    });
 
     if (!response.ok) {
         throw new Error('Impossible de charger la liste des employés.');
