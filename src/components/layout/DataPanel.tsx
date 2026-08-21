@@ -8,6 +8,7 @@ interface DataPanelProps {
     children: React.ReactNode;
     className?: string;
     contentClassName?: string;
+    accent?: boolean;
 }
 
 export function DataPanel({
@@ -18,9 +19,10 @@ export function DataPanel({
     children,
     className,
     contentClassName,
+    accent = true,
 }: DataPanelProps) {
     return (
-        <div className={cn('rounded-3xl panel-surface panel-accent-top overflow-hidden', className)}>
+        <div className={cn('rounded-3xl panel-surface overflow-hidden', accent && 'panel-accent-top', className)}>
             {(title || toolbar) && (
                 <div className="p-5 md:p-6 panel-header-wash flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>

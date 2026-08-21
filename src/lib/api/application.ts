@@ -1,5 +1,5 @@
 import { Application, CreateApplicationPayload } from '@/types/application';
-import { BASE_URL, request } from './client';
+import { buildApiUrl, request } from './client';
 
 function normalizeList(data: any): Application[] {
     if (Array.isArray(data)) return data;
@@ -11,7 +11,7 @@ function normalizeList(data: any): Application[] {
 // ── Public (sans auth) ────────────────────────────────────────────────────────
 
 export async function createApplicationPublic(payload: CreateApplicationPayload): Promise<Application> {
-    const response = await fetch(`${BASE_URL}/api/applications`, {
+    const response = await fetch(buildApiUrl('/api/applications'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
@@ -25,7 +25,7 @@ export async function createApplicationPublic(payload: CreateApplicationPayload)
 }
 
 export async function uploadDocumentPublic(formData: FormData): Promise<{ id: string; contentUrl?: string }> {
-    const response = await fetch(`${BASE_URL}/api/documents`, {
+    const response = await fetch(buildApiUrl('/api/documents'), {
         method: 'POST',
         body: formData,
     });

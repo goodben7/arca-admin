@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -69,6 +69,18 @@ function statusVariant(s: string): 'default' | 'secondary' | 'success' | 'warnin
     }
 }
 
+function employeeStatusLabel(status?: string) {
+    switch (status) {
+        case 'ACTIVE': return 'Actif';
+        case 'ON_LEAVE': return 'En congé';
+        case 'SUSPENDED': return 'Suspendu';
+        case 'PROBATION': return 'En période d’essai';
+        case 'TERMINATED': return 'Contrat terminé';
+        case 'RETIRED': return 'Retraité';
+        default: return status || '—';
+    }
+}
+
 export default function CareerPlanDetailPage() {
     const { id } = useParams<{ id: string }>();
     const [plan, setPlan] = useState<CareerPlan | null>(null);
@@ -90,7 +102,7 @@ export default function CareerPlanDetailPage() {
     const [saving, setSaving] = useState(false);
     const [editNotes, setEditNotes] = useState('');
 
-    const load = async () => {
+    const load = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -158,9 +170,9 @@ export default function CareerPlanDetailPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [id]);
 
-    useEffect(() => { load(); }, [id]);
+    useEffect(() => { void load(); }, [load]);
 
     const handleSave = async () => {
         if (!plan) return;
@@ -443,7 +455,7 @@ export default function CareerPlanDetailPage() {
                             {employee?.status && (
                                 <div>
                                     <dt className="text-secondary-500">Statut</dt>
-                                    <dd className="mt-1"><Badge variant="secondary">{employee.status}</Badge></dd>
+                                    <dd className="mt-1"><Badge variant="secondary">{employeeStatusLabel(employee.status)}</Badge></dd>
                                 </div>
                             )}
                             {employee && (

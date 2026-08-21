@@ -91,7 +91,7 @@ export default function DashboardPage() {
     const activeContracts = contracts.filter(c => c.status === 'ACTIVE').length;
     const pendingLeaves = leaves.filter(l => l.status === 'PENDING').length;
     const openJobOffers = jobOffers.filter(j => j.status === 'PUBLISHED').length;
-    const pendingApplications = applications.filter(a => a.status === 'PENDING').length;
+    const pendingApplications = applications.filter(a => a.status === 'APPLIED' || a.status === 'PENDING').length;
     const pendingRecruitments = recruitments.filter(r => r.status === 'PENDING').length;
     const pendingTrainings = trainings.filter(t => t.status === 'PENDING').length;
     const plannedSessions = sessions.filter(s => s.status === 'PLANNED').length;
@@ -144,7 +144,7 @@ export default function DashboardPage() {
 
     const recruitmentFunnel = useMemo(() => [
         { name: 'Candidatures', value: applications.length, fill: CHART.blue },
-        { name: 'En cours', value: applications.filter(a => ['SHORTLISTED', 'INTERVIEW_SCHEDULED'].includes(a.status)).length, fill: CHART.yellow },
+        { name: 'En cours', value: applications.filter(a => ['SHORTLISTED', 'INTERVIEW', 'INTERVIEW_SCHEDULED'].includes(a.status)).length, fill: CHART.yellow },
         { name: 'Recrutés', value: hiredCount, fill: CHART.green },
     ], [applications, hiredCount]);
 

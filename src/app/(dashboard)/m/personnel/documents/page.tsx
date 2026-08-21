@@ -30,7 +30,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
 import { getAllDocuments, deleteDocument } from '@/lib/api/document';
-import { BASE_URL } from '@/lib/api/client';
+import { buildAssetUrl } from '@/lib/api/client';
 import { DocumentRecord } from '@/types/document';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -112,7 +112,7 @@ function PreviewModal({
     const [zoom, setZoom] = useState(100);
     const [rotation, setRotation] = useState(0);
     const fileType = getFileType(doc);
-    const url = doc.contentUrl ? `${BASE_URL}${doc.contentUrl}` : '';
+    const url = doc.contentUrl ? buildAssetUrl(doc.contentUrl) : '';
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -516,7 +516,7 @@ export default function DocumentManagementPage() {
                             {filtered.map((doc, index) => {
                                 const Icon = getFileIcon(doc);
                                 const holderMeta = HOLDER_TYPE_LABELS[doc.holderType];
-                                const contentUrl = doc.contentUrl ? `${BASE_URL}${doc.contentUrl}` : null;
+                                const contentUrl = doc.contentUrl ? buildAssetUrl(doc.contentUrl) : null;
                                 const canPreview = isPreviewable(doc);
                                 const fileType = getFileType(doc);
 

@@ -33,7 +33,7 @@ import { DataPanel } from '@/components/layout/DataPanel';
 import { getAllContracts } from '@/lib/api/contract';
 import { getAllEmployees } from '@/lib/api/employee';
 import { getAllDocuments } from '@/lib/api/document';
-import { BASE_URL } from '@/lib/api/client';
+import { buildAssetUrl } from '@/lib/api/client';
 import { Contract, CONTRACT_TYPE, CONTRACT_STATUS } from '@/types/contract';
 import { Employee } from '@/types/employee';
 
@@ -78,7 +78,7 @@ export default function ContractsPage() {
                 const avMap: Record<string, string> = {};
                 docList.forEach((doc: any) => {
                     if (doc.holderId && doc.contentUrl) {
-                        avMap[doc.holderId] = `${BASE_URL}${doc.contentUrl}`;
+                        avMap[doc.holderId] = buildAssetUrl(doc.contentUrl);
                     }
                 });
                 setAvatarsMap(avMap);

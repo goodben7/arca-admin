@@ -58,7 +58,7 @@ import { ContentPanel } from '@/components/layout/ContentPanel';
 import { AnchoredDropdown } from '@/components/ui/AnchoredDropdown';
 import { ProfileField } from '@/components/employees/ProfileField';
 import { EMPLOYEE_TAB_TRIGGER } from '@/components/employees/employeeProfileTabs';
-import { BASE_URL } from '@/lib/api/client';
+import { buildAssetUrl } from '@/lib/api/client';
 import { generateContractPdf } from '@/lib/contracts/generateContractPdf';
 
 
@@ -89,7 +89,7 @@ function PreviewModal({ doc, onClose }: { doc: DocumentRecord; onClose: () => vo
     const [zoom, setZoom] = useState(100);
     const [rotation, setRotation] = useState(0);
     const kind = getFileKind(doc);
-    const url = doc.contentUrl ? `${BASE_URL}${doc.contentUrl}` : '';
+    const url = doc.contentUrl ? buildAssetUrl(doc.contentUrl) : '';
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -577,7 +577,7 @@ export default function ContractDetailsPage({ params }: PageProps) {
                                                         documents.map((doc) => {
                                                             const kind = getFileKind(doc);
                                                             const canPreview = !!doc.contentUrl;
-                                                            const contentUrl = doc.contentUrl ? `${BASE_URL}${doc.contentUrl}` : null;
+                                                            const contentUrl = doc.contentUrl ? buildAssetUrl(doc.contentUrl) : null;
 
                                                             return (
                                                                 <tr

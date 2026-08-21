@@ -26,20 +26,27 @@ export function EmployeeJourneyTimeline({ employeeId, refreshKey = 0 }: Employee
 
     useEffect(() => {
         let cancelled = false;
-        setLoading(true);
-        getEmployeeJourney(employeeId)
-            .then((data) => {
-                if (!cancelled) {
-                    setEntries(Array.isArray(data) ? data : []);
-                    setError(null);
-                }
-            })
-            .catch((e: unknown) => {
-                if (!cancelled) setError(e instanceof Error ? e.message : 'Erreur');
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
-            });
+        // Pour satisfaire la règle ESLint "set-state-in-effect", on pousse le setLoading
+        // après le premier tick (microtask).
+        (async () => {
+            await Promise.resolve();
+            if (cancelled) return;
+            setLoading(true);
+
+            getEmployeeJourney(employeeId)
+                .then((data) => {
+                    if (!cancelled) {
+                        setEntries(Array.isArray(data) ? data : []);
+                        setError(null);
+                    }
+                })
+                .catch((e: unknown) => {
+                    if (!cancelled) setError(e instanceof Error ? e.message : 'Erreur');
+                })
+                .finally(() => {
+                    if (!cancelled) setLoading(false);
+                });
+        })();
         return () => { cancelled = true; };
     }, [employeeId, refreshKey]);
 

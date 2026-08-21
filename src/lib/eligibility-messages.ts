@@ -11,6 +11,7 @@ export function translateEligibilityReason(reason: string, skillNames?: Record<s
         'employee is not active': "L'employé n'est pas actif",
         'target job role not found': 'Fiche métier cible introuvable',
         'employee not found': 'Employé introuvable',
+        'no career path defined for this transition': 'Aucun parcours de carrière n’est défini pour cette évolution',
     };
 
     if (exact[lower]) return exact[lower];

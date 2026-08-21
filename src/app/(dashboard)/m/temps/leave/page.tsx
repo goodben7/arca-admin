@@ -27,7 +27,7 @@ import Link from 'next/link';
 import { getAllLeaveRequests, approveLeaveRequest, rejectLeaveRequest } from '@/lib/api/leave';
 import { getAllEmployees } from '@/lib/api/employee';
 import { getAllDocuments } from '@/lib/api/document';
-import { BASE_URL } from '@/lib/api/client';
+import { buildAssetUrl } from '@/lib/api/client';
 import { LeaveRequest, LEAVE_STATUS, LEAVE_TYPE } from '@/types/leave';
 import { Employee } from '@/types/employee';
 import { format } from 'date-fns';
@@ -235,7 +235,7 @@ export default function LeaveManagementPage() {
             const avMap: Record<string, string> = {};
             docList.forEach((doc: any) => {
                 if (doc.holderId && doc.contentUrl) {
-                    avMap[doc.holderId] = `${BASE_URL}${doc.contentUrl}`;
+                    avMap[doc.holderId] = buildAssetUrl(doc.contentUrl);
                 }
             });
             setAvatarsMap(avMap);

@@ -1,6 +1,32 @@
 import { getToken, clearToken } from '@/lib/auth-token';
 
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.arca.ereborhub.cloud';
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.arca.digisafrica.tech/api';
+export const ASSET_BASE_URL = (() => {
+    try {
+        return new URL(BASE_URL).origin;
+    } catch {
+        return BASE_URL.replace(/\/api\/?$/, '');
+    }
+})();
+
+export function buildApiUrl(path: string) {
+    if (path.startsWith('http')) return path;
+
+    const base = BASE_URL.replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    if (base.endsWith('/api') && normalizedPath.startsWith('/api/')) {
+        return `${base}${normalizedPath.slice(4)}`;
+    }
+
+    return `${base}${normalizedPath}`;
+}
+
+export function buildAssetUrl(path: string) {
+    if (path.startsWith('http')) return path;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${ASSET_BASE_URL}${normalizedPath}`;
+}
 
 function handleLogout(errorMessage?: string) {
     if (typeof window === 'undefined') return;
@@ -30,7 +56,7 @@ export async function request(path: string, options: RequestOptions = {}) {
         headers.set('Accept', 'application/json');
     }
 
-    const url = path.startsWith('http') ? path : `${BASE_URL}${path}`;
+    const url = buildApiUrl(path);
 
     const response = await fetch(url, {
         ...fetchOptions,
