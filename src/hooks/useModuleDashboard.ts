@@ -13,6 +13,8 @@ import { getOnboardingProcesses } from '@/lib/api/onboarding';
 import { getHrDashboard } from '@/lib/api/hrDashboard';
 import { fetchAllCollection } from '@/lib/api/collection';
 import { normalizeList } from '@/lib/modules/dashboard/normalize';
+import type { OnboardingProcess } from '@/types/onboarding';
+import type { AppUser, Profile } from '@/types/profile';
 
 export interface ModuleKpi {
     label: string;
@@ -61,7 +63,7 @@ async function fetchPersonnel() {
         employees: employees.items,
         departments: normalizeList(departments),
         contracts: contracts.items,
-        onboarding: normalizeList(onboarding),
+        onboarding: normalizeList<OnboardingProcess>(onboarding),
         hr,
         employeeTotal: employees.total,
     };
@@ -126,7 +128,7 @@ async function fetchSecurite() {
         getAllUsers().catch(() => []),
         getAllProfiles().catch(() => []),
     ]);
-    return { users: normalizeList(users), profiles: normalizeList(profiles) };
+    return { users: normalizeList<AppUser>(users), profiles: normalizeList<Profile>(profiles) };
 }
 
 const FETCHERS: Record<string, () => Promise<unknown>> = {
@@ -337,7 +339,7 @@ function computePaie(data: Awaited<ReturnType<typeof fetchPaie>>): ModuleDashboa
 
 function computeSecurite(data: Awaited<ReturnType<typeof fetchSecurite>>): ModuleDashboardData {
     const { users, profiles } = data;
-    const activeUsers = users.filter(u => u.isActive !== false).length;
+    const activeUsers = users.filter(u => !u.locked && !u.deleted).length;
 
     return {
         loading: false,
