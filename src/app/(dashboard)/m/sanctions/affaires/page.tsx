@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { AlertCircle, Eye, Loader2, Plus, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -14,8 +15,10 @@ import { Badge } from '@/components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { getDisciplinaryCases } from '@/lib/api/disciplinaryCase';
 import { getSanctionScales } from '@/lib/api/sanctionScale';
-import { getAllEmployees } from '@/lib/api/employee';
+import { fetchAllCollection } from '@/lib/api/collection';
+import { getEmployeeById } from '@/lib/api/employee';
 import { extractId } from '@/lib/api-iri';
+import { type Employee } from '@/types/employee';
 import {
     DISCIPLINARY_STATUS_LABELS,
     disciplinaryStatusBadgeVariant,
@@ -24,34 +27,80 @@ import {
     type SanctionScale,
 } from '@/types/sanctions';
 
-export default function DisciplinaryCasesPage() {
+function employeeRefId(ref: DisciplinaryCase['employee']): string {
+    if (typeof ref === 'string') return extractId(ref) || ref;
+    return extractId(ref) || ref?.id || '';
+}
+
+function nameFromEmployee(emp: { firstName?: string; lastName?: string } | null | undefined): string {
+    if (!emp) return '';
+    return `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
+}
+
+function indexEmployees(list: Employee[]): Map<string, Employee> {
+    const map = new Map<string, Employee>();
+    list.forEach((emp) => {
+        const id = extractId(emp) || emp.id;
+        if (id) map.set(id, emp);
+        if (emp.employeeNumber) map.set(emp.employeeNumber, emp);
+    });
+    return map;
+}
+
+function DisciplinaryCasesClient() {
+    const searchParams = useSearchParams();
     const [cases, setCases] = useState<DisciplinaryCase[]>([]);
     const [scales, setScales] = useState<SanctionScale[]>([]);
-    const [employees, setEmployees] = useState<any[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
 
     useEffect(() => {
-        Promise.all([
-            getDisciplinaryCases(),
-            getSanctionScales().catch(() => []),
-            getAllEmployees({ itemsPerPage: 500 }).catch(() => []),
-        ])
-            .then(([c, s, e]) => {
+        const emp = searchParams.get('employee');
+        if (emp) setSearch(emp);
+    }, [searchParams]);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const [c, s, empCol] = await Promise.all([
+                    getDisciplinaryCases(),
+                    getSanctionScales().catch(() => [] as SanctionScale[]),
+                    fetchAllCollection<Employee>('/api/employees').catch(() => ({ items: [] as Employee[], total: 0 })),
+                ]);
+                if (cancelled) return;
                 setCases(c);
                 setScales(s);
-                setEmployees(Array.isArray(e) ? e : (e as any)['hydra:member'] || []);
-            })
-            .catch(err => setError(err instanceof Error ? err.message : 'Erreur'))
-            .finally(() => setLoading(false));
+
+                const byId = indexEmployees(empCol.items);
+                const missing = [...new Set(c.map(item => employeeRefId(item.employee)).filter(Boolean))]
+                    .filter(id => !byId.has(id));
+                const extras = (await Promise.all(
+                    missing.map(id => getEmployeeById(id).catch(() => null)),
+                )).filter((emp): emp is Employee => Boolean(emp));
+                if (!cancelled) setEmployees([...empCol.items, ...extras]);
+            } catch (err) {
+                if (!cancelled) setError(err instanceof Error ? err.message : 'Erreur');
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
     }, []);
 
+    const employeeById = useMemo(() => indexEmployees(employees), [employees]);
+
     const empName = (ref: DisciplinaryCase['employee']) => {
-        const id = typeof ref === 'string' ? extractId(ref) : ref?.id;
-        const e = employees.find((x: any) => x.id === id || extractId(x['@id'] || '') === id);
-        return e ? `${e.firstName} ${e.lastName}` : id || '—';
+        if (typeof ref === 'object' && ref) {
+            const embedded = nameFromEmployee(ref);
+            if (embedded) return embedded;
+        }
+        const id = employeeRefId(ref);
+        const fromIndex = nameFromEmployee(employeeById.get(id));
+        return fromIndex || '—';
     };
 
     const scaleLabel = (ref: DisciplinaryCase['sanctionScale']) => {
@@ -65,8 +114,10 @@ export default function DisciplinaryCasesPage() {
             if (statusFilter && c.status !== statusFilter) return false;
             if (!search.trim()) return true;
             const q = search.toLowerCase();
+            const empId = typeof c.employee === 'string' ? extractId(c.employee) : c.employee?.id;
             return (
                 c.id.toLowerCase().includes(q) ||
+                (empId || '').toLowerCase().includes(q) ||
                 empName(c.employee).toLowerCase().includes(q) ||
                 scaleLabel(c.sanctionScale).toLowerCase().includes(q) ||
                 (c.facts || '').toLowerCase().includes(q)
@@ -78,7 +129,7 @@ export default function DisciplinaryCasesPage() {
         <PageShell>
             <PageHeader
                 title="Affaires disciplinaires"
-                description="Suivi des procédures et transitions de workflow"
+                description="Suivi des procédures et des étapes de la sanction"
                 actions={
                     <Link href="/m/sanctions/affaires/create">
                         <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Nouvelle affaire</Button>
@@ -132,10 +183,22 @@ export default function DisciplinaryCasesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filtered.map(c => (
+                            {filtered.map(c => {
+                                const empId = employeeRefId(c.employee);
+                                const name = empName(c.employee);
+                                return (
                                 <TableRow key={c.id}>
                                     <TableCell className="font-mono text-xs text-primary-700">{c.id}</TableCell>
-                                    <TableCell className="font-medium">{empName(c.employee)}</TableCell>
+                                    <TableCell className="font-medium">
+                                        {empId && name !== '—' ? (
+                                            <Link
+                                                href={`/m/personnel/employees/${empId}`}
+                                                className="hover:text-primary-700 hover:underline"
+                                            >
+                                                {name}
+                                            </Link>
+                                        ) : name}
+                                    </TableCell>
                                     <TableCell>{scaleLabel(c.sanctionScale)}</TableCell>
                                     <TableCell className="text-sm text-secondary-600">
                                         {c.occurredAt
@@ -153,11 +216,28 @@ export default function DisciplinaryCasesPage() {
                                         </Link>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 )}
             </DataPanel>
         </PageShell>
+    );
+}
+
+export default function DisciplinaryCasesPage() {
+    return (
+        <Suspense
+            fallback={
+                <PageShell>
+                    <div className="flex justify-center p-24">
+                        <Loader2 className="h-10 w-10 animate-spin text-primary-600" />
+                    </div>
+                </PageShell>
+            }
+        >
+            <DisciplinaryCasesClient />
+        </Suspense>
     );
 }

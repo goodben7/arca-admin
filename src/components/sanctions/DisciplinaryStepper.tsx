@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import {
     DISCIPLINARY_STATUS,
     DISCIPLINARY_STATUS_LABELS,
+    DISCIPLINARY_STEPPER_LABELS,
     getWorkflowSteps,
     type DisciplinaryStatus,
 } from '@/types/sanctions';
@@ -26,7 +27,7 @@ export function DisciplinaryStepper({ status, requiresHearing, className }: Disc
         <div className={cn('w-full', className)}>
             {isTerminalBad && (
                 <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
-                    Affaire {DISCIPLINARY_STATUS_LABELS[status as DisciplinaryStatus] ?? status} — workflow interrompu
+                    Affaire {DISCIPLINARY_STATUS_LABELS[status as DisciplinaryStatus] ?? status} — procédure interrompue
                 </div>
             )}
             <ol className="flex w-full items-start justify-between gap-0 overflow-x-auto pb-1">
@@ -52,9 +53,9 @@ export function DisciplinaryStepper({ status, requiresHearing, className }: Disc
                             <span
                                 className={cn(
                                     'relative z-[1] flex h-[2.15rem] w-[2.15rem] items-center justify-center rounded-full text-xs font-bold border-2 transition-all',
-                                    isDone && 'bg-primary-600 border-primary-600 text-white shadow-sm shadow-primary-200',
-                                    current && 'bg-white border-primary-600 text-primary-700 shadow-[0_0_0_4px_rgba(0,115,152,0.15)]',
-                                    !isDone && !current && 'bg-white border-secondary-200 text-secondary-400',
+                                    isDone && 'bg-primary-600 border-primary-600 text-white shadow-sm shadow-primary-300',
+                                    current && 'bg-amber-500 border-amber-500 text-white shadow-[0_0_0_4px_rgba(245,158,11,0.28)]',
+                                    !isDone && !current && 'bg-secondary-50 border-secondary-200 text-secondary-400',
                                     isTerminalBad && 'opacity-45',
                                 )}
                             >
@@ -62,13 +63,13 @@ export function DisciplinaryStepper({ status, requiresHearing, className }: Disc
                             </span>
                             <span
                                 className={cn(
-                                    'mt-2.5 text-[10px] sm:text-[11px] text-center leading-snug font-semibold max-w-[6.5rem] px-0.5',
-                                    current && 'text-primary-700',
-                                    isDone && 'text-secondary-800',
+                                    'mt-2.5 text-[10px] sm:text-[11px] text-center leading-snug font-semibold max-w-[6.5rem] px-1.5 py-0.5 rounded-md',
+                                    current && 'text-amber-900 bg-amber-100',
+                                    isDone && 'text-primary-800',
                                     !isDone && !current && 'text-secondary-400',
                                 )}
                             >
-                                {DISCIPLINARY_STATUS_LABELS[step]}
+                                {DISCIPLINARY_STEPPER_LABELS[step] ?? DISCIPLINARY_STATUS_LABELS[step]}
                             </span>
                         </li>
                     );

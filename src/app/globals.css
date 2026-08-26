@@ -448,10 +448,10 @@
   .module-sidebar-watermark {
     position: absolute;
     left: 50%;
-    bottom: 12%;
-    width: 120px;
+    bottom: 14%;
+    width: 150px;
     height: auto;
-    opacity: 0.06;
+    opacity: 0.11;
     mix-blend-mode: multiply;
     transform: translateX(-50%) rotate(-8deg);
     user-select: none;
@@ -459,8 +459,8 @@
   }
 
   .module-sidebar-watermark-collapsed {
-    width: 40px;
-    opacity: 0.05;
+    width: 44px;
+    opacity: 0.1;
   }
 
   .apps-tile-grid > * {

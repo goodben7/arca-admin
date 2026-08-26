@@ -119,7 +119,7 @@ export default function SanctionScalesPage() {
         <PageShell>
             <PageHeader
                 title="Échelles de sanctions"
-                description="Référentiel disciplinaire (gravité, audience, durée max)"
+                description="Référentiel disciplinaire (niveau, audience, durée maximale)"
                 actions={
                     <Button size="sm" className="gap-1.5" onClick={openCreate}>
                         <Plus className="h-4 w-4" /> Nouvelle échelle
@@ -139,17 +139,17 @@ export default function SanctionScalesPage() {
                 ) : scales.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 py-16 text-secondary-500">
                         <Scale className="h-8 w-8 opacity-40" />
-                        <p className="text-sm">Aucune échelle — lancez le seed backend ou créez-en une.</p>
+                        <p className="text-sm">Aucune échelle enregistrée. Créez-en une pour commencer.</p>
                     </div>
                 ) : (
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Code</TableHead>
+                                <TableHead>Type</TableHead>
                                 <TableHead>Libellé</TableHead>
-                                <TableHead>Gravité</TableHead>
+                                <TableHead>Niveau</TableHead>
                                 <TableHead>Audience</TableHead>
-                                <TableHead>Durée max</TableHead>
+                                <TableHead>Durée maximale</TableHead>
                                 <TableHead>Statut</TableHead>
                                 <TableHead />
                             </TableRow>
@@ -157,19 +157,16 @@ export default function SanctionScalesPage() {
                         <TableBody>
                             {scales.map(s => (
                                 <TableRow key={s.id}>
-                                    <TableCell className="font-mono text-xs font-semibold text-primary-700">
-                                        {s.code}
-                                        <span className="block font-sans font-medium text-secondary-500 normal-case tracking-normal mt-0.5">
-                                            {sanctionScaleCodeLabel(s.code)}
-                                        </span>
+                                    <TableCell className="font-medium">
+                                        {sanctionScaleCodeLabel(s.code)}
                                     </TableCell>
                                     <TableCell className="font-medium">{s.label}</TableCell>
                                     <TableCell>{s.severityLevel}</TableCell>
                                     <TableCell>{s.requiresHearing ? 'Oui' : 'Non'}</TableCell>
-                                    <TableCell>{s.maxDurationDays != null ? `${s.maxDurationDays} j` : '—'}</TableCell>
+                                    <TableCell>{s.maxDurationDays != null ? `${s.maxDurationDays} jours` : '—'}</TableCell>
                                     <TableCell>
                                         <Badge variant={s.active ? 'success' : 'secondary'}>
-                                            {s.active ? 'Active' : 'Inactive'}
+                                            {s.active ? 'En vigueur' : 'Désactivée'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -217,12 +214,12 @@ export default function SanctionScalesPage() {
                                             <option value="">Sélectionner…</option>
                                             {(Object.keys(SANCTION_SCALE_CODES) as SanctionScaleCode[]).map(code => (
                                                 <option key={code} value={code}>
-                                                    {code} — {SANCTION_SCALE_CODE_LABELS[code]}
+                                                    {SANCTION_SCALE_CODE_LABELS[code]}
                                                 </option>
                                             ))}
                                         </select>
                                         <p className="mt-1 text-[11px] text-secondary-500">
-                                            WARN = Avertissement · BLAME = Blâme · SUSPEND = Suspension · DISMISS = Licenciement
+                                            Réprimande, avertissement, blâme, suspension ou licenciement.
                                         </p>
                                     </div>
                                     <div>
@@ -236,20 +233,21 @@ export default function SanctionScalesPage() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <Label>Gravité *</Label>
+                                            <Label>Niveau *</Label>
                                             <select
                                                 className="mt-1 w-full h-10 rounded-xl border border-border px-3 text-sm bg-surface"
                                                 value={form.severityLevel}
                                                 onChange={e => setForm(f => ({ ...f, severityLevel: Number(e.target.value) }))}
                                             >
-                                                <option value={1}>1 — Légère</option>
-                                                <option value={2}>2 — Moyenne</option>
-                                                <option value={3}>3 — Grave</option>
-                                                <option value={4}>4 — Très grave</option>
+                                                <option value={1}>1 — Réprimande</option>
+                                                <option value={2}>2 — Avertissement</option>
+                                                <option value={3}>3 — Blâme</option>
+                                                <option value={4}>4 — Suspension</option>
+                                                <option value={5}>5 — Licenciement</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <Label>Durée max (jours)</Label>
+                                            <Label>Durée maximale (jours)</Label>
                                             <input
                                                 type="number"
                                                 min={0}
@@ -274,7 +272,7 @@ export default function SanctionScalesPage() {
                                             checked={form.active}
                                             onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
                                         />
-                                        Active
+                                        En vigueur
                                     </label>
                                 </div>
                                 <div className="flex justify-end gap-2 pt-2">

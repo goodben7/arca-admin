@@ -1,5 +1,6 @@
 import { DocumentRecord } from '@/types/document';
 import { request } from './client';
+import { extractId } from '@/lib/api-iri';
 
 export async function uploadDocument(formData: FormData): Promise<DocumentRecord> {
     const response = await request('/api/documents', {
@@ -12,6 +13,15 @@ export async function uploadDocument(formData: FormData): Promise<DocumentRecord
         throw new Error(errorData.message || 'Erreur lors de l\'envoi du document.');
     }
 
+    return response.json();
+}
+
+export async function getDocumentById(id: string): Promise<DocumentRecord> {
+    const docId = extractId(id) || id;
+    const response = await request(`/api/documents/${docId}`);
+    if (!response.ok) {
+        throw new Error('Document introuvable.');
+    }
     return response.json();
 }
 

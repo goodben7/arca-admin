@@ -12,11 +12,16 @@ import { DisciplinarySummaryCard } from '@/components/sanctions/DisciplinarySumm
 import { getDisciplinaryCases, getDisciplinarySummary } from '@/lib/api/disciplinaryCase';
 import { getSanctionScales } from '@/lib/api/sanctionScale';
 import { getEmployeeJourney } from '@/lib/api/onboarding';
+import { getAbout } from '@/lib/api/auth';
 import { extractId } from '@/lib/api-iri';
+import { canActOnDisciplinaryCase } from '@/lib/permissions';
+import type { AuthUser } from '@/types/auth';
 import type { EmployeeJourneyEntry } from '@/types/onboarding';
 import {
+    DISCIPLINARY_ACTIVE_STATUSES,
     DISCIPLINARY_STATUS_LABELS,
     disciplinaryStatusBadgeVariant,
+    sanctionScaleCodeLabel,
     type DisciplinaryCase,
     type DisciplinaryStatus,
     type DisciplinarySummary,
@@ -38,7 +43,12 @@ export function EmployeeDisciplineTab({ employeeId }: EmployeeDisciplineTabProps
     const [cases, setCases] = useState<DisciplinaryCase[]>([]);
     const [scales, setScales] = useState<SanctionScale[]>([]);
     const [journey, setJourney] = useState<EmployeeJourneyEntry[]>([]);
+    const [user, setUser] = useState<AuthUser | null>(null);
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        getAbout().then(setUser).catch(() => setUser(null));
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -68,11 +78,22 @@ export function EmployeeDisciplineTab({ employeeId }: EmployeeDisciplineTabProps
     }, [employeeId]);
 
     const scaleLabel = (ref: DisciplinaryCase['sanctionScale']) => {
-        if (typeof ref === 'object' && ref?.label) return `${ref.code} — ${ref.label}`;
+        if (typeof ref === 'object' && ref?.label) return ref.label;
         const id = typeof ref === 'string' ? extractId(ref) : ref?.id;
         const s = scales.find(x => x.id === id);
-        return s ? `${s.code} — ${s.label}` : id || '—';
+        return s?.label || (s?.code ? sanctionScaleCodeLabel(s.code) : id) || '—';
     };
+
+    const canCreate = canActOnDisciplinaryCase(user, 'create');
+    const activeCase = cases.find(c =>
+        DISCIPLINARY_ACTIVE_STATUSES.includes(c.status as DisciplinaryStatus),
+    );
+    const createBlocked = !canCreate || !!summary?.hasActiveCase;
+    const createTitle = !canCreate
+        ? 'Permission insuffisante pour créer une affaire'
+        : summary?.hasActiveCase
+            ? 'Une affaire active existe déjà'
+            : undefined;
 
     if (loading) {
         return (
@@ -94,32 +115,36 @@ export function EmployeeDisciplineTab({ employeeId }: EmployeeDisciplineTabProps
                         Synthèse et historique des affaires disciplinaires
                     </p>
                 </div>
-                <Link
-                    href={
-                        summary?.hasActiveCase
-                            ? '#'
-                            : `/m/sanctions/affaires/create?employee=${employeeId}`
-                    }
-                    onClick={e => {
-                        if (summary?.hasActiveCase) e.preventDefault();
-                    }}
-                >
-                    <Button
-                        size="sm"
-                        className="gap-1.5"
-                        disabled={!!summary?.hasActiveCase}
-                        title={summary?.hasActiveCase ? 'Une affaire active existe déjà' : undefined}
+                {activeCase ? (
+                    <Link href={`/m/sanctions/affaires/${activeCase.id}`}>
+                        <Button size="sm" variant="outline" className="gap-1.5">
+                            <Eye className="h-4 w-4" /> Voir l’affaire en cours
+                        </Button>
+                    </Link>
+                ) : (
+                    <Link
+                        href={createBlocked ? '#' : `/m/sanctions/affaires/create?employee=${employeeId}`}
+                        onClick={e => {
+                            if (createBlocked) e.preventDefault();
+                        }}
                     >
-                        <Plus className="h-4 w-4" /> Nouvelle affaire
-                    </Button>
-                </Link>
+                        <Button
+                            size="sm"
+                            className="gap-1.5"
+                            disabled={createBlocked}
+                            title={createTitle}
+                        >
+                            <Plus className="h-4 w-4" /> Nouvelle affaire
+                        </Button>
+                    </Link>
+                )}
             </div>
 
             <DisciplinarySummaryCard summary={summary} />
 
             {journey.length > 0 && (
                 <div className="rounded-xl border border-border-subtle bg-surface p-5">
-                    <p className="text-sm font-semibold text-secondary-900 mb-3">Timeline disciplinaire</p>
+                    <p className="text-sm font-semibold text-secondary-900 mb-3">Chronologie disciplinaire</p>
                     <ul className="space-y-3">
                         {journey.map(ev => (
                             <li key={ev.id} className="flex gap-3 text-sm">
@@ -165,7 +190,7 @@ export function EmployeeDisciplineTab({ employeeId }: EmployeeDisciplineTabProps
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>ID</TableHead>
+                                <TableHead>Référence</TableHead>
                                 <TableHead>Échelle</TableHead>
                                 <TableHead>Faits</TableHead>
                                 <TableHead>Statut</TableHead>

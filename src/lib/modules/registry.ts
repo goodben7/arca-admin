@@ -258,7 +258,7 @@ export const APP_MODULES: AppModule[] = [
     },
     {
         slug: 'sanctions',
-        name: 'Sanctions & Discipline',
+        name: 'Sanctions et discipline',
         shortName: 'Sanctions',
         description: 'Mesures disciplinaires — Code du travail RDC.',
         icon: Scale,

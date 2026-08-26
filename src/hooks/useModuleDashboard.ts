@@ -13,6 +13,9 @@ import { getOnboardingProcesses } from '@/lib/api/onboarding';
 import { getHrDashboard } from '@/lib/api/hrDashboard';
 import { fetchAllCollection } from '@/lib/api/collection';
 import { normalizeList } from '@/lib/modules/dashboard/normalize';
+import type { OnboardingProcess } from '@/types/onboarding';
+import type { AppUser, Profile } from '@/types/profile';
+import type { Department } from '@/types/employee';
 
 export interface ModuleKpi {
     label: string;
@@ -59,9 +62,9 @@ async function fetchPersonnel() {
     ]);
     return {
         employees: employees.items,
-        departments: normalizeList(departments),
+        departments: normalizeList<Department>(departments),
         contracts: contracts.items,
-        onboarding: normalizeList(onboarding),
+        onboarding: normalizeList<OnboardingProcess>(onboarding),
         hr,
         employeeTotal: employees.total,
     };
@@ -126,7 +129,10 @@ async function fetchSecurite() {
         getAllUsers().catch(() => []),
         getAllProfiles().catch(() => []),
     ]);
-    return { users: normalizeList(users), profiles: normalizeList(profiles) };
+    return {
+        users: normalizeList<AppUser & { isActive?: boolean }>(users),
+        profiles: normalizeList<Profile>(profiles),
+    };
 }
 
 const FETCHERS: Record<string, () => Promise<unknown>> = {

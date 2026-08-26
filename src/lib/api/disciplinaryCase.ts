@@ -1,8 +1,10 @@
 import { request } from './client';
-import type {
-    CreateDisciplinaryCasePayload,
-    DisciplinaryCase,
-    DisciplinarySummary,
+import {
+    translateDisciplinaryReason,
+    type CreateDisciplinaryCasePayload,
+    type DisciplinaryCase,
+    type DisciplinarySummary,
+    type RequestExplanationPayload,
 } from '@/types/sanctions';
 import { extractId } from '@/lib/api-iri';
 
@@ -16,7 +18,10 @@ function norm<T>(data: unknown): T[] {
 
 function apiErr(e: Record<string, unknown>): string {
     if (Array.isArray(e['violations'])) {
-        return (e['violations'] as Array<{ message: string }>).map(v => v.message).join(', ');
+        return (e['violations'] as Array<{ message: string }>).map(v => translateDisciplinaryReason(v.message)).join(', ');
+    }
+    if (Array.isArray(e.reasons) && e.reasons.length) {
+        return (e.reasons as unknown[]).map(r => translateDisciplinaryReason(String(r))).join(' ');
     }
     const raw = (e['hydra:description'] as string) || (e.detail as string) || (e.message as string) || 'Une erreur est survenue.';
     const lower = raw.toLowerCase();
@@ -26,7 +31,13 @@ function apiErr(e: Record<string, unknown>): string {
     if (lower.includes('active case')) {
         return 'Une affaire disciplinaire active existe déjà pour cet employé.';
     }
-    return raw;
+    if (lower.includes('acknowledge') && lower.includes('recidiv')) {
+        return 'Confirmez que vous restez au même niveau de sanction (récidive).';
+    }
+    if (lower.includes('de-escalat') || lower.includes('lower severity')) {
+        return 'Il n’est pas possible de choisir un niveau inférieur à la dernière sanction.';
+    }
+    return translateDisciplinaryReason(raw);
 }
 
 async function postAction(path: string, body: Record<string, unknown> | FormData): Promise<DisciplinaryCase | void> {
@@ -73,6 +84,7 @@ export async function createDisciplinaryCase(data: CreateDisciplinaryCasePayload
             facts: data.facts,
             occurredAt: data.occurredAt,
             reason: data.reason || null,
+            ...(data.acknowledgeRecidivism ? { acknowledgeRecidivism: true } : {}),
         }),
     });
     if (!res.ok) {
@@ -88,6 +100,17 @@ export async function openDisciplinaryCase(disciplinaryCaseId: string): Promise<
     });
 }
 
+export async function requestExplanation(
+    disciplinaryCaseId: string,
+    payload: RequestExplanationPayload = {},
+): Promise<DisciplinaryCase | void> {
+    return postAction('/api/disciplinary_cases/explanations', {
+        disciplinaryCaseId: extractId(disciplinaryCaseId),
+        ...(payload.explanationDueAt ? { explanationDueAt: payload.explanationDueAt } : {}),
+        ...(payload.explanationText ? { explanationText: payload.explanationText } : {}),
+    });
+}
+
 export async function scheduleHearing(
     disciplinaryCaseId: string,
     hearingAt: string,
@@ -100,11 +123,12 @@ export async function scheduleHearing(
 
 export async function decideDisciplinaryCase(
     disciplinaryCaseId: string,
-    reason?: string,
+    options?: { reason?: string; acknowledgeRecidivism?: boolean },
 ): Promise<DisciplinaryCase | void> {
     return postAction('/api/disciplinary_cases/decisions', {
         disciplinaryCaseId: extractId(disciplinaryCaseId),
-        ...(reason ? { reason } : {}),
+        ...(options?.reason ? { reason: options.reason } : {}),
+        ...(options?.acknowledgeRecidivism ? { acknowledgeRecidivism: true } : {}),
     });
 }
 

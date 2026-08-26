@@ -127,18 +127,34 @@ function AppIconRail({
     onNavigate?: () => void;
 }) {
     return (
-        <aside className="flex h-full w-[68px] shrink-0 flex-col items-center border-r border-border-subtle/70 bg-[#f4f7f9] py-3">
+        <aside className="relative flex h-full w-[68px] shrink-0 flex-col items-center overflow-hidden border-r border-primary-100/70 bg-gradient-to-b from-primary-50 via-[#f4f7f9] to-accent-yellow-500/10 py-3">
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-[2] flex w-[3px] flex-col" aria-hidden>
+                <span className="flex-[3] bg-primary-500" />
+                <span className="flex-1 bg-accent-red-500" />
+                <span className="flex-1 bg-accent-yellow-500" />
+            </div>
+            <div className="module-sidebar-ambient" aria-hidden>
+                <div className="absolute -left-6 top-16 h-24 w-24 rounded-full bg-primary-500/20 blur-2xl" />
+                <div className="absolute -right-8 bottom-20 h-20 w-20 rounded-full bg-accent-yellow-500/25 blur-2xl" />
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src="/logo_arca_nouveau-2.png"
+                alt=""
+                aria-hidden
+                className="module-sidebar-watermark module-sidebar-watermark-collapsed pointer-events-none"
+            />
             <Link
                 href="/apps"
                 onClick={onNavigate}
-                className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.04]"
+                className="relative z-[1] mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-primary-200/60"
                 title="ARCA SIRH"
             >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo_arca_nouveau-2.png" alt="ARCA" className="h-7 w-7 object-contain" />
             </Link>
 
-            <nav className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto px-2">
+            <nav className="relative z-[1] flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto px-2">
                 <RailIcon
                     href="/apps"
                     title="Tableau de bord"
@@ -162,7 +178,7 @@ function AppIconRail({
                 })}
             </nav>
 
-            <div className="mt-auto flex flex-col items-center gap-1 px-2 pt-3">
+            <div className="relative z-[1] mt-auto flex flex-col items-center gap-1 px-2 pt-3">
                 <div className="mb-1 h-px w-8 bg-secondary-200" />
                 <RailIcon
                     href="/m/securite/settings"
@@ -239,13 +255,30 @@ function AppNavPanel({
     const subtitle = isHub ? 'Hub ressources humaines' : (module?.name || '');
 
     return (
-        <aside className="flex h-full w-56 shrink-0 flex-col border-r border-border-subtle bg-white">
-            <div className="shrink-0 px-4 py-4">
+        <aside className="relative flex h-full w-56 shrink-0 flex-col overflow-hidden border-r border-primary-100/80 bg-gradient-to-b from-white via-primary-50/50 to-accent-yellow-500/[0.07]">
+            <div className="flex h-1 shrink-0" aria-hidden>
+                <div className="flex-[3] bg-primary-500" />
+                <div className="flex-1 bg-accent-red-500" />
+                <div className="flex-1 bg-accent-yellow-500" />
+            </div>
+            <div className="module-sidebar-ambient" aria-hidden>
+                <div className="absolute -left-10 top-12 h-40 w-40 rounded-full bg-primary-500/15 blur-3xl" />
+                <div className="absolute -right-8 bottom-28 h-32 w-32 rounded-full bg-accent-yellow-500/20 blur-3xl" />
+                <div className="absolute left-8 bottom-10 h-24 w-24 rounded-full bg-accent-red-500/10 blur-2xl" />
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src="/logo_arca_nouveau-2.png"
+                alt=""
+                aria-hidden
+                className="module-sidebar-watermark pointer-events-none"
+            />
+            <div className="relative z-[1] shrink-0 px-4 py-4">
                 <p className="truncate text-[15px] font-semibold text-secondary-900">{title}</p>
                 <p className="mt-0.5 truncate text-[12px] text-secondary-500">{subtitle}</p>
             </div>
 
-            <nav className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+            <nav className="relative z-[1] min-h-0 flex-1 overflow-y-auto px-3 pb-3">
                 {isHub ? (
                     <HubMenu onNavigate={onNavigate} />
                 ) : module ? (
@@ -253,7 +286,7 @@ function AppNavPanel({
                 ) : null}
             </nav>
 
-            <div className="shrink-0 px-3 py-3">
+            <div className="relative z-[1] shrink-0 px-3 py-3">
                 <button
                     type="button"
                     onClick={onLogout}

@@ -21,6 +21,7 @@ export function canManageDisciplinaryCases(user: AuthUser | null | undefined): b
 export function canActOnDisciplinaryCase(user: AuthUser | null | undefined, action: string): boolean {
     const map: Record<string, string> = {
         open: 'ROLE_DISCIPLINARY_CASE_OPEN',
+        explain: 'ROLE_DISCIPLINARY_CASE_REQUEST_EXPLANATION',
         hearing: 'ROLE_DISCIPLINARY_CASE_SCHEDULE_HEARING',
         decide: 'ROLE_DISCIPLINARY_CASE_DECIDE',
         apply: 'ROLE_DISCIPLINARY_CASE_APPLY',

@@ -27,7 +27,10 @@ export default function SanctionsOverviewPage() {
         const month = now.getMonth();
         const year = now.getFullYear();
         return {
-            opened: cases.filter(c => c.status === DISCIPLINARY_STATUS.OPENED).length,
+            opened: cases.filter(c =>
+                c.status === DISCIPLINARY_STATUS.OPENED
+                || c.status === DISCIPLINARY_STATUS.EXPLANATION_REQUESTED
+            ).length,
             hearing: cases.filter(c => c.status === DISCIPLINARY_STATUS.HEARING_SCHEDULED).length,
             decision: cases.filter(c => c.status === DISCIPLINARY_STATUS.DECISION_PENDING).length,
             appliedMonth: cases.filter(c => {
@@ -52,7 +55,7 @@ export default function SanctionsOverviewPage() {
     return (
         <PageShell>
             <PageHeader
-                title="Sanctions & Discipline"
+                title="Sanctions et discipline"
                 description="Procédures disciplinaires conformes au Code du travail"
                 actions={
                     <Link href="/m/sanctions/affaires/create">
@@ -71,7 +74,7 @@ export default function SanctionsOverviewPage() {
 
             <PageKpiStrip
                 items={[
-                    { label: 'Ouvertes', value: stats.opened, icon: Gavel },
+                    { label: 'En instruction', value: stats.opened, icon: Gavel },
                     { label: 'En audience', value: stats.hearing, icon: Scale },
                     { label: 'À décider', value: stats.decision, icon: ClipboardList },
                     { label: 'Appliquées (mois)', value: stats.appliedMonth, icon: CheckCircle2 },
@@ -92,7 +95,7 @@ export default function SanctionsOverviewPage() {
                 >
                     <p className="font-semibold text-secondary-900">Échelles de sanctions</p>
                     <p className="mt-1 text-sm text-secondary-500">
-                        Référentiel : Avertissement · Blâme · Suspension · Licenciement
+                        Référentiel : Réprimande · Avertissement · Blâme · Suspension · Licenciement
                     </p>
                 </Link>
             </div>

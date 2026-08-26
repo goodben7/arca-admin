@@ -42,7 +42,7 @@ const PRINCIPAL: NavEntry[] = [
 const PILOTAGE: NavEntry[] = [
     { label: 'Évaluation & Performance', href: '/m/performance', icon: Target, match: 'prefix' },
     { label: 'Rapports & BI', href: '/m/pilotage/reports', icon: FileBarChart, match: 'prefix' },
-    { label: 'Sanctions & Discipline', href: '/m/sanctions', icon: Scale, match: 'prefix' },
+    { label: 'Sanctions et discipline', href: '/m/sanctions', icon: Scale, match: 'prefix' },
     { label: 'Administration', href: '/m/securite', icon: Settings, match: 'prefix' },
 ];
 

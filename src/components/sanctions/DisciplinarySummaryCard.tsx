@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertTriangle, Scale, ShieldAlert } from 'lucide-react';
-import type { DisciplinarySummary } from '@/types/sanctions';
+import { AlertTriangle, CheckCircle2, Scale, ShieldAlert, TrendingUp } from 'lucide-react';
+import { sanctionScaleCodeLabel, translateDisciplinaryReason, type DisciplinarySummary } from '@/types/sanctions';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -28,12 +28,38 @@ export function DisciplinarySummaryCard({ summary, loading, className }: Discipl
         );
     }
 
+    const clean = (summary.appliedSanctionCount ?? 0) < 1 && !summary.hasActiveCase;
+
+    if (clean) {
+        return (
+            <div className={cn('flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3.5', className)}>
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                    <p className="text-sm font-semibold text-emerald-900">Aucun historique disciplinaire</p>
+                    <p className="text-xs text-emerald-800 mt-0.5">Tous les niveaux de sanction sont disponibles pour une première affaire.</p>
+                </div>
+            </div>
+        );
+    }
+
+    const suggestedLabel = summary.suggestedNextLabel
+        || (summary.suggestedNextCode ? sanctionScaleCodeLabel(summary.suggestedNextCode) : null);
+
     return (
         <div className={cn('rounded-xl border border-border-subtle bg-surface p-5 space-y-4', className)}>
             {summary.hasActiveCase && (
                 <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>Une affaire disciplinaire est déjà en cours — nouvelle création bloquée.</span>
+                    <span>Une affaire est déjà en cours — impossible d’en ouvrir une autre tant qu’elle n’est pas close.</span>
+                </div>
+            )}
+
+            {summary.requiresAcknowledgement && !summary.hasActiveCase && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                        Récidive au même niveau : une confirmation vous sera demandée. Un niveau supérieur est recommandé.
+                    </span>
                 </div>
             )}
 
@@ -45,12 +71,19 @@ export function DisciplinarySummaryCard({ summary, loading, className }: Discipl
                 />
                 <Stat
                     icon={<ShieldAlert className="h-4 w-4" />}
-                    label="Gravité max"
-                    value={summary.maxSeverityLevel != null ? String(summary.maxSeverityLevel) : '—'}
+                    label="Niveau le plus élevé"
+                    value={
+                        summary.maxSeverityLevel != null
+                            ? `${summary.maxSeverityLevel} sur 5`
+                            : '—'
+                    }
                 />
                 <Stat
-                    label="Dernière échelle"
-                    value={summary.lastSanctionLabel || summary.lastSanctionCode || '—'}
+                    label="Dernière sanction"
+                    value={
+                        summary.lastSanctionLabel
+                        || (summary.lastSanctionCode ? sanctionScaleCodeLabel(summary.lastSanctionCode) : '—')
+                    }
                 />
                 <Stat
                     label="Dernière application"
@@ -62,10 +95,29 @@ export function DisciplinarySummaryCard({ summary, loading, className }: Discipl
                 />
             </div>
 
+            {suggestedLabel && !summary.hasActiveCase && (
+                <div className="flex items-start gap-2 rounded-lg border border-primary-100 bg-primary-50/70 px-3 py-2.5 text-sm text-primary-900">
+                    <TrendingUp className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>Niveau recommandé : {suggestedLabel}.</span>
+                </div>
+            )}
+
             {summary.isRepeatOffender && (
                 <p className="text-xs font-medium text-rose-700">
-                    Récidive signalée — historique disciplinaire non vide.
+                    Une sanction a déjà été appliquée à ce collaborateur.
                 </p>
+            )}
+
+            {(summary.reasons?.length ?? 0) > 0 && (
+                <ul className="text-xs text-secondary-600 list-disc pl-4 space-y-0.5">
+                    {[...new Set(
+                        summary.reasons!
+                            .map(translateDisciplinaryReason)
+                            .filter(reason => !suggestedLabel || !/recommandé de passer/i.test(reason)),
+                    )].map((reason, i) => (
+                        <li key={i}>{reason}</li>
+                    ))}
+                </ul>
             )}
         </div>
     );
